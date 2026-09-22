@@ -1,0 +1,19 @@
+#!/bin/sh
+set -eu
+
+repository_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+
+(
+  cd "$repository_root/renderer"
+  mise exec -- zig fmt build.zig src
+)
+
+(
+  cd "$repository_root/host/core"
+  mise exec -- env -u MIX_HOME -u MIX_ARCHIVES mix format
+)
+
+(
+  cd "$repository_root/host/macos"
+  swift format format --in-place --recursive Sources Package.swift
+)

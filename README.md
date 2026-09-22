@@ -76,6 +76,20 @@ only a timed sequence of cached still images.
 See [docs/README.md](docs/README.md) for specifications, evidence, and open
 validation gates.
 
+## Development
+
+The research preview includes an Elixir library/simulator core, an isolated Zig
+raster worker, and a SwiftUI menu-bar preview shell. Run every implemented
+format, static-analysis, test, fuzz, and release-build gate with:
+
+```sh
+make check
+```
+
+See the [software verification map](docs/architecture/verification.md) for the
+requirement-to-test links and the evidence that remains open.
+
 ## License
 
-License selection is intentionally open until the first implementation lands.
+License selection remains an open release gate. Until a license file is added,
+the repository does not grant reuse rights beyond those provided by law.

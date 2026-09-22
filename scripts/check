@@ -1,0 +1,60 @@
+#!/bin/sh
+set -eu
+
+repository_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+
+check_policy() {
+  prohibited_files=$(
+    git -C "$repository_root" ls-files --cached --others --exclude-standard -- \
+      '*.py' '*.pyi' 'requirements*.txt' 'pyproject.toml'
+  )
+
+  if [ -n "$prohibited_files" ]; then
+    echo "Repository-owned Python files are prohibited:" >&2
+    echo "$prohibited_files" >&2
+    return 1
+  fi
+}
+
+check_renderer() {
+  (
+    cd "$repository_root/renderer"
+    mise exec -- zig fmt --check build.zig src
+    mise exec -- zig build test
+    mise exec -- zig build -Doptimize=ReleaseSafe
+  )
+}
+
+check_core() {
+  (
+    cd "$repository_root/host/core"
+    mise exec -- env -u MIX_HOME -u MIX_ARCHIVES mix check
+    mise exec -- env -u MIX_HOME -u MIX_ARCHIVES mix hex.audit
+  )
+}
+
+check_macos() {
+  (
+    cd "$repository_root/host/macos"
+    swift format lint --recursive --strict Sources Package.swift
+    swift run frameshift-shell-checks
+    swift build --product frameshift-menu -c release
+  )
+}
+
+case "${1:-all}" in
+  all)
+    check_policy
+    check_renderer
+    check_core
+    check_macos
+    ;;
+  policy) check_policy ;;
+  renderer) check_renderer ;;
+  core) check_core ;;
+  macos) check_macos ;;
+  *)
+    echo "usage: scripts/check [all|policy|renderer|core|macos]" >&2
+    exit 64
+    ;;
+esac

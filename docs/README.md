@@ -15,6 +15,7 @@ component or community demo does not silently become architecture.
 - [Capability model](architecture/capabilities.md)
 - [Content pipeline](architecture/content-pipeline.md)
 - [Implementation plan](architecture/implementation-plan.md)
+- [Software verification map](architecture/verification.md)
 
 ## Host
 

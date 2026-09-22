@@ -1,0 +1,47 @@
+name: Check
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core-and-renderer:
+    name: Elixir core and Zig renderer
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@v4
+        with:
+          version: 2026.9.11
+      - name: Install Elixir dependencies
+        working-directory: host/core
+        run: mix deps.get
+      - name: Check repository policy
+        run: ./scripts/check policy
+      - name: Check Zig renderer
+        run: ./scripts/check renderer
+      - name: Check Elixir core
+        run: ./scripts/check core
+
+  macos-shell:
+    name: Swift macOS shell
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Report Swift toolchain
+        run: swift --version
+      - name: Check Swift shell
+        run: ./scripts/check macos

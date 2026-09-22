@@ -20,7 +20,7 @@ electronics, packaging, security review, or certification.
 | A durable canonical RGBA object is read back with digest verification, renders once, reuses the artifact cache, queues, and converges in-process | Core/renderer/simulator | `Frameshift.LibraryTest`, `Frameshift.RenderPipelineTest` | Component evidence only; real decode, transport, and installed flow remain open |
 | One explicitly selected generation provider preflights, times out, caches exact repeats, and persists no provider context | Core generation | `Frameshift.GenerationTest` | Implemented with fixture providers only |
 | Production core configuration is relocatable, boots with an explicit renderer path, and serves the versioned local protocol | Elixir core/Swift shell | `scripts/check-core-release`, `frameshift-ipc-probe` | Implemented with a real Swift-to-release round trip |
-| Menu extra remains a snapshot/command client, uses authoritative durable core state, and works with no generation provider | Swift shell/core | `Frameshift.LocalIPC.ServerTest`, `Frameshift.LocalAPITest`, `frameshift-shell-checks`, `frameshift-ipc-probe` | Implemented for import/instruction/pin/remove; pairing, render/send commands, session authentication, and bundled launch remain open |
+| Menu extra remains a snapshot/command client, launches the bundled OTP core and Zig worker, uses authoritative durable core state, and works with no generation provider | Swift shell/core | `Frameshift.LocalIPC.ServerTest`, `Frameshift.LocalAPITest`, `frameshift-shell-checks`, `frameshift-ipc-probe`, `scripts/check-packaged-app` | Implemented for import/instruction/pin/remove and ad-hoc bundled launch; pairing, render/send commands, session authentication, service registration, and signed distribution remain open |
 | Repository-owned build and checks contain no Python; shell and workflow files pass pinned linters | Repository policy | `scripts/check policy`, CI workflow | Enforced for tracked and untracked source files |
 
 ## Open evidence gates
@@ -38,8 +38,8 @@ The following remain open and must not be inferred from the automated rows:
   interoperability over mutually authenticated TLS;
 - real AI provider preflight, provenance, cost/privacy disclosure, cancellation,
   and local-only network isolation;
-- VoiceOver/manual accessibility acceptance, background lifecycle, embedded
-  core packaging, Developer ID signing, hardened runtime, and notarization;
+- VoiceOver/manual accessibility acceptance, Service Management background
+  lifecycle, Developer ID signing, hardened runtime, and notarization;
 - project license selection and third-party release notices.
 
 Run all implemented software checks from the repository root:

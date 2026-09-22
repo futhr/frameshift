@@ -91,14 +91,16 @@ static-analysis, test, fuzz, and release-build gate with:
 make check
 ```
 
-On macOS, build the current ad-hoc-signed Swift-only development bundle with:
+On macOS, build the current ad-hoc-signed development bundle with its embedded
+Elixir core and Zig renderer with:
 
 ```sh
 ./scripts/package-macos
 ```
 
-The generated `.app` is for local inspection only. It does not yet embed the
-Elixir core or Zig worker and is not Developer ID signed or notarized.
+The generated `.app` is for local inspection and automated installed-flow
+checks. It is not Developer ID signed or notarized, and background service
+registration is not yet implemented.
 
 See the [software verification map](docs/architecture/verification.md) for the
 requirement-to-test links and the evidence that remains open.

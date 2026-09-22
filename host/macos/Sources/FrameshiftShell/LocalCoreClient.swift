@@ -45,6 +45,10 @@ public actor LocalCoreClient: CoreClient {
       .path
   }
 
+  public static func shutdownBundledCore() async {
+    await BundledCore.shared.shutdown()
+  }
+
   private func prepare(_ command: CoreCommand) throws -> CoreCommand {
     guard command.kind == .importFile else { return command }
     guard let path = command.importPath else { throw CoreClientError.invalidCommand }
@@ -58,14 +62,15 @@ public actor LocalCoreClient: CoreClient {
       throw CoreClientError.invalidCommand
     }
 
-    let path = socketPath
-    let responseData = try await Task.detached(priority: .userInitiated) {
-      try UnixSocket.exchange(
-        path: path,
-        payload: payload,
-        maximumResponseBytes: Self.maximumResponseBytes
-      )
-    }.value
+    try await BundledCore.shared.ensureRunning(socketPath: socketPath)
+
+    let responseData: Data
+    do {
+      responseData = try await send(payload)
+    } catch CoreClientError.coreUnavailable {
+      try await BundledCore.shared.ensureRunning(socketPath: socketPath, force: true)
+      responseData = try await send(payload)
+    }
 
     let response: WireResponse
     do {
@@ -83,6 +88,17 @@ public actor LocalCoreClient: CoreClient {
     }
 
     throw Self.clientError(for: response.error?.code)
+  }
+
+  private func send(_ payload: Data) async throws -> Data {
+    let path = socketPath
+    return try await Task.detached(priority: .userInitiated) {
+      try UnixSocket.exchange(
+        path: path,
+        payload: payload,
+        maximumResponseBytes: Self.maximumResponseBytes
+      )
+    }.value
   }
 
   private static func inspectImage(at url: URL) throws -> ImportMetadata {
@@ -134,6 +150,99 @@ public actor LocalCoreClient: CoreClient {
     case "invalid_command", "invalid_dimensions", "invalid_orientation", "invalid_color_profile":
       .invalidCommand
     default: .protocolFailure
+    }
+  }
+}
+
+private actor BundledCore {
+  static let shared = BundledCore()
+
+  private var process: Process?
+
+  func ensureRunning(socketPath: String, force: Bool = false) async throws {
+    if !force, FileManager.default.fileExists(atPath: socketPath) { return }
+
+    if process?.isRunning != true {
+      process = try launch(socketPath: socketPath)
+    }
+
+    for _ in 0..<100 {
+      if FileManager.default.fileExists(atPath: socketPath) { return }
+      if process?.isRunning == false { throw CoreClientError.coreUnavailable }
+      try await Task.sleep(for: .milliseconds(50))
+    }
+
+    throw CoreClientError.coreUnavailable
+  }
+
+  func shutdown() {
+    guard let process, process.isRunning else { return }
+    process.terminate()
+    self.process = nil
+  }
+
+  private func launch(socketPath: String) throws -> Process {
+    guard let resources = Bundle.main.resourceURL else {
+      throw CoreClientError.coreUnavailable
+    }
+
+    let coreExecutable = resources.appendingPathComponent(
+      "core/bin/frameshift_core",
+      isDirectory: false
+    )
+    let renderer = resources.appendingPathComponent(
+      "bin/frameshift-raster",
+      isDirectory: false
+    )
+    let launcher = resources.appendingPathComponent(
+      "bin/launch-bundled-core",
+      isDirectory: false
+    )
+    guard FileManager.default.isExecutableFile(atPath: coreExecutable.path),
+      FileManager.default.isExecutableFile(atPath: renderer.path),
+      FileManager.default.isExecutableFile(atPath: launcher.path)
+    else {
+      throw CoreClientError.coreUnavailable
+    }
+
+    let socketURL = URL(fileURLWithPath: socketPath)
+    let dataDirectory = socketURL.deletingLastPathComponent()
+    do {
+      try FileManager.default.createDirectory(
+        at: dataDirectory,
+        withIntermediateDirectories: true
+      )
+      try FileManager.default.setAttributes(
+        [.posixPermissions: 0o700],
+        ofItemAtPath: dataDirectory.path
+      )
+    } catch {
+      throw CoreClientError.coreUnavailable
+    }
+
+    var environment = ProcessInfo.processInfo.environment
+    environment["FRAMESHIFT_DATA_DIR"] =
+      environment["FRAMESHIFT_DATA_DIR"] ?? dataDirectory.path
+    environment["FRAMESHIFT_SOCKET_PATH"] = socketPath
+    environment["FRAMESHIFT_RENDERER_PATH"] = renderer.path
+    environment["ERL_CRASH_DUMP"] = dataDirectory.appendingPathComponent("erl_crash.dump").path
+    environment["ERL_CRASH_DUMP_SECONDS"] = "0"
+    environment["FRAMESHIFT_CORE_PID_FILE"] =
+      dataDirectory.appendingPathComponent("core.pid").path
+    environment["RELEASE_DISTRIBUTION"] = "none"
+
+    let child = Process()
+    child.executableURL = launcher
+    child.arguments = [String(getpid()), coreExecutable.path]
+    child.environment = environment
+    child.standardOutput = FileHandle.nullDevice
+    child.standardError = FileHandle.nullDevice
+
+    do {
+      try child.run()
+      return child
+    } catch {
+      throw CoreClientError.coreUnavailable
     }
   }
 }

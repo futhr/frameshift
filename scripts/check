@@ -18,7 +18,9 @@ check_policy() {
   mise exec -- shellcheck \
     "$repository_root/scripts/check" \
     "$repository_root/scripts/check-core-release" \
+    "$repository_root/scripts/check-packaged-app" \
     "$repository_root/scripts/format" \
+    "$repository_root/scripts/launch-bundled-core" \
     "$repository_root/scripts/package-macos" \
     "$repository_root/host/core/test/fixtures/hanging-worker.sh"
   mise exec -- actionlint "$repository_root/.github/workflows/check.yml"
@@ -54,10 +56,15 @@ check_macos() {
 
   app_bundle="$repository_root/host/macos/.build/artifacts/Frameshift.app"
   test -x "$app_bundle/Contents/MacOS/Frameshift"
+  test -x "$app_bundle/Contents/Resources/bin/frameshift-raster"
+  test -x "$app_bundle/Contents/Resources/bin/launch-bundled-core"
+  test -x "$app_bundle/Contents/Resources/core/bin/frameshift_core"
   plutil -lint "$app_bundle/Contents/Info.plist" >/dev/null
   codesign --verify --deep --strict "$app_bundle"
   test "$(plutil -extract CFBundlePackageType raw "$app_bundle/Contents/Info.plist")" = "APPL"
   test "$(plutil -extract LSUIElement raw "$app_bundle/Contents/Info.plist")" = "true"
+
+  "$repository_root/scripts/check-packaged-app" "$app_bundle"
 }
 
 case "${1:-all}" in

@@ -49,6 +49,7 @@ esac
 
 FRAMESHIFT_DATA_DIR="$runtime_root/data" \
 FRAMESHIFT_RENDERER_PATH="$renderer_path" \
+RELEASE_DISTRIBUTION=none \
   "$release_root/bin/frameshift_core" start >"$runtime_root/release.log" 2>&1 &
 release_pid=$!
 

@@ -1,0 +1,87 @@
+#!/bin/sh
+set -eu
+
+repository_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+app_bundle=${1:-"$repository_root/host/macos/.build/artifacts/Frameshift.app"}
+app="$app_bundle/Contents/MacOS/Frameshift"
+core="$app_bundle/Contents/Resources/core/bin/frameshift_core"
+renderer="$app_bundle/Contents/Resources/bin/frameshift-raster"
+runtime_root=$(mktemp -d "${TMPDIR:-/tmp}/frameshift-package-check.XXXXXX")
+app_pid=''
+managed_core_pid=''
+
+cleanup() {
+  if [ -n "$app_pid" ] && kill -0 "$app_pid" 2>/dev/null; then
+    kill "$app_pid" 2>/dev/null || true
+    wait "$app_pid" 2>/dev/null || true
+  fi
+
+  if [ -n "$managed_core_pid" ] && kill -0 "$managed_core_pid" 2>/dev/null; then
+    kill "$managed_core_pid" 2>/dev/null || true
+  fi
+
+  rm -rf "$runtime_root"
+}
+
+trap cleanup EXIT HUP INT TERM
+
+test -x "$core"
+test -x "$renderer"
+
+FRAMESHIFT_DATA_DIR="$runtime_root/data" \
+FRAMESHIFT_SOCKET_PATH="$runtime_root/data/core.sock" \
+ERL_CRASH_DUMP="$runtime_root/erl-crash.dump" \
+ERL_CRASH_DUMP_SECONDS=0 \
+  "$app" >"$runtime_root/app.log" 2>&1 &
+app_pid=$!
+
+attempt=0
+while [ "$attempt" -lt 50 ]; do
+  if ! kill -0 "$app_pid" 2>/dev/null; then
+    cat "$runtime_root/app.log" >&2
+    exit 1
+  fi
+
+  if [ -S "$runtime_root/data/core.sock" ]; then
+    break
+  fi
+
+  attempt=$((attempt + 1))
+  sleep 0.1
+done
+
+if [ ! -S "$runtime_root/data/core.sock" ] || [ ! -f "$runtime_root/data/core.pid" ]; then
+  echo "packaged core did not create its local socket" >&2
+  cat "$runtime_root/app.log" >&2
+  exit 1
+fi
+
+managed_core_pid=$(cat "$runtime_root/data/core.pid")
+case "$managed_core_pid" in
+  '' | *[!0-9]*)
+    echo "packaged core wrote an invalid pid file" >&2
+    exit 1
+    ;;
+esac
+
+FRAMESHIFT_SOCKET_PATH="$runtime_root/data/core.sock" \
+  swift run \
+    --package-path "$repository_root/host/macos" \
+    frameshift-ipc-probe
+
+kill "$app_pid"
+wait "$app_pid" 2>/dev/null || true
+app_pid=''
+
+attempt=0
+while [ "$attempt" -lt 40 ] && kill -0 "$managed_core_pid" 2>/dev/null; do
+  attempt=$((attempt + 1))
+  sleep 0.05
+done
+
+if kill -0 "$managed_core_pid" 2>/dev/null; then
+  echo "packaged app did not stop its managed core" >&2
+  exit 1
+fi
+
+managed_core_pid=''

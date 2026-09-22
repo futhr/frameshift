@@ -38,3 +38,9 @@ Development and production startup supervise the worker at
 `FRAMESHIFT_RENDERER_PATH` to the bundled executable path when assembling a
 release. Tests build and start the worker explicitly so a failed renderer build
 or wire incompatibility fails the renderer integration tests directly.
+
+Production releases require `FRAMESHIFT_RENDERER_PATH` at runtime rather than
+capturing a build-machine path. The repository check assembles the OTP release,
+starts it with isolated data, verifies metadata initialization, and terminates
+it cleanly. Embedding and supervising that release from the Swift app remain a
+separate packaging and IPC gate.

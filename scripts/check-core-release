@@ -1,0 +1,86 @@
+#!/bin/sh
+set -eu
+
+repository_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+core_root="$repository_root/host/core"
+renderer_path="$repository_root/renderer/zig-out/bin/frameshift-raster"
+release_root="$core_root/_build/prod/rel/frameshift_core"
+runtime_root=$(mktemp -d "${TMPDIR:-/tmp}/frameshift-release-check.XXXXXX")
+release_pid=''
+
+cleanup() {
+  if [ -n "$release_pid" ] && kill -0 "$release_pid" 2>/dev/null; then
+    kill "$release_pid" 2>/dev/null || true
+    wait "$release_pid" 2>/dev/null || true
+  fi
+
+  rm -rf "$runtime_root"
+}
+
+trap cleanup EXIT HUP INT TERM
+
+(
+  cd "$core_root"
+  mise exec -- env -u MIX_HOME -u MIX_ARCHIVES MIX_ENV=prod mix release --overwrite
+)
+
+set +e
+missing_path_output=$(
+  env -u FRAMESHIFT_RENDERER_PATH \
+    ERL_CRASH_DUMP="$runtime_root/missing-path.dump" \
+    ERL_CRASH_DUMP_SECONDS=0 \
+    "$release_root/bin/frameshift_core" eval ':ok' 2>&1
+)
+missing_path_status=$?
+set -e
+
+if [ "$missing_path_status" -eq 0 ]; then
+  echo "production release started without FRAMESHIFT_RENDERER_PATH" >&2
+  exit 1
+fi
+
+case "$missing_path_output" in
+  *"FRAMESHIFT_RENDERER_PATH is required in production"*) ;;
+  *)
+    printf '%s\n' "$missing_path_output" >&2
+    exit 1
+    ;;
+esac
+
+FRAMESHIFT_DATA_DIR="$runtime_root/data" \
+FRAMESHIFT_RENDERER_PATH="$renderer_path" \
+  "$release_root/bin/frameshift_core" start >"$runtime_root/release.log" 2>&1 &
+release_pid=$!
+
+attempt=0
+while [ "$attempt" -lt 50 ]; do
+  if ! kill -0 "$release_pid" 2>/dev/null; then
+    cat "$runtime_root/release.log" >&2
+    exit 1
+  fi
+
+  if [ -f "$runtime_root/data/metadata.sqlite" ]; then
+    break
+  fi
+
+  attempt=$((attempt + 1))
+  sleep 0.1
+done
+
+if [ ! -f "$runtime_root/data/metadata.sqlite" ]; then
+  echo "production release did not initialize its metadata store" >&2
+  cat "$runtime_root/release.log" >&2
+  exit 1
+fi
+
+sleep 1
+
+if ! kill -0 "$release_pid" 2>/dev/null; then
+  echo "production release exited after initialization" >&2
+  cat "$runtime_root/release.log" >&2
+  exit 1
+fi
+
+kill "$release_pid"
+wait "$release_pid"
+release_pid=''

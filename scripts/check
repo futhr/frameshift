@@ -31,6 +31,8 @@ check_core() {
     mise exec -- env -u MIX_HOME -u MIX_ARCHIVES mix check
     mise exec -- env -u MIX_HOME -u MIX_ARCHIVES mix hex.audit
   )
+
+  "$repository_root/scripts/check-core-release"
 }
 
 check_macos() {

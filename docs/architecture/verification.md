@@ -17,6 +17,7 @@ packaging, or certification.
 | Native failure cannot terminate the BEAM; timeout or malformed response restarts a clean worker owner | Core/renderer | `Frameshift.RendererTest` | Implemented with an external Zig port |
 | A verified canonical master renders once, reuses the artifact cache, queues, and converges on current state | Core/renderer/simulator | `Frameshift.RenderPipelineTest` | Implemented for canonical RGBA8 and the experimental RGB24 profile |
 | One explicitly selected generation provider preflights, times out, caches exact repeats, and persists no provider context | Core generation | `Frameshift.GenerationTest` | Implemented with fixture providers only |
+| Production core configuration is relocatable and boots with an explicit renderer path | Elixir core | `scripts/check-core-release` | Implemented as an isolated OTP release smoke check |
 | Menu extra remains a snapshot/command client and works with no generation provider | Swift shell | `frameshift-shell-checks`, ad-hoc `.app` packaging check | Implemented with the preview client |
 | Repository-owned build and checks contain no Python | Repository policy | `scripts/check policy`, shellcheck, CI workflow | Enforced for tracked source files |
 

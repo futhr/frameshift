@@ -17,7 +17,7 @@ packaging, or certification.
 | Native failure cannot terminate the BEAM; timeout or malformed response restarts a clean worker owner | Core/renderer | `Frameshift.RendererTest` | Implemented with an external Zig port |
 | A verified canonical master renders once, reuses the artifact cache, queues, and converges on current state | Core/renderer/simulator | `Frameshift.RenderPipelineTest` | Implemented for canonical RGBA8 and the experimental RGB24 profile |
 | One explicitly selected generation provider preflights, times out, caches exact repeats, and persists no provider context | Core generation | `Frameshift.GenerationTest` | Implemented with fixture providers only |
-| Menu extra remains a snapshot/command client and works with no generation provider | Swift shell | `frameshift-shell-checks`, release build | Implemented with the preview client |
+| Menu extra remains a snapshot/command client and works with no generation provider | Swift shell | `frameshift-shell-checks`, ad-hoc `.app` packaging check | Implemented with the preview client |
 | Repository-owned build and checks contain no Python | Repository policy | `scripts/check policy`, shellcheck, CI workflow | Enforced for tracked source files |
 
 ## Open evidence gates
@@ -33,8 +33,8 @@ The following remain open and must not be inferred from the automated rows:
   handoff;
 - real AI provider preflight, provenance, cost/privacy disclosure, cancellation,
   and local-only network isolation;
-- VoiceOver/manual accessibility acceptance, background lifecycle, `.app`
-  packaging, signing, hardened runtime, and notarization;
+- VoiceOver/manual accessibility acceptance, background lifecycle, embedded
+  core packaging, Developer ID signing, hardened runtime, and notarization;
 - project license selection and third-party release notices.
 
 Run all implemented software checks from the repository root:

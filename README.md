@@ -86,6 +86,15 @@ format, static-analysis, test, fuzz, and release-build gate with:
 make check
 ```
 
+On macOS, build the ad-hoc-signed Swift-shell research bundle with:
+
+```sh
+./scripts/package-macos
+```
+
+The generated `.app` is for local inspection only. It does not yet embed the
+Elixir core or Zig worker and is not Developer ID signed or notarized.
+
 See the [software verification map](docs/architecture/verification.md) for the
 requirement-to-test links and the evidence that remains open.
 

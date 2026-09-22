@@ -1,0 +1,49 @@
+#!/bin/sh
+set -eu
+
+repository_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+package_root="$repository_root/host/macos"
+artifact_root="$package_root/.build/artifacts"
+app_bundle="$artifact_root/Frameshift.app"
+
+swift build \
+  --package-path "$package_root" \
+  --configuration release \
+  --product frameshift-menu
+
+binary_directory=$(
+  swift build \
+    --package-path "$package_root" \
+    --configuration release \
+    --show-bin-path
+)
+
+mkdir -p "$artifact_root"
+staging_root=$(mktemp -d "$artifact_root/.package.XXXXXX")
+stage="$staging_root/Frameshift.app"
+
+cleanup() {
+  if [ -n "${staging_root:-}" ] && [ -d "$staging_root" ]; then
+    rm -rf "$staging_root"
+  fi
+}
+
+trap cleanup EXIT HUP INT TERM
+
+mkdir -p "$stage/Contents/MacOS" "$stage/Contents/Resources"
+install -m 755 "$binary_directory/frameshift-menu" "$stage/Contents/MacOS/Frameshift"
+install -m 644 "$package_root/App/Info.plist" "$stage/Contents/Info.plist"
+
+plutil -lint "$stage/Contents/Info.plist" >/dev/null
+codesign --force --sign - --timestamp=none "$stage"
+codesign --verify --deep --strict "$stage"
+
+if [ -e "$app_bundle" ]; then
+  rm -rf "$app_bundle"
+fi
+
+mv "$stage" "$app_bundle"
+rmdir "$staging_root"
+staging_root=''
+
+printf '%s\n' "$app_bundle"

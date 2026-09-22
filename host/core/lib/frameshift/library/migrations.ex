@@ -119,6 +119,29 @@ defmodule Frameshift.Library.Migrations do
          queued_at_ms INTEGER NOT NULL
        ) STRICT
        """
+     ]},
+    {3,
+     [
+       """
+       CREATE TABLE generation_results (
+         recipe_hash TEXT PRIMARY KEY REFERENCES recipes(hash) ON DELETE RESTRICT,
+         master_digest TEXT NOT NULL REFERENCES masters(digest) ON DELETE RESTRICT,
+         provider_result_id TEXT,
+         provenance_json TEXT NOT NULL,
+         created_at_ms INTEGER NOT NULL
+       ) STRICT
+       """,
+       """
+       INSERT INTO generation_results(
+         recipe_hash, master_digest, provider_result_id, provenance_json, created_at_ms
+       )
+       SELECT m.generation_recipe_hash, m.digest, NULL, m.provenance_json, o.created_at_ms
+       FROM masters m
+       JOIN objects o ON o.digest = m.digest
+       WHERE m.generation_recipe_hash IS NOT NULL
+       ON CONFLICT(recipe_hash) DO NOTHING
+       """,
+       "CREATE INDEX generation_results_master ON generation_results(master_digest)"
      ]}
   ]
 

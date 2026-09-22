@@ -61,6 +61,21 @@ defmodule Frameshift.Library do
     )
   end
 
+  @spec add_generated_master(server(), iodata(), map(), digest()) ::
+          {:ok, map()} | {:error, term()}
+  def add_generated_master(server \\ __MODULE__, bytes, attributes, generation_recipe_hash) do
+    GenServer.call(
+      server,
+      {:add_generated_master, bytes, attributes, generation_recipe_hash},
+      :infinity
+    )
+  end
+
+  @spec cached_generation(server(), digest()) :: {:ok, map()} | :not_found
+  def cached_generation(server \\ __MODULE__, recipe_hash) do
+    GenServer.call(server, {:cached_generation, recipe_hash})
+  end
+
   @spec register_artifact(server(), iodata(), map()) :: {:ok, map()} | {:error, term()}
   def register_artifact(server \\ __MODULE__, bytes, attributes) do
     GenServer.call(server, {:register_artifact, bytes, attributes}, :infinity)
@@ -180,6 +195,15 @@ defmodule Frameshift.Library do
     {:reply, import_master_record(state, bytes, attributes, parent_digest, recipe_hash), state}
   end
 
+  def handle_call({:add_generated_master, bytes, attributes, recipe_hash}, _from, state) do
+    attributes = Map.put(attributes, :source_kind, :generated)
+    {:reply, import_master_record(state, bytes, attributes, nil, recipe_hash), state}
+  end
+
+  def handle_call({:cached_generation, recipe_hash}, _from, state) do
+    {:reply, cached_generation_record(state, recipe_hash), state}
+  end
+
   def handle_call({:register_recipe, kind, parameters, source_digests}, _from, state) do
     {:reply, do_register_recipe(state, kind, parameters, source_digests), state}
   end
@@ -287,14 +311,26 @@ defmodule Frameshift.Library do
 
   defp import_master_record(state, bytes, attributes, parent_digest, recipe_hash) do
     with :ok <- validate_master_attributes(attributes),
+         :ok <- validate_master_relationship(attributes, parent_digest, recipe_hash),
          :ok <- validate_parent_recipe(state, parent_digest, recipe_hash),
-         {:ok, digest, byte_count, placement} <- ContentStore.put(state.data_dir, bytes),
-         {:ok, master} <-
-           insert_master(state, digest, byte_count, attributes, parent_digest, recipe_hash) do
-      {:ok, Map.put(master, :placement, placement)}
+         :not_found <- existing_generation(state, recipe_hash),
+         {:ok, digest, byte_count, placement} <- ContentStore.put(state.data_dir, bytes) do
+      insert_master(state, digest, byte_count, attributes, parent_digest, recipe_hash, placement)
+    else
+      {:cached, master} -> {:ok, Map.put(master, :placement, :existing)}
+      error -> error
     end
   rescue
     error in Exqlite.Error -> {:error, {:database, error.message}}
+  end
+
+  defp existing_generation(_state, nil), do: :not_found
+
+  defp existing_generation(state, recipe_hash) do
+    case cached_generation_record(state, recipe_hash) do
+      {:ok, master} -> {:cached, master}
+      :not_found -> :not_found
+    end
   end
 
   defp validate_master_attributes(attributes) when is_map(attributes) do
@@ -306,6 +342,15 @@ defmodule Frameshift.Library do
   end
 
   defp validate_master_attributes(_attributes), do: {:error, :invalid_attributes}
+
+  defp validate_master_relationship(%{source_kind: :import}, nil, nil), do: :ok
+
+  defp validate_master_relationship(%{source_kind: :generated}, _parent, recipe_hash)
+       when is_binary(recipe_hash),
+       do: :ok
+
+  defp validate_master_relationship(_attributes, _parent, _recipe_hash),
+    do: {:error, :invalid_master_relationship}
 
   defp validate_master_values(attributes) do
     validations = [
@@ -324,6 +369,18 @@ defmodule Frameshift.Library do
 
   defp validate_parent_recipe(_state, nil, nil), do: :ok
 
+  defp validate_parent_recipe(state, nil, recipe_hash) do
+    with true <- Digest.valid_sha256?(recipe_hash),
+         {:ok, %{"kind" => "generation"}} <-
+           query_one(state.connection, "SELECT kind FROM recipes WHERE hash = ?", [recipe_hash]) do
+      :ok
+    else
+      false -> {:error, :invalid_digest}
+      :not_found -> {:error, :parent_or_recipe_missing}
+      {:ok, _wrong_kind} -> {:error, :not_generation_recipe}
+    end
+  end
+
   defp validate_parent_recipe(state, parent_digest, recipe_hash) do
     with true <- Digest.valid_sha256?(parent_digest),
          true <- Digest.valid_sha256?(recipe_hash),
@@ -338,7 +395,15 @@ defmodule Frameshift.Library do
     end
   end
 
-  defp insert_master(state, digest, byte_count, attributes, parent_digest, recipe_hash) do
+  defp insert_master(
+         state,
+         digest,
+         byte_count,
+         attributes,
+         parent_digest,
+         recipe_hash,
+         placement
+       ) do
     now = now_ms()
     provenance_json = RFC8785.encode!(attributes.provenance)
     source_kind = Atom.to_string(attributes.source_kind)
@@ -379,11 +444,47 @@ defmodule Frameshift.Library do
         ]
       )
 
+      if recipe_hash do
+        Exqlite.query!(
+          connection,
+          """
+          INSERT INTO generation_results(
+            recipe_hash, master_digest, provider_result_id, provenance_json, created_at_ms
+          ) VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT(recipe_hash) DO UPDATE SET
+            master_digest = excluded.master_digest,
+            provider_result_id = excluded.provider_result_id,
+            provenance_json = excluded.provenance_json,
+            created_at_ms = excluded.created_at_ms
+          """,
+          [
+            recipe_hash,
+            digest,
+            Map.get(attributes.provenance, "resultId"),
+            provenance_json,
+            now
+          ]
+        )
+      end
+
       audit(connection, "master.imported", digest, %{"sourceKind" => source_kind})
       :ok
     end)
+    |> case do
+      {:ok, :ok} -> inserted_master_record(state, digest, recipe_hash, placement)
+      {:error, %Exqlite.Error{message: message}} -> {:error, {:database, message}}
+      {:error, reason} -> {:error, reason}
+    end
+  end
 
-    get_master_record(state, digest)
+  defp inserted_master_record(state, digest, nil, placement) do
+    with {:ok, master} <- get_master_record(state, digest),
+         do: {:ok, Map.put(master, :placement, placement)}
+  end
+
+  defp inserted_master_record(state, _digest, recipe_hash, placement) do
+    with {:ok, master} <- cached_generation_record(state, recipe_hash),
+         do: {:ok, Map.put(master, :placement, placement)}
   end
 
   defp do_register_recipe(state, kind, parameters, source_digests)
@@ -715,6 +816,43 @@ defmodule Frameshift.Library do
          ) do
       {:ok, master} -> {:ok, decode_master_row(master)}
       :not_found -> :not_found
+    end
+  end
+
+  defp cached_generation_record(state, recipe_hash) do
+    case query_one(
+           state.connection,
+           """
+           SELECT gr.master_digest AS digest, gr.provider_result_id,
+                  gr.provenance_json AS generation_provenance_json
+           FROM generation_results gr
+           JOIN masters m ON m.digest = gr.master_digest
+           WHERE gr.recipe_hash = ? AND m.removed_at_ms IS NULL
+           """,
+           [recipe_hash]
+         ) do
+      {:ok, generation} -> generation_master_record(state, recipe_hash, generation)
+      :not_found -> :not_found
+    end
+  end
+
+  defp generation_master_record(
+         state,
+         recipe_hash,
+         %{
+           "digest" => digest,
+           "provider_result_id" => provider_result_id,
+           "generation_provenance_json" => provenance_json
+         }
+       ) do
+    with {:ok, master} <- get_master_record(state, digest) do
+      generation = %{
+        "recipe_hash" => recipe_hash,
+        "provider_result_id" => provider_result_id,
+        "provenance" => JSON.decode!(provenance_json)
+      }
+
+      {:ok, Map.put(master, "generation", generation)}
     end
   end
 

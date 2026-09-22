@@ -16,6 +16,7 @@ packaging, or certification.
 | Fixed-point crop, nearest/bilinear resize, alpha composition, caller-supplied palette, and deterministic dither | Zig renderer | Zig golden, boundary, malformed-input, and parser-fuzz tests | Implemented for experimental generic profiles |
 | Native failure cannot terminate the BEAM; timeout or malformed response restarts a clean worker owner | Core/renderer | `Frameshift.RendererTest` | Implemented with an external Zig port |
 | A verified canonical master renders once, reuses the artifact cache, queues, and converges on current state | Core/renderer/simulator | `Frameshift.RenderPipelineTest` | Implemented for canonical RGBA8 and the experimental RGB24 profile |
+| One explicitly selected generation provider preflights, times out, caches exact repeats, and persists no provider context | Core generation | `Frameshift.GenerationTest` | Implemented with fixture providers only |
 | Menu extra remains a snapshot/command client and works with no generation provider | Swift shell | `frameshift-shell-checks`, release build | Implemented with the preview client |
 | Repository-owned build and checks contain no Python | Repository policy | `scripts/check policy`, shellcheck, CI workflow | Enforced for tracked source files |
 

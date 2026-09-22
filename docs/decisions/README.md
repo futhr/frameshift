@@ -103,3 +103,16 @@ evidence, but it must change explicitly.
   caching, playlists, and display operation work without a Frameshift cloud.
 - **Consequence:** AI providers, remote access, and managed firmware services
   are optional adapters, never prerequisites for showing existing artwork.
+
+## D-010 — Prototype metadata boundary
+
+- **State:** accepted for research-preview implementation; release gates remain
+- **Decision:** One Frameshift-owned OTP process serializes metadata access
+  through Exqlite. The first implementation uses direct SQL and numbered
+  migrations rather than Ecto. Immutable artwork bytes remain in the
+  content-addressed file store.
+- **Consequence:** Transaction and reference-protection invariants stay in one
+  owner. No other module receives the database connection. The Exqlite NIF is a
+  packaging and crash-recovery validation dependency and does not inherit the
+  Zig worker's process-isolation claim.
+- **Detail:** [SQLite and Elixir boundary](../research/sqlite-elixir-boundary.md)

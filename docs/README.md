@@ -37,6 +37,7 @@ component or community demo does not silently become architecture.
 
 - [Hardware platforms and power feasibility](research/hardware-platforms.md)
 - [Software stack](research/software-stack.md)
+- [SQLite and Elixir boundary](research/sqlite-elixir-boundary.md)
 - [AI image generation](research/ai-image-generation.md)
 - [Protocol foundations](research/protocol-foundations.md)
 - [Prior art and libraries](research/prior-art-and-libraries.md)

@@ -25,7 +25,8 @@ security review, or explicit later product choice.
 
 - Can a notarized macOS bundle reliably supervise an Elixir release and Zig
   worker through login, upgrade, crash, sleep, and logout?
-- Which SQLite/Elixir boundary gives the simplest durable single-owner store?
+- Does the prototype-selected direct Exqlite boundary pass hardened-runtime,
+  notarization, upgrade, and crash-recovery tests in the bundled macOS host?
 - What is the oldest supported macOS version for current Vision,
   MediaGenerationKit, MenuBarExtra, and ServiceManagement behavior?
 - Does MediaGenerationKit's LGPL-3.0 distribution and model-license set fit the

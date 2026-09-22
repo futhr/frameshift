@@ -22,7 +22,8 @@ Frameshift Core (Elixir/OTP release)
   +--> AI provider adapters
          local MediaGenerationKit / local Ollama / optional cloud APIs
 
-LAN: HTTPS + W3C WoT TD profile
+LAN: W3C WoT TD/TM + advertised authenticated Forms
+     reference HTTPS binding; qualified constrained bindings may coexist
   v
 Thin Frame Agent (MCU-class; Zig reference direction)
   | verified asset store, desired/current state, playlist, health
@@ -46,11 +47,19 @@ Candidate libraries must be pinned and revalidated when implementation starts:
 
 | Need | Candidate | Use boundary |
 | --- | --- | --- |
+| WoT value/runtime | Pinned Wotex `wotex` and `wotex_runtime` packages | Bounded TD/TM admission, extension preservation, deterministic Form selection, typed requests/results, and explicit credential/transport ports. Frameshift retains state, policy, binary assets, and effect truth. |
+| WoT HTTP mapping | Pinned `wotex_binding_http` plus a Frameshift-owned client | JSON Property/Action and SSE mapping only. It is not the binary artifact binding, TLS policy, HTTP server, or physical-effect proof. |
 | HTTP client | `Req` | Disable automatic redirects and retries for frame writes; set absolute operation deadlines. |
 | HTTP server for simulator/optional Nerves bridge | `Plug` + `Bandit` | Small explicit router; not a dependency of MCU firmware. |
 | Metadata database | `Exqlite`/SQLite | Host only; single owning process and migrations. A native upstream dependency is acceptable, but custom native code remains Zig. |
 | Host JSON | `Jason` or OTP-native equivalent available at implementation time | Bounded decode; reject duplicate/unknown required fields; preserve TD extensions. MCU parsing is a separate Zig selection. |
 | Discovery | macOS Network framework/Bonjour through Swift; `mdns_lite` on Nerves | Advertise only the privacy-minimal introduction record. |
+
+The Wotex packages were inspected in the sibling checkout at the immutable
+revision recorded in [protocol foundations](protocol-foundations.md). They are
+not published to Hex at that revision; a release dependency must pin every
+selected package to the same commit and pass archive, license, and clean-
+consumer qualification. A sibling path is development-only.
 
 Req is convenient but enables redirect and retry steps by default. Frameshift
 must construct a restricted request pipeline for mutations rather than inherit
@@ -194,7 +203,7 @@ own native logic stays Zig.
 
 ## Qualification gates
 
-The stack is ready for implementation only after these short spikes:
+The stack is release-qualified only after these gates:
 
 1. bundle and notarize a Swift menu app with a per-user Elixir release;
 2. survive core and raster-worker crashes without losing a queued job;

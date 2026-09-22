@@ -5,7 +5,7 @@
 
 ## Decision
 
-The research-preview host uses Exqlite directly behind one Frameshift-owned
+The current host implementation uses Exqlite directly behind one Frameshift-owned
 OTP process. Ecto is not part of the initial persistence boundary. The choice
 remains subject to macOS bundle, migration, crash-recovery, and license review
 before a prototype release.
@@ -65,9 +65,9 @@ pass.
 
 Exqlite calls SQLite through dirty NIFs. A defect in that dependency does not
 have the process isolation required of the project-owned Zig raster worker.
-The dependency is accepted for a research preview because SQLite is the
-specified metadata engine and the host needs an in-process driver, but it does
-not inherit the renderer's crash-containment claim.
+The dependency is selected because SQLite is the specified metadata engine and
+the host needs an in-process driver, but it does not inherit the renderer's
+crash-containment claim. Release qualification remains mandatory.
 
 The project license is unresolved. MIT is permissive, but the complete release
 license inventory still needs approval. Current source inspection also does not
@@ -79,7 +79,7 @@ One domain process serializes every metadata mutation and is the only module
 given the database connection. Direct Exqlite keeps transaction boundaries
 next to the invariants they protect and avoids a second application state model.
 SQL migrations remain numbered files executed in one transaction. Read paths
-also pass through the owner for the research preview; this can be measured
+also pass through the owner in the current implementation; this can be measured
 before adding any read pool.
 
 The content-addressed file store commits bytes with a temporary file, sync, and

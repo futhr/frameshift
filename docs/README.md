@@ -1,8 +1,14 @@
 # Frameshift Documentation
 
-Frameshift uses specification-driven development. Requirements, decisions,
-research evidence, and unresolved validation are kept distinct so an attractive
-component or community demo does not silently become architecture.
+Frameshift uses specification-driven development. Requirements describe the
+complete product independently of current implementation maturity. Decisions,
+research evidence, implementation status, and unresolved validation remain
+separate so a partial component cannot silently redefine product scope.
+
+The specifications are not an MVP or demo brief. A requirement remains in
+force until an explicit decision changes it. Hardware vendors and revisions are
+allowed early as concrete capability instances; they never become hard-coded
+protocol branches.
 
 ## Decisions
 
@@ -10,6 +16,7 @@ component or community demo does not silently become architecture.
 
 ## Architecture and protocol
 
+- [Product definition and completion contract](product-definition.md)
 - [System architecture](architecture/system.md)
 - [Frame Protocol](architecture/frame-protocol.md)
 - [Capability model](architecture/capabilities.md)
@@ -45,13 +52,16 @@ component or community demo does not silently become architecture.
 - [Display technologies](research/display-technologies.md)
 - [Open questions](research/open-questions.md)
 
-## Status vocabulary
+## Evidence vocabulary
 
-- **Research:** a direction is being investigated.
+- **Specified:** required by the complete product contract.
+- **Research:** evidence for a direction is being investigated.
 - **Candidate:** evidence suggests it may fit, but a required test is missing.
 - **Validated:** the exact revision passed a named, recorded test.
 - **Reference:** an interoperable implementation target, not a commercial SKU.
 - **Prototype:** a physical/software build intended to invalidate assumptions.
 
-Nothing is production-ready until its exact hardware revision, firmware,
-mechanics, thermals, safety, and recovery behavior have been measured.
+These terms describe evidence, not smaller product editions. Nothing is
+production-ready until the software release and each claimed hardware revision
+have passed their named functional, security, lifecycle, mechanical, thermal,
+safety, and recovery gates.

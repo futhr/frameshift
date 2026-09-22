@@ -4,7 +4,7 @@ This OTP application owns Frameshift's durable library and protocol state. It
 does not own macOS presentation, Apple framework calls, raster transforms, or
 frame electronics.
 
-The current research-preview slice provides:
+The current partial core implementation provides:
 
 - embedded Frame Protocol v0.1 schema validation with no runtime schema fetch;
 - a single-owner SQLite library backed by immutable content-addressed files;
@@ -16,7 +16,7 @@ The current research-preview slice provides:
   acknowledgement checks, and current/previous-known-good reference rotation;
 - a supervised, single-job Zig renderer port with bounded framing, typed worker
   failures, explicit deadlines, diagnostic redaction, and restart-on-failure;
-- a canonical RGBA8 research pipeline that binds source digests to composition
+- a canonical RGBA8 component pipeline that binds source digests to composition
   recipes, cached artifacts, outboxes, and simulator convergence;
 - an explicit still-generation provider contract with preflight, deadline,
   canonical cache, provenance, and no retry or fallback;

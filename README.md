@@ -1,16 +1,17 @@
 # Frameshift
 
-![Status: Research](https://img.shields.io/badge/status-research-blue)
-![Maturity: Experimental](https://img.shields.io/badge/maturity-experimental-orange)
-![Stage: Prototype](https://img.shields.io/badge/stage-prototype-red)
+![Product scope: Complete specification](https://img.shields.io/badge/product%20scope-complete%20specification-blue)
+![Implementation: In progress](https://img.shields.io/badge/implementation-in%20progress-orange)
+![Release evidence: Incomplete](https://img.shields.io/badge/release%20evidence-incomplete-red)
 
 > [!WARNING]
-> **Frameshift is an experimental open-source research project.** It is not a
-> finished product, certified electrical design, or purchase guide. Hardware,
-> protocols, dimensions, power, and software will change after physical tests.
+> **Frameshift is not yet a finished or certified product.** The specifications
+> define the complete intended product; the implementation and evidence ledgers
+> state what is currently proven. Unfinished implementation must never be used
+> to silently reduce the product specification.
 
-Frameshift explores thin digital art frames that behave as much like framed
-artwork as their display technology permits. A minimal macOS menu-bar app
+Frameshift is a system for thin digital art frames that behave as much like
+framed artwork as their display technology permits. A native macOS menu-bar app
 imports or generates a still image, renders exact artifacts for a frame, and
 then gets out of the way.
 
@@ -22,7 +23,10 @@ then gets out of the way.
 | **Photo Frame** | large matte IPS/LVDS/eDP | Needs continuous power while visible |
 | **Pixel Frame** | low-resolution HUB75 RGB matrix | Needs continuous, potentially high-current power |
 
-These are reference media, not product SKUs. Thinness is mandatory. Zero
+These are interoperable reference classes, not a closed list of product SKUs.
+Any vendor or custom frame can participate when it truthfully describes its
+capabilities and implements a compatible protocol binding. Thinness is
+mandatory. Zero
 visible cable is a priority during hardware and mounting research, not a hard
 requirement. For emissive frames it requires a powered mount, concealed supply,
 or carefully routed cable; it does not mean the display uses no power.
@@ -78,15 +82,16 @@ validation gates.
 
 ## Development
 
-The research preview includes an Elixir library/simulator core, an isolated Zig
-raster worker, and a SwiftUI menu-bar preview shell. Run every implemented
-format, static-analysis, test, fuzz, and release-build gate with:
+The current partial implementation includes an Elixir library/simulator core,
+an isolated Zig raster worker, and a SwiftUI shell. This is implementation
+status, not the product scope or a release tier. Run every implemented format,
+static-analysis, test, fuzz, and release-build gate with:
 
 ```sh
 make check
 ```
 
-On macOS, build the ad-hoc-signed Swift-shell research bundle with:
+On macOS, build the current ad-hoc-signed Swift-only development bundle with:
 
 ```sh
 ./scripts/package-macos

@@ -3,29 +3,45 @@
 **Status:** normative draft for Frame Protocol v0.1
 
 Frameshift targets declared physical and artifact capabilities, not product
-names. A model identifier may select a measured quirk profile, but the host
-must render from explicit capabilities.
+names. Specific vendor hardware is welcome and may be selected early. Its exact
+revision becomes a capability instance and measured artifact/display-adapter
+profile; it never creates a vendor branch in the universal interaction model.
 
 The words MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY are interpreted as in
 [RFC 8174](https://datatracker.ietf.org/doc/html/rfc8174).
 
-## W3C WoT envelope
+## W3C WoT envelope and Thing Model
 
-A paired frame MUST expose a W3C Thing Description 1.1. The document MUST use
-the W3C 1.1 context and MAY add the draft Frameshift context
-`urn:frameshift:td:v0`. Network code MUST NOT dereference either context while
-parsing a frame.
+A paired frame MUST expose a W3C Thing Description 1.1 that instantiates the
+Frameshift Frame Thing Model. The document MUST use the W3C 1.1 context and MAY
+add the versioned Frameshift context `urn:frameshift:td:v0`. Network code MUST
+NOT dereference a context, schema, vocabulary, or Thing Model while admitting a
+frame response.
 
 The TD uses:
 
 - properties for capabilities, health, desired asset, current asset, display
   state, brightness, and playlist state;
-- actions for pairing lifecycle, storage collection, display retry, identify,
-  and firmware update when supported;
-- forms to bind those interactions to HTTPS resources.
+- actions for asset installation/collection, desired state, playlist
+  replacement, display retry, pairing lifecycle, identify, and firmware update
+  when supported;
+- events for bounded state-change and display-completion notification when
+  supported; and
+- forms to bind those interactions to one or more qualified transports.
 
 Unknown namespaced extensions MUST survive read/modify/write tooling. Unknown
-required protocol-major versions MUST be rejected.
+optional extensions MUST NOT block otherwise compatible interactions. Unknown
+required semantic, binding, security, or artifact profiles MUST be rejected
+before transport or rendering; the host never guesses a downgrade.
+
+The host selects operations by semantic affordance name, compatible Form, and
+artifact profile. It MUST NOT select endpoints, renderer behavior, or security
+policy from a vendor or model string.
+
+The TD's top-level `profile` member lists required Frameshift semantic and
+binding profiles as URI identifiers. The v0.1 semantic identifier is
+`urn:frameshift:profile:frame:0.1`. Profiles are Frameshift contracts; the
+project does not claim conformance to the W3C WoT Profiles Working Draft.
 
 ## Required capability groups
 
@@ -33,8 +49,8 @@ required protocol-major versions MUST be rejected.
 
 | Field | Requirement |
 | --- | --- |
-| `protocolMajor` | Integer; incompatible change boundary |
-| `protocolMinor` | Integer; additive change level |
+| `protocolMajor` | Frameshift semantic profile incompatible-change boundary |
+| `protocolMinor` | Frameshift semantic profile additive level |
 | `deviceId` | Stable opaque identifier; no owner/location semantics |
 | `hardwareRevision` | Exact board/panel assembly revision |
 | `firmwareVersion` | Immutable build/version identifier |
@@ -105,9 +121,16 @@ The frame declares:
 - maximum playlist length.
 
 An artifact profile is an atomic compatibility unit. Matching only MIME type is
-not sufficient.
+not sufficient. It can name an exact vendor panel, controller, palette,
+waveform, packing, gamma, or electrical limit after those properties have been
+qualified. That name selects bytes and adapter behavior; it does not alter the
+Frame Thing affordances.
 
-## Reference classes
+## Reference capability classes
+
+These classes are reusable examples and conformance cohorts, not an exhaustive
+device list. A frame that does not call itself Paper, Photo, or Pixel remains
+compatible when its declared capabilities and Forms satisfy the contract.
 
 ### Paper
 

@@ -1,6 +1,6 @@
 # macOS Host
 
-**Status:** draft implementation specification
+**Status:** normative product specification; implementation evidence tracked separately
 
 ## Role
 
@@ -25,7 +25,7 @@ Frameshift.app
        |-- metadata store
        |-- content-addressed files
        |-- job/outbox supervisors
-       |-- Frame Protocol client/server
+       |-- WoT Consumer/ExposedThing runtime + binding clients/servers
        `-- frameshift-raster (supervised Zig executable)
 ```
 
@@ -43,10 +43,13 @@ one owner, one deadline, bounded input, explicit cancellation, and one terminal
 result. Queues are bounded. Provider and frame failures are typed data, not
 crashes or prose parsed from logs.
 
-The core owns network policy. Its HTTP client disables automatic mutation
-redirects and hidden retries. Frame credentials are fetched from the Swift
-Keychain bridge only at the transport boundary and immediately discarded after
-request construction.
+The core owns network policy. It validates Thing Descriptions, selects
+advertised compatible Forms deterministically, and never derives an endpoint
+from a vendor name. Its binding clients disable automatic mutation redirects
+and hidden retries. Frame credentials are fetched from the Swift Keychain
+bridge only at the transport boundary and immediately discarded after request
+construction. A successful binding exchange is not accepted as display truth;
+the core reconciles the frame `state` Property or completion Event.
 
 ### Zig raster worker
 
@@ -122,8 +125,10 @@ contact,” not “offline.”
 
 ## Discovery and pairing
 
-The Swift layer uses Bonjour/Network framework to browse the minimal DNS-SD
-records. Full metadata appears only after certificate authentication. Pairing
+The Swift layer uses Bonjour/Network framework to browse privacy-minimal WoT
+Introduction records. The core retrieves and admits the full TD only after
+binding authentication, then selects interactions from its Forms. Full metadata
+appears only after authorization. Pairing
 shows the device fingerprint or QR confirmation, requires the frame's physical
 pair mode, stores host credentials in Keychain, and records a friendly name
 only on the Mac unless the user explicitly writes it to the frame.

@@ -63,11 +63,15 @@ evidence, but it must change explicitly.
 ## D-006 — W3C WoT capability envelope
 
 - **State:** accepted for protocol v0.1
-- **Decision:** A frame describes its properties and actions with a constrained
-  W3C Web of Things Thing Description 1.1 profile. Frameshift adds a small
-  namespaced display vocabulary instead of inventing a new capability language.
+- **Decision:** Frames and host outboxes use W3C Web of Things Thing Description
+  1.1 and reusable Thing Models. Frameshift adds a small namespaced still-display
+  vocabulary. Properties, Actions, Events, and Forms separate semantic
+  interactions from HTTPS, CoAP, MQTT, BLE, Matter, or gateway bindings.
 - **Consequence:** Implementations preserve unknown extensions, bound parsing,
-  and do not fetch remote JSON-LD contexts at runtime.
+  do not fetch remote JSON-LD contexts at runtime, select advertised Forms
+  deterministically, and never derive compatibility or endpoints from a vendor
+  name. Exact hardware revisions remain first-class artifact/display-adapter
+  profile data.
 - **Detail:** [Frame Protocol](../architecture/frame-protocol.md) and
   [protocol foundations](../research/protocol-foundations.md)
 
@@ -104,11 +108,11 @@ evidence, but it must change explicitly.
 - **Consequence:** AI providers, remote access, and managed firmware services
   are optional adapters, never prerequisites for showing existing artwork.
 
-## D-010 — Prototype metadata boundary
+## D-010 — Host metadata boundary
 
-- **State:** accepted for research-preview implementation; release gates remain
+- **State:** accepted; release qualification gates remain
 - **Decision:** One Frameshift-owned OTP process serializes metadata access
-  through Exqlite. The first implementation uses direct SQL and numbered
+  through Exqlite. The implementation uses direct SQL and numbered
   migrations rather than Ecto. Immutable artwork bytes remain in the
   content-addressed file store.
 - **Consequence:** Transaction and reference-protection invariants stay in one
@@ -116,3 +120,23 @@ evidence, but it must change explicitly.
   packaging and crash-recovery validation dependency and does not inherit the
   Zig worker's process-isolation claim.
 - **Detail:** [SQLite and Elixir boundary](../research/sqlite-elixir-boundary.md)
+
+## D-011 — Universal WoT interaction boundary
+
+- **State:** accepted; implementation and interoperability gates remain
+- **Decision:** Frameshift semantics are defined as W3C WoT Thing Models,
+  Thing Descriptions, affordances, DataSchemas, and Forms. The reference HTTPS
+  binding is one transport mapping, not the protocol identity. Additional
+  bindings may coexist when they preserve the same state and effect contract.
+- **Consequence:** Hosts consume advertised Forms and preserve unknown optional
+  extensions. Required unknown profiles fail explicitly. Specific vendors,
+  panels, controllers, and packers are represented by exact capability and
+  artifact-profile data, not conditional endpoint logic.
+- **Implementation reference:** The sibling Wotex checkout supplies patterns
+  for bounded admission, deterministic selection, explicit credential and
+  transport ports, supervised subscriptions, and evidence-scoped conformance.
+  Frameshift may consume pinned Wotex packages after dependency qualification;
+  it still owns binary artifact transfer, transport security policy, canonical
+  state, and proof of physical display effects.
+- **Detail:** [Protocol foundations](../research/protocol-foundations.md) and
+  [Universal Frame Protocol](../architecture/frame-protocol.md)

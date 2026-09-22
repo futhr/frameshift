@@ -3,7 +3,7 @@ defmodule Frameshift.RenderPipeline do
   Connects a verified canonical RGBA8 master to the isolated renderer and
   immutable artifact cache.
 
-  Image decoding remains an Apple-system boundary. This research-preview entry
+  Image decoding remains an Apple-system boundary. This generic-profile entry
   point therefore accepts only RGBA8 bytes whose digest is the registered master
   digest; it cannot silently render pixels unrelated to the recipe source.
   """

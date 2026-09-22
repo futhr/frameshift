@@ -1,6 +1,6 @@
 # System Architecture
 
-**Status:** draft implementation architecture
+**Status:** normative product architecture; implementation evidence tracked separately
 **Scope:** still images only
 
 ## Goal
@@ -26,9 +26,10 @@ Elixir/OTP Core ─────── content-addressed library + metadata datab
   +── supervised Zig raster worker
   |       crop / scale / quantize / dither / pack
   |
-  +── Frame Protocol client + sleeping-frame outbox
+  +── WoT Consumer/ExposedThing + sleeping-frame outbox
              |
-       local authenticated network
+       advertised authenticated Forms
+       HTTPS reference · qualified additional bindings
         _________|__________
        /         |          \
   Paper MCU   Photo MCU   Pixel MCU
@@ -52,6 +53,11 @@ Owns the library, generation recipes, render jobs, provider selection, frame
 registry, schedules, outboxes, synchronization, retries that are explicitly
 safe, and the audit trail. Its state survives the UI process.
 
+It also owns the Frameshift W3C WoT consumer/exposed-Thing policy: bounded TD
+and Thing Model admission, deterministic Form selection, authorization,
+transport ownership, canonical frame state, and effect reconciliation. A
+binding result is protocol evidence, not proof that a panel refreshed.
+
 ### Zig raster worker
 
 Owns deterministic project-specific image transforms. It is a supervised
@@ -64,6 +70,11 @@ Owns device identity, bounded protocol parsing, two-phase asset storage,
 desired/current display state, still-image playlist timing, adapter sequencing,
 health, and recoverable signed firmware updates. It is MCU-class reference
 hardware; Frameshift reference builds contain no Raspberry Pi hardware.
+
+Every frame presents the same semantic affordances through a Thing Description.
+The agent may implement HTTPS directly, a qualified constrained-device binding,
+or an authenticated gateway Form. Hardware and vendor identities select exact
+artifact/display-adapter profiles, never a different host interaction model.
 
 ### Display adapter
 

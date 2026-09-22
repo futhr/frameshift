@@ -1,108 +1,180 @@
 # Protocol Foundations
 
 **Research date:** 2026-09-22
+**Evidence state:** selected standards and implementation reference
 
-**Outcome:** HTTPS on the local network, DNS-SD introduction, a constrained W3C
-WoT Thing Description 1.1 profile, immutable digest-addressed assets, and atomic
-desired-state activation.
+## Outcome
 
-## Standards reused
+Frameshift uses the W3C Web of Things interaction model as its universal IoT
+boundary. Frames and host outboxes are Things described by Thing Description
+1.1 documents; reusable behavior is described by Thing Models; properties,
+actions, events, and Forms keep display semantics independent from transports
+and hardware vendors.
+
+Frameshift adds only the vocabulary needed for immutable still assets,
+display-state truth, artifact profiles, playlists, and frame capabilities. A
+reference HTTPS binding is required for the first interoperable release, but
+canonical paths are binding details rather than the semantic protocol. Other
+bindings can be added when they preserve the same operation and security
+contracts.
+
+## Primary standards
 
 | Concern | Foundation | Frameshift use |
 | --- | --- | --- |
-| Local introduction | [mDNS RFC 6762](https://datatracker.ietf.org/doc/rfc6762/) and [DNS-SD RFC 6763](https://datatracker.ietf.org/doc/rfc6763/) | `_frameshift._tcp.local` service on the local link |
-| Capability/interface description | [W3C WoT Thing Description 1.1](https://www.w3.org/TR/wot-thing-description/) | Properties and actions with a small Frameshift extension vocabulary |
-| Privacy-preserving discovery | [W3C WoT Discovery](https://www.w3.org/TR/wot-discovery/) | Minimal introduction; authenticated exploration |
-| Upload integrity | [RFC 9530 Digest Fields](https://datatracker.ietf.org/doc/html/rfc9530) | `Content-Digest: sha-256=:...:` plus digest-addressed URI |
-| HTTP semantics | RFC 9110 family | Idempotent `PUT`, conditional requests, explicit status codes |
-| Structured errors | [RFC 9457 Problem Details](https://datatracker.ietf.org/doc/html/rfc9457) | `application/problem+json` terminal errors |
-| Requirements language | [RFC 8174](https://datatracker.ietf.org/doc/html/rfc8174) | Meaning of uppercase normative terms |
+| Interaction model | [W3C WoT Architecture 1.1](https://www.w3.org/TR/wot-architecture11/) | Thing, Consumer, Property, Action, Event, protocol binding, and deployment roles |
+| Capability/interface description | [W3C WoT Thing Description 1.1](https://www.w3.org/TR/2023/REC-wot-thing-description11-20231205/) | TD instances, Forms, DataSchemas, security definitions, extension vocabulary, and reusable Thing Models |
+| Discovery | [W3C WoT Discovery](https://www.w3.org/TR/2023/REC-wot-discovery-20231205/) | privacy-preserving Introduction and authenticated Exploration |
+| HTTP semantics | [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110) | idempotent methods, validators, conditional requests, and explicit response semantics |
+| Upload integrity | [RFC 9530](https://www.rfc-editor.org/rfc/rfc9530) | `Content-Digest` for streamed artifact representations |
+| Structured failures | [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) | `application/problem+json` transport errors |
+| Local introduction | [mDNS RFC 6762](https://www.rfc-editor.org/rfc/rfc6762) and [DNS-SD RFC 6763](https://www.rfc-editor.org/rfc/rfc6763) | link-local discovery of an authenticated Exploration URL |
+| Requirements language | [RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) | normative requirement words |
 
-The W3C interaction model already covers properties, actions, events, forms,
-data schemas, and security declarations. Its security model also says secrets
-must not be stored in a Thing Description. Frameshift therefore profiles it
-rather than creating a parallel capability document.
+Thing Description is deliberately not another low-level wire protocol. It
+describes stable interaction affordances and the Forms that bind them to one or
+more concrete protocols. That separation is the reason a frame with an HTTPS
+server, a sleeping CoAP endpoint, or a gateway-backed device can implement the
+same Frameshift semantics without host code branching on its vendor.
 
-## Lessons from Wotex
+The current [W3C WoT Profiles](https://www.w3.org/TR/2025/WD-wot-profile-20251104/)
+document is a Working Draft dated 2025-11-04, not a Recommendation. The WoT
+Binding Templates series was retired by W3C on 2025-11-04. Frameshift may use
+their concepts and the TD 1.1 `profile` member, but it MUST describe its binding
+mappings as Frameshift contracts and MUST NOT claim W3C Profile or Binding
+Templates conformance. Wotex makes the same evidence distinction for its HTTP
+mapping.
 
-The sibling Wotex work is useful as a semantic and implementation reference,
-but Frameshift does not depend on an unpublished sibling checkout. The adopted
-patterns are:
+## Wotex implementation reference
 
-- preserve unknown TD extensions and encode deterministically;
-- never fetch remote JSON-LD contexts while parsing a frame response;
-- bound JSON size, nesting, string length, array length, and total asset size;
-- resolve credentials only at the transport boundary and redact them from
-  request/result values;
-- use absolute deadlines; no hidden retry or redirect on mutations;
-- report protocol success separately from physical display success;
-- give every long-lived subscription or task an explicit supervisor owner;
-- return structured, typed failures rather than prose-only errors.
+The local sibling checkout at `../wotex` was inspected at commit
+`e6aa01a69ea35447afa989d5dea061618d20b3cf` dated 2026-09-22. Its origin is
+`https://github.com/wotex-project/wotex.git`. The repository declares
+Apache-2.0; the inspected `LICENSE` SHA-256 is
+`f5b91731217e7913145b2b9ad04f63656a8a16d2b0e9ecca9bd256fbfc26a4d9`.
+No package was published to Hex at the inspected revision.
 
-These are design patterns, not copied source. Before importing any Wotex code,
-the package publication status and license must be recorded.
+Wotex is an implementation reference, not the Frameshift protocol authority.
+Its specifications provide concrete patterns that Frameshift adopts:
 
-## Why HTTP rather than CoAP in v0.1
+1. **Bounded admission before use.** TD JSON has byte, depth, node, string, and
+   collection limits; duplicate members and invalid UTF-8 fail explicitly.
+2. **Extension preservation.** Unknown namespaced JSON members survive
+   parse/map/encode. Preservation does not imply that an extension is
+   understood or authorized.
+3. **No remote context loading.** Runtime parsing never dereferences JSON-LD
+   contexts, schemas, vocabularies, or Thing Model references.
+4. **Deterministic Form selection.** Selection follows document order and an
+   explicit ordered binding preference; absence is typed rather than guessed.
+5. **Explicit application ownership.** The consuming application owns
+   canonical state, authorization, credentials, endpoint policy, persistence,
+   supervision, retries, and proof of physical effects.
+6. **Ephemeral credentials.** Credentials are resolved at the last transport
+   boundary and never enter TDs, domain requests, results, telemetry, or public
+   errors.
+7. **Protocol success is not effect truth.** A successful exchange cannot by
+   itself prove that a panel refreshed. Frameshift reconciles `currentAsset`
+   and display state after adapter completion.
+8. **Passive libraries and caller-owned work.** Libraries start no global
+   processes; long-lived observations return child specifications for the
+   product supervisor.
+9. **No hidden retry.** Bindings classify failure, while the product decides
+   whether an operation is safe and still within one absolute deadline.
+10. **Scoped conformance evidence.** Value, runtime, binding, live transport,
+    hardware, certification, and production are different evidence profiles;
+    a simulator result cannot satisfy a hardware claim.
 
-HTTP over TLS has strong library support on macOS and embedded stacks, supports
-streamed uploads and standard digest/conditional semantics, and is easy to
-inspect during hardware bring-up. CoAP can be reconsidered only if measurements
-show HTTP is a material resource or power problem. A sleeping Paper frame may
-initiate an HTTPS exchange and pull from a paired host outbox rather than remain
-awake for incoming requests.
+The inspected Wotex HTTP package supports JSON property/action operations and
+SSE through a consumer-supplied client. It intentionally does not provide an
+HTTP server, connection pool, TLS policy, binary artifact representation, or
+proof of Action effects. Frameshift therefore must supply its own bounded
+binary artifact binding, mutual-TLS client/server ownership, and display-state
+reconciliation even if it later consumes Wotex packages.
+
+Before adding Wotex as a dependency, Frameshift must pin all selected packages
+to one immutable commit, record their exact package catalogue status, verify
+the archive/license inventory, and run clean-consumer tests. A mutable sibling
+path is permitted only for local development and is not release evidence.
+
+## Universal semantic boundary
+
+The Frame Protocol specification is divided into three layers:
+
+1. **Thing Model and vocabulary:** hardware-independent Properties, Actions,
+   Events, DataSchemas, state meanings, and extension terms.
+2. **Capability and artifact profiles:** exact geometry, color, storage,
+   refresh, power, packing, and adapter revisions. Vendor-specific measured
+   profiles live here as data.
+3. **Protocol bindings:** HTTPS first; future CoAP, MQTT, BLE, Matter, or
+   gateway bindings only where their operation mapping, integrity,
+   authentication, deadlines, and recovery semantics are fully specified.
+
+A binding does not change the meaning of `desiredAsset`, `currentAsset`, or a
+display-completion event. A hardware profile does not create a new endpoint
+family. A manufacturer name is never a compatibility algorithm.
 
 ## Discovery privacy
 
-W3C WoT Discovery separates introduction from exploration so metadata can be
-authorized. Frameshift follows that split:
+WoT Discovery separates Introduction from Exploration. Frameshift follows that
+split:
 
-- DNS-SD advertises an opaque instance, protocol major, port, and exploration
-  path—never the owner's name, artwork title, room, display model, or dimensions;
-- the full Thing Description requires a paired client certificate;
-- an unpaired frame exposes only the pairing endpoint while physical pair mode
-  is active.
+- DNS-SD advertises an opaque instance, supported exploration schemes, and an
+  Exploration URL or path; it does not advertise owner, room, artwork, panel
+  model, dimensions, battery state, or credentials;
+- an unpaired frame exposes only the physical-pairing introduction surface;
+- the full TD requires authentication and authorization; and
+- a TD Directory or gateway is optional and cannot become a mandatory cloud.
 
-mDNS is link-local by design. Cross-VLAN or remote discovery is not part of
-v0.1; a future relay must have its own threat model.
+mDNS is link-local. Routed or remote discovery requires a separately specified
+and authorized directory/relay deployment; it is not achieved by leaking the
+full TD in TXT records.
 
-## Pairing research conclusion
+## Pairing conclusion
 
-A short numeric PIN without a password-authenticated key exchange is not enough
-against an active local attacker. The v0.1 prototype therefore uses physical
-possession plus high-entropy bootstrap material:
+A short numeric PIN without a reviewed password-authenticated key exchange is
+not sufficient against an active local attacker. The hardware-independent
+contract uses physical possession plus high-entropy bootstrap material:
 
-1. manufacturing or USB provisioning creates a device TLS key/certificate and
-   at least 128 bits of random, one-time bootstrap secret;
-2. a QR label contains the device ID, certificate SPKI SHA-256 fingerprint, and
-   bootstrap secret; a grouped manual code is an accessibility fallback;
-3. a physical button enables pairing for five minutes;
-4. the Mac pins the advertised device certificate, submits the one-time secret
-   and its client certificate, and proves possession of the client key;
-5. the frame stores the client-certificate fingerprint and destroys the
-   bootstrap secret after the first successful pair;
-6. all normal requests use mutually authenticated TLS.
+1. provisioning creates a unique device identity and at least 128 bits of
+   one-time bootstrap entropy;
+2. a QR or equivalent physical record carries device identity, pinned public
+   key fingerprint, and bootstrap material;
+3. a physical action opens a bounded pairing window;
+4. the Mac pins the device identity, sends its client identity, and proves
+   private-key possession;
+5. the frame stores the authorized client fingerprint and destroys or rotates
+   the bootstrap material; and
+6. normal Forms require mutually authenticated transport security.
 
-Prototype MCU devices without secure hardware may keep a software key in a
-protected flash region with explicit development status. A manufactured frame
-should use an appropriate secure element after provisioning and recovery are
-tested. An optional Nerves bridge can use NervesKey/ATECC608-class storage;
-NervesKey keeps private-key operations in the chip and supports X.509, but its
-provisioning locks configuration and must be treated as a manufacturing
-operation. That library is evidence for the security pattern, not a dependency
-of Zig MCU firmware. Source: [NervesKey documentation](https://hexdocs.pm/nerves_key/readme.html).
+The exact credential type can differ by qualified controller and binding. A
+software key on a prototype and a secure element in a manufactured device are
+different evidence levels, not different interaction semantics. Rotation,
+multi-owner policy, lost-host recovery, factory reset, and independent review
+remain mandatory security gates.
 
-This pairing design still needs an independent security review, certificate
-rotation design, multi-user authorization policy, and lost-host recovery test
-before protocol v1.0.
+## Binding selection
 
-## What not to copy
+HTTPS is the first reference binding because macOS and embedded stacks support
+TLS, conditional methods, streamed bodies, digest fields, and inspection during
+bring-up. It is not the definition of Frameshift itself.
 
-- Do not advertise the complete TD in mDNS TXT records.
-- Do not accept a digest supplied only inside mutable JSON; verify streamed
-  bytes against RFC 9530 `Content-Digest` and the digest URI.
-- Do not automatically follow a redirect to another host carrying frame
-  credentials.
-- Do not retry a display-changing request unless its method/precondition makes
-  the retry demonstrably idempotent.
-- Do not equate an HTTP success with the panel showing the asset. Read
-  `currentAsset` and `displayState` for physical outcome.
+CoAP with Block1/Block2 and DTLS or OSCORE is a credible sleeping-device
+binding, and MQTT is a credible powered/gateway interaction binding. Neither is
+claimed until a complete Form mapping covers binary assets, idempotence,
+preconditions, authentication, deadlines, state reconciliation, and negative
+conformance cases. The host chooses among Forms the frame actually advertises.
+
+## Prohibited shortcuts
+
+- Do not derive compatibility from a vendor or model name.
+- Do not make canonical HTTP paths the only source of operation semantics;
+  consume the advertised Forms.
+- Do not advertise a complete TD or private metadata in DNS-SD TXT records.
+- Do not fetch arbitrary remote contexts, schemas, models, or artwork URLs.
+- Do not accept a digest only from mutable JSON; hash streamed representation
+  bytes and compare the URI and `Content-Digest` identities.
+- Do not forward credentials across an unapproved redirect or Form target.
+- Do not retry a mutation or physical Action merely because a transport error
+  was classified transient.
+- Do not equate an accepted response with a physically displayed image.
+- Do not use simulator, binding, or protocol evidence as hardware evidence.

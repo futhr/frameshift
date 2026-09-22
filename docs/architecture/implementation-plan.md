@@ -1,10 +1,12 @@
-# Implementation Plan
+# Final-Product Completion Plan
 
-**Status:** recommended work breakdown, not a mandatory build order
+**Status:** required product work, ordered only by dependency and evidence
 
-Builders can start with Paper, Photo, Pixel, the Mac app, or a protocol
-implementation. The seams below keep those choices interoperable. A track
-becomes a reference only after its own exit criteria pass.
+This plan decomposes the complete product definition. It does not define an
+MVP, demo, or smaller shipping target. Builders can start with Paper, Photo,
+Pixel, the Mac app, or a protocol implementation. The seams below keep those
+choices interoperable. Work remains incomplete until the product completion
+contract and the applicable release gates pass.
 
 ## Shared contracts
 
@@ -13,9 +15,11 @@ These artifacts reduce rework across every track:
 1. canonical master, recipe, artifact, frame-state, and playlist data models;
 2. Frame Protocol v0.1 schemas and conformance fixtures;
 3. a simulated frame with selectable capabilities and injected failures;
-4. golden source/preview/artifact fixtures for each display profile;
-5. repository-wide build, format, test, and license checks with no Python;
-6. decision/evidence records for every dependency and exact hardware revision.
+4. a versioned Frame Thing Model, Host Outbox Thing Model, namespaced
+   vocabulary, binding profiles, and conformance claims;
+5. golden source/preview/artifact fixtures for each display profile;
+6. repository-wide build, format, test, and license checks with no Python;
+7. decision/evidence records for every dependency and exact hardware revision.
 
 The simulator can be an Elixir application on macOS and need not imply Nerves
 or Linux hardware inside a frame.
@@ -71,7 +75,9 @@ cached repeat avoids provider call; secrets remain in Keychain.
 
 ### P1 — Schemas and simulator
 
-- constrained TD example;
+- Frame and Host Outbox Thing Models plus vendor-independent TD examples;
+- extension-preserving bounded W3C TD/TM admission and deterministic Form
+  selection;
 - state, desired, playlist, outbox manifest/ack, and problem schemas;
 - digest-addressed fake storage;
 - fault injection for slow refresh, sleeping contact, bad digest, full storage,
@@ -87,7 +93,10 @@ cached repeat avoids provider call; secrets remain in Keychain.
 
 ### P3 — Conformance suite
 
-- direct push and sleeping pull;
+- semantic, runtime, binding, live-transport, firmware, and hardware evidence
+  profiles whose claims cannot substitute for one another;
+- direct push and sleeping pull across advertised Forms rather than assumed
+  vendor endpoints;
 - idempotence/preconditions;
 - parser and allocation bounds;
 - atomic storage/state recovery;
@@ -121,24 +130,23 @@ power and thermals remain a separate reference exit gate.
 
 No track is required before another, and no contributor must build all three.
 
-## Release maturity
+## Evidence and release gates
 
-### Research preview
+Development snapshots may contain only some components, but they are never a
+different product scope. The verification ledger marks each bounded claim as
+missing, partial, or proven and names its evidence profile.
 
-Simulator, recipes, renderer experiments, and UI can change incompatibly. No
-hardware purchase recommendation.
+A releasable software build requires the installed end-to-end flow, compatible
+protocol bindings, authenticated lifecycle, migration/recovery, accessibility,
+signing, hardened runtime, notarization, dependency/license inventory, and
+security review appropriate to its claim.
 
-### Prototype release
+A released hardware profile additionally requires one exact assembly with a
+reproducible build record, signed rollback-capable firmware, protocol
+conformance, interrupted-update recovery, and measured electrical, power,
+thermal, optical, depth, mounting, and service evidence.
 
-At least one exact hardware assembly has a reproducible build record, signed
-firmware, protocol conformance, and validation results. It remains experimental.
-
-### Reference release
-
-The exact revision has E3/E4 evidence, documented replacements/deviations,
-security review, recovery update, accessible host UX, and a frozen compatible
-protocol/profile version.
-
-“Reference” does not mean consumer certification or permission to conceal mains
-wiring. Production/commercialization needs independent regulatory, battery,
-EMC/radio, thermal, mechanical, and manufacturing work.
+Calling a hardware revision “reference” does not constitute consumer
+certification or permission to conceal mains wiring. Commercialization still
+requires the applicable independent regulatory, battery, EMC/radio, thermal,
+mechanical, manufacturing, and safety work.

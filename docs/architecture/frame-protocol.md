@@ -1,9 +1,10 @@
-# Frame Protocol v0.1
+# Universal Frame Protocol v0.1
 
 **Status:** normative implementation draft; security review required before
 production
 
-**Scope:** authenticated transfer and activation of still-image artifacts
+**Scope:** vendor-neutral discovery, transfer, activation, observation, and
+scheduling of still-image artifacts
 
 The words MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY are interpreted as in
 [RFC 8174](https://datatracker.ietf.org/doc/html/rfc8174).
@@ -18,6 +19,10 @@ The words MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY are interpreted as in
 6. Never replace valid artwork with partial, corrupt, or incompatible bytes.
 7. Report physical display outcome separately from network acceptance.
 8. Carry still images and still-image playlists only.
+9. Separate semantic interactions from HTTP, CoAP, MQTT, BLE, Matter, or
+   gateway bindings.
+10. Permit exact vendor and panel profiles without making a vendor name part of
+    the interoperability algorithm.
 
 ## 2. Roles and terms
 
@@ -35,14 +40,79 @@ The words MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY are interpreted as in
 
 ## 3. Interaction model
 
-Frames expose a constrained [W3C WoT Thing Description 1.1](https://www.w3.org/TR/wot-thing-description/).
-The TD describes properties and actions; HTTPS forms bind them to the resources
-below. Frameshift tools preserve unknown namespaced fields and never dereference
-remote JSON-LD contexts during normal parsing.
+Frames expose a [W3C WoT Thing Description 1.1](https://www.w3.org/TR/2023/REC-wot-thing-description11-20231205/)
+instance of the Frameshift Frame Thing Model. A paired host exposes a separate
+Host Outbox Thing for sleeping pull. The Thing Model and namespaced Frameshift
+vocabulary define semantics; Forms bind each interaction to a concrete
+transport.
 
-Protocol major `0` is experimental. Any incompatible wire change increments
-the major. Additive properties/actions increment the minor. A consumer MUST
-reject an unsupported major and MUST ignore an unknown optional minor field.
+The universal contract has three independent version axes:
+
+- the W3C TD/TM standards revision;
+- the Frameshift semantic profile revision; and
+- each advertised protocol-binding and artifact-profile revision.
+
+The TD top-level `profile` member declares required Frameshift profile URIs.
+`urn:frameshift:profile:frame:0.1` identifies this semantic profile. Binding
+profiles and the Host Outbox profile use separate identifiers. These are
+Frameshift contracts; v0.1 does not claim conformance to the W3C WoT Profiles
+Working Draft.
+
+A host MUST select a compatible advertised Form. It MUST NOT synthesize an
+endpoint from a manufacturer, model, reference class, or assumed path. A frame
+MAY publish multiple Forms for one affordance. Form order and the host's
+explicit binding preference determine selection; failure to find a compatible
+Form is explicit and never triggers an unadvertised fallback.
+
+Frameshift tooling MUST preserve unknown namespaced fields, MUST NOT fetch
+remote JSON-LD contexts or Thing Models during admission, and MUST distinguish
+an optional unknown extension from a required unknown profile. A consumer MUST
+accept unknown optional response members but MUST NOT generate undeclared
+input members.
+
+Protocol major `0` identifies the pre-1.0 Frameshift semantic profile. An
+incompatible semantic change increments the major; additive optional
+affordances increment the minor. Binding revisions and artifact profiles evolve
+without changing semantic major when their observable interaction meaning is
+unchanged.
+
+### 3.1 Frame Thing affordances
+
+The Frame Thing Model defines these hardware-independent affordances:
+
+| Kind | Name | Meaning |
+| --- | --- | --- |
+| Property | `capabilities` | Immutable or revisioned geometry, color, refresh, power, storage, artifact profiles, and supported transfer modes |
+| Property | `state` | Desired/current/previous-known-good assets, display state, pending request, revision, and last typed failure |
+| Property | `playlist` | Current complete still playlist and revision |
+| Action | `installAsset` | Store and verify one immutable artifact without activating it |
+| Action | `removeAsset` | Collect one unreferenced artifact |
+| Action | `setDesired` | Atomically request a verified asset for display |
+| Action | `replacePlaylist` | Atomically replace the complete still playlist |
+| Action | `retryDisplay` | Retry the current desired asset after an explicit failure |
+| Event | `stateChanged` | Optional bounded notification that state should be read and reconciled |
+| Event | `displayCompleted` | Optional notification of adapter-confirmed success or typed failure |
+
+Pairing, commissioning, firmware update, diagnostics, and device management are
+separate profiles. Their absence does not alter still-display semantics, and
+their presence is never inferred from a vendor.
+
+### 3.2 Host Outbox Thing affordances
+
+The host outbox exposes `manifest` and `artifact` read interactions and an
+`acknowledge` Action to an already paired frame. Authorization derives frame
+identity from the authenticated binding, never from an input `frameId`. The
+outbox TD advertises exact Forms and representation constraints; a sleeping
+frame does not assume an HTTPS path merely because an earlier implementation
+used one.
+
+### 3.3 Capability instances
+
+Vendor, controller, panel, and firmware identifiers MAY appear as descriptive
+metadata and as exact revision identities inside an artifact profile. Host
+selection uses declared capabilities and profile compatibility. Vendor-specific
+code is confined to a display adapter or renderer profile selected by that
+identity after semantic compatibility is established.
 
 ## 4. Discovery
 
@@ -53,9 +123,10 @@ The instance label is an opaque random identifier. TXT records contain only:
 
 | Key | Value |
 | --- | --- |
-| `v` | protocol major, currently `0` |
+| `v` | Frameshift semantic profile major, currently `0` |
 | `id` | opaque device ID or its non-reversible short form |
-| `path` | exploration path, currently `/.well-known/wot` |
+| `td` | authenticated Exploration URL or path; the reference HTTPS binding uses `/.well-known/wot` |
+| `scheme` | one or more bounded advertised binding schemes |
 | `pair` | `1` only while physical pair mode is active |
 
 The advertisement MUST NOT include owner, room, artwork, friendly name, panel
@@ -66,9 +137,9 @@ privacy split.
 ### 4.2 Host outbox
 
 The Mac MAY advertise `_frameshift-host._tcp.local` while its outbox is
-available. TXT contains only protocol major and an opaque paired-host ID. A
-sleeping frame already knows the host certificate fingerprint and accepts no
-unpaired outbox.
+available. TXT contains only semantic profile major, an opaque paired-host ID,
+and an authenticated outbox TD introduction URL. A sleeping frame already
+knows the host identity and accepts no unpaired outbox.
 
 mDNS is link-local. v0.1 does not discover across routed networks or provide
 internet remote access.
@@ -101,13 +172,18 @@ Short numeric PIN authentication without a reviewed PAKE is prohibited. Device
 private keys SHOULD live in secure hardware on manufactured devices. Recovery,
 host replacement, and factory reset require physical access.
 
-## 6. Transport rules
+## 6. Transport and binding rules
 
-- HTTPS is mandatory for LAN traffic.
-- TLS 1.3 SHOULD be used; any TLS 1.2 fallback must be explicitly profiled and
-  independently reviewed.
-- Frame and host validate the pinned/allowlisted peer certificate, not just a
-  public Web PKI hostname.
+- Every Form used for private state or mutation MUST select a binding profile
+  that provides mutual peer authentication, integrity, confidentiality, bounded
+  messages, and an explicit absolute deadline.
+- The v0.1 reference LAN binding is HTTPS with mutual TLS. TLS 1.3 SHOULD be
+  used; any TLS 1.2 fallback must be explicitly profiled and independently
+  reviewed.
+- A CoAP, MQTT, BLE, Matter, or gateway binding MAY coexist when its complete
+  operation mapping and security profile are advertised and pass conformance.
+- Frame and host validate the pinned or allowlisted peer identity required by
+  the selected Form, not merely a public hostname or transport connection.
 - Mutating requests MUST NOT follow redirects.
 - Mutating requests MUST NOT be retried unless the method, digest, and
   precondition make the retry idempotent.
@@ -117,8 +193,9 @@ host replacement, and factory reset require physical access.
   into domain requests, results, recipes, TDs, or logs.
 - Control JSON uses UTF-8 and `application/json`. Duplicate object keys are
   rejected.
-- Errors use `application/problem+json` as defined by
-  [RFC 9457](https://datatracker.ietf.org/doc/html/rfc9457).
+- HTTP errors use `application/problem+json` as defined by RFC 9457. Other
+  bindings map the same stable Frameshift problem codes without copying
+  transport exception text or credentials.
 
 ## 7. Bounds
 
@@ -140,22 +217,27 @@ Asset upload/pull requires a known content length. A frame MAY reject chunked
 asset transfer in v0.1. Decompression bombs are avoided by negotiating exact
 artifact profiles and validating decoded dimensions before commit.
 
-## 8. Direct-mode resources
+## 8. Reference HTTPS binding
 
-The paths below are canonical v0.1 bindings. A TD form remains authoritative
-when a future minor version adds an alternative binding.
+The paths below define the v0.1 HTTPS Form profile. They are interoperable
+defaults for that binding, not the semantic identity of an operation. The TD
+Form is authoritative and a host MUST follow its `href`, method, content type,
+operation, security, and Frameshift binding metadata.
 
 | Method and path | Purpose | Success |
 | --- | --- | --- |
 | `GET /.well-known/wot` | Authenticated Thing Description | `200` |
-| `GET /v0/state` | Capabilities summary and runtime state | `200` |
+| `GET /v0/capabilities` | Read `capabilities` Property | `200` |
+| `GET /v0/state` | Read `state` Property | `200` |
 | `HEAD /v0/assets/sha256/{digest}` | Test immutable asset presence | `200` or `404` |
 | `PUT /v0/assets/sha256/{digest}` | Store verified immutable asset | `201` new, `204` already identical |
 | `GET /v0/assets/sha256/{digest}` | Retrieve for audit/recovery when allowed | `200` |
 | `DELETE /v0/assets/sha256/{digest}` | Collect an unreferenced asset | `204` |
-| `PUT /v0/desired` | Set desired still asset | `200` current or `202` pending |
-| `PUT /v0/playlist` | Replace complete still playlist | `200` or `202` |
+| `PUT /v0/desired` | Invoke idempotent `setDesired` | `200` current or `202` pending |
+| `GET /v0/playlist` | Read `playlist` Property | `200` |
+| `PUT /v0/playlist` | Invoke idempotent `replacePlaylist` | `200` or `202` |
 | `POST /v0/actions/retry-display` | Retry current desired asset | `202` |
+| `GET /v0/events/state` | Optional `stateChanged` / `displayCompleted` event stream | `200` stream |
 
 Pairing and firmware-update resources are intentionally separate profiles. They
 are never inferred from the existence of the display API.
@@ -186,7 +268,7 @@ Upload does not change desired or current state.
 
 ## 10. Desired and current state
 
-`GET /v0/state` includes at least:
+Reading the selected `state` Property Form includes at least:
 
 ```json
 {
@@ -202,7 +284,7 @@ Upload does not change desired or current state.
 
 The response has a strong ETag derived from `stateRevision`.
 
-`PUT /v0/desired` contains `assetDigest`, `artifactProfile`, and a host-generated
+Invoking `setDesired` contains `assetDigest`, `artifactProfile`, and a host-generated
 `requestId`. It MUST include `If-Match` with the last read state ETag or
 `If-None-Match: *` for initial empty state. The referenced asset must already be
 verified.
@@ -252,7 +334,10 @@ capability. Relative dwell playlists do not.
 A sleeping frame initiates the connection. Mutual TLS maps the caller to one
 device, so the host never accepts a caller-supplied identity as authorization.
 
-| Method and path | Purpose |
+The Host Outbox Thing advertises these semantic interactions. Its reference
+HTTPS Forms use the paths shown, but a frame consumes the advertised Forms.
+
+| Reference HTTPS Form | Purpose |
 | --- | --- |
 | `GET /v0/outbox/manifest` | Return desired digest/profile/playlist revision or `204` |
 | `GET /v0/outbox/assets/sha256/{digest}` | Stream exact artifact with `Content-Digest` |
@@ -321,13 +406,23 @@ A conforming v0.1 implementation must demonstrate:
    remote fetch URLs;
 10. secrets are absent from TDs, logs, errors, and packet captures after the
     encrypted transport boundary.
+11. two TDs with the same semantic affordances but different valid Form targets
+    interoperate without code changes or vendor branching;
+12. unknown optional extension terms survive a read/modify/write round trip,
+    while an unknown required profile fails before any transport call;
+13. binding selection is deterministic and never falls back to an unadvertised
+    scheme; and
+14. each conformance result names its evidence profile: value, runtime,
+    binding, live transport, firmware, hardware, security, or production.
 
 ## 16. Open gates before v1.0
 
 - independent pairing and TLS review;
 - exact secure-element and certificate rotation profile;
 - commissioning transport per controller;
-- conformance fixtures and canonical TD examples;
+- versioned Thing Models, conformance fixtures, and canonical TD examples;
+- live interoperability of at least two independent Form targets for the same
+  semantic interaction;
 - final artifact media-type registration/naming;
 - measured retry/deadline values for each hardware class;
 - recovery behavior when a panel update is interrupted electrically;

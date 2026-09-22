@@ -7,7 +7,7 @@ RGBA8 pixels, explicit composition parameters, and either an experimental
 RGB24 profile or a caller-supplied indexed palette. It receives no credentials,
 URLs, provider configuration, or frame identity.
 
-The current research-preview renderer uses integer arithmetic for crop,
+The current generic-profile renderer uses integer arithmetic for crop,
 nearest/bilinear resize, alpha composition, palette selection, ordered dither,
 and Floyd–Steinberg error diffusion. RGB operations are byte-space transforms;
 they do not claim measured colorimetric accuracy. Hardware palette codes,

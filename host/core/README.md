@@ -16,6 +16,10 @@ The current partial core implementation provides:
 - a durable paired-frame registry that retains the admitted universal Thing
   Description, capability instance, pinned server fingerprint, and opaque
   Keychain credential reference without storing private key material;
+- a one-shot Wotex HTTP client for finite JSON interactions that admits only
+  the credential's exact advertised HTTPS authority and local addresses,
+  performs mutual TLS with an SPKI-pinned frame, refuses pooling and redirects,
+  and enforces absolute deadlines plus bounded headers and response bodies;
 - startup reconciliation for interrupted active/trash file moves;
 - durable per-frame sleeping outboxes with monotonic revisions, supersession,
   acknowledgement checks, and current/previous-known-good reference rotation;

@@ -49,7 +49,7 @@ Selected libraries and bounded candidates are tracked independently:
 | --- | --- | --- |
 | WoT value/runtime | Wotex `wotex` and `wotex_runtime`, both pinned to `e6aa01a69ea35447afa989d5dea061618d20b3cf` | Bounded TD/TM admission, extension preservation, deterministic Form selection, typed requests/results, and explicit credential/transport ports. Frameshift retains state, policy, binary assets, and effect truth. |
 | WoT HTTP mapping | Pinned `wotex_binding_http` plus a Frameshift-owned client | JSON Property/Action and SSE mapping only. It is not the binary artifact binding, TLS policy, HTTP server, or physical-effect proof. |
-| HTTP client | `Req` | Disable automatic redirects and retries for frame writes; set absolute operation deadlines. |
+| HTTP client | `Mint` one-shot connections | Keep client certificates and keys inside one caller-owned callback; resolve and authorize every destination, disable pooling/proxies/redirects/retries, pin the frame SPKI, and enforce an absolute operation deadline plus incremental response bounds. |
 | HTTP server for simulator/optional Nerves bridge | `Plug` + `Bandit` | Small explicit router; not a dependency of MCU firmware. |
 | Metadata database | `Exqlite`/SQLite | Host only; single owning process and migrations. A native upstream dependency is acceptable, but custom native code remains Zig. |
 | Host JSON | `Jason` or OTP-native equivalent available at implementation time | Bounded decode; reject duplicate/unknown required fields; preserve TD extensions. MCU parsing is a separate Zig selection. |
@@ -57,16 +57,18 @@ Selected libraries and bounded candidates are tracked independently:
 
 The selected Wotex packages are fetched from their upstream Git repository at
 the immutable revision recorded in [protocol foundations](protocol-foundations.md).
-The lockfile records the same full commit for both packages; the sibling
+The lockfile records the same full commit for all three packages; the sibling
 checkout is not a build input. Their Apache-2.0 files and Wotex's bundled W3C
 schema notice were inspected at that revision. Repository-wide third-party
 notice assembly remains a separate distribution gate.
 
-Req is convenient but enables redirect and retry steps by default. Frameshift
-must construct a restricted request pipeline for mutations rather than inherit
-those defaults. Elixir ports are the preferred boundary for the Zig raster
-worker because an external process can be supervised and restarted without
-loading native code into the BEAM. See the current [Req documentation](https://req.hexdocs.pm/),
+Req remains suitable for ordinary non-secret HTTP, but its normal Finch path
+pools connection configuration. Passing a client certificate or private key in
+those options would retain the credential beyond Wotex's immediate callback.
+The reference frame client therefore uses processless Mint directly and closes
+each connection before returning. Elixir ports are the preferred boundary for
+the Zig raster worker because an external process can be supervised and
+restarted without loading native code into the BEAM. See the current [Mint documentation](https://hexdocs.pm/mint/),
 [Bandit documentation](https://bandit.hexdocs.pm/readme.html), and
 [Elixir Port documentation](https://elixir.hexdocs.pm/Port.html).
 

@@ -8,6 +8,10 @@ defmodule Frameshift.LocalAPITest do
 
   @png <<137, "PNG\r\n", 26, 10, 0, 0, 0, 13, "IHDR", 0, 0, 0, 2, 0, 0, 0, 1, 8, 6, 0, 0, 0>>
   @rgba <<255, 0, 0, 255, 0, 255, 0, 128>>
+  @frame_fixture Path.expand(
+                   "../../../../protocol/fixtures/valid/thing-description.json",
+                   __DIR__
+                 )
 
   setup do
     root =
@@ -136,6 +140,39 @@ defmodule Frameshift.LocalAPITest do
                "kind" => "setPinned",
                "itemID" => missing,
                "isPinned" => false
+             })
+  end
+
+  test "snapshot and selection use durable paired frame records", context do
+    assert {:ok, _frame} =
+             Library.register_paired_frame(
+               context.library,
+               File.read!(@frame_fixture),
+               "keychain:local-api-frame",
+               "sha256:" <> String.duplicate("c", 64)
+             )
+
+    assert %{
+             "targets" => [
+               %{
+                 "id" => "sim-photo-00000001",
+                 "medium" => "photo",
+                 "profileID" => "urn:frameshift:profile:sim-rgb24-v1"
+               }
+             ],
+             "selectedTargetID" => "sim-photo-00000001"
+           } = LocalAPI.snapshot(context.library)
+
+    assert {:ok, %{"selectedTargetID" => "sim-photo-00000001"}} =
+             LocalAPI.execute(context.library, %{
+               "kind" => "selectTarget",
+               "targetID" => "sim-photo-00000001"
+             })
+
+    assert {:error, :target_not_found} =
+             LocalAPI.execute(context.library, %{
+               "kind" => "selectTarget",
+               "targetID" => "missing-frame"
              })
   end
 

@@ -16,18 +16,22 @@ defmodule Frameshift.LocalAPI do
   @maximum_dimension 32_768
   @maximum_pixels 16_777_216
   @instruction_key "generation.instruction"
+  @selected_target_key "frame.selected"
 
   @type result :: {:ok, map()} | {:error, atom()}
 
-  @spec snapshot(GenServer.server(), String.t()) :: map()
-  def snapshot(library \\ Library, status_message \\ "Core connected • no paired frame") do
+  @spec snapshot(GenServer.server(), String.t() | nil) :: map()
+  def snapshot(library \\ Library, status_message \\ nil) do
+    targets = Enum.map(Library.list_paired_frames(library), &frame_target/1)
+    selected_target_id = selected_target_id(library, targets)
+
     %{
-      "targets" => [],
-      "selectedTargetID" => nil,
+      "targets" => targets,
+      "selectedTargetID" => selected_target_id,
       "instruction" => setting(library, @instruction_key, ""),
       "items" => Enum.map(Library.search(library, "", limit: 100), &library_item/1),
       "generationAvailability" => "notConfigured",
-      "statusMessage" => status_message
+      "statusMessage" => status_message || default_status(targets)
     }
   end
 
@@ -118,6 +122,17 @@ defmodule Frameshift.LocalAPI do
     end
   end
 
+  defp do_execute(library, %{"kind" => "selectTarget", "targetID" => target_id})
+       when is_binary(target_id) do
+    with {:ok, _frame} <- Library.get_paired_frame(library, target_id),
+         :ok <- Library.put_setting(library, @selected_target_key, target_id) do
+      {:ok, snapshot(library, "Target selected")}
+    else
+      :not_found -> {:error, :target_not_found}
+      {:error, _reason} -> {:error, :persistence_failed}
+    end
+  end
+
   defp do_execute(_library, %{"kind" => "selectTarget"}), do: {:error, :target_not_found}
   defp do_execute(_library, %{"kind" => "queue"}), do: {:error, :target_not_found}
   defp do_execute(_library, _command), do: {:error, :invalid_command}
@@ -169,6 +184,33 @@ defmodule Frameshift.LocalAPI do
       "queuedTargetID" => nil
     }
   end
+
+  defp frame_target(frame) do
+    profile_id =
+      frame["capabilities"]["storage"]["artifactProfiles"]
+      |> Enum.map(& &1["id"])
+      |> Enum.sort()
+      |> hd()
+
+    %{
+      "id" => frame["frame_id"],
+      "name" => frame["title"],
+      "medium" => frame["medium"],
+      "profileID" => profile_id,
+      "state" => frame["connection_state"]
+    }
+  end
+
+  defp selected_target_id(library, targets) do
+    selected = setting(library, @selected_target_key, nil)
+
+    if Enum.any?(targets, &(&1["id"] == selected)),
+      do: selected,
+      else: targets |> List.first() |> then(&if(&1, do: &1["id"], else: nil))
+  end
+
+  defp default_status([]), do: "Core connected • no paired frame"
+  defp default_status(_targets), do: "Core connected • paired frames ready"
 
   defp validate_import_description(path, width, height, media_type, command) do
     orientation = Map.get(command, "importOrientation", 1)

@@ -152,6 +152,31 @@ defmodule Frameshift.Library.Migrations do
          updated_at_ms INTEGER NOT NULL
        ) STRICT
        """
+     ]},
+    {5,
+     [
+       """
+       CREATE TABLE paired_frames (
+         frame_id TEXT PRIMARY KEY,
+         thing_id TEXT NOT NULL UNIQUE,
+         title TEXT NOT NULL,
+         medium TEXT NOT NULL CHECK (medium IN ('paper', 'photo', 'pixel')),
+         td_json TEXT NOT NULL,
+         capabilities_json TEXT NOT NULL,
+         credential_ref TEXT NOT NULL,
+         server_spki_fingerprint TEXT NOT NULL CHECK (
+           length(server_spki_fingerprint) = 71 AND
+           substr(server_spki_fingerprint, 1, 7) = 'sha256:' AND
+           substr(server_spki_fingerprint, 8) NOT GLOB '*[^0-9a-f]*'
+         ),
+         connection_state TEXT NOT NULL DEFAULT 'waitingForContact' CHECK (
+           connection_state IN ('waitingForContact', 'displayed', 'failed')
+         ),
+         paired_at_ms INTEGER NOT NULL,
+         updated_at_ms INTEGER NOT NULL
+       ) STRICT
+       """,
+       "CREATE INDEX paired_frames_title ON paired_frames(title COLLATE NOCASE, frame_id)"
      ]}
   ]
 

@@ -10,6 +10,7 @@ defmodule Frameshift.Library do
 
   alias Frameshift.ContentStore
   alias Frameshift.Digest
+  alias Frameshift.FrameRegistry
   alias Frameshift.Library.Migrations
   alias Frameshift.Protocol.Schema
 
@@ -111,6 +112,33 @@ defmodule Frameshift.Library do
   @spec put_setting(server(), String.t(), String.t()) :: :ok | {:error, term()}
   def put_setting(server \\ __MODULE__, key, value) do
     GenServer.call(server, {:put_setting, key, value})
+  end
+
+  @spec register_paired_frame(server(), binary(), String.t(), String.t()) ::
+          {:ok, map()} | {:error, term()}
+  def register_paired_frame(
+        server \\ __MODULE__,
+        td_source,
+        credential_ref,
+        server_spki_fingerprint
+      ) do
+    GenServer.call(
+      server,
+      {:register_paired_frame, td_source, credential_ref, server_spki_fingerprint}
+    )
+  end
+
+  @spec list_paired_frames(server()) :: [map()]
+  def list_paired_frames(server \\ __MODULE__), do: GenServer.call(server, :list_paired_frames)
+
+  @spec get_paired_frame(server(), String.t()) :: {:ok, map()} | :not_found
+  def get_paired_frame(server \\ __MODULE__, frame_id) do
+    GenServer.call(server, {:get_paired_frame, frame_id})
+  end
+
+  @spec forget_paired_frame(server(), String.t()) :: :ok | {:error, term()}
+  def forget_paired_frame(server \\ __MODULE__, frame_id) do
+    GenServer.call(server, {:forget_paired_frame, frame_id})
   end
 
   @spec pin(server(), digest()) :: :ok | {:error, term()}
@@ -259,6 +287,32 @@ defmodule Frameshift.Library do
 
   def handle_call({:put_setting, key, value}, _from, state) do
     {:reply, put_setting_record(state, key, value), state}
+  end
+
+  def handle_call(
+        {:register_paired_frame, td_source, credential_ref, server_spki_fingerprint},
+        _from,
+        state
+      ) do
+    result =
+      with {:ok, frame} <-
+             FrameRegistry.admit(td_source, credential_ref, server_spki_fingerprint) do
+        upsert_paired_frame(state, frame)
+      end
+
+    {:reply, result, state}
+  end
+
+  def handle_call(:list_paired_frames, _from, state) do
+    {:reply, list_paired_frame_records(state), state}
+  end
+
+  def handle_call({:get_paired_frame, frame_id}, _from, state) do
+    {:reply, get_paired_frame_record(state, frame_id), state}
+  end
+
+  def handle_call({:forget_paired_frame, frame_id}, _from, state) do
+    {:reply, forget_paired_frame_record(state, frame_id), state}
   end
 
   def handle_call({:pin, digest}, _from, state) do
@@ -766,6 +820,133 @@ defmodule Frameshift.Library do
   end
 
   defp put_setting_record(_state, _key, _value), do: {:error, :invalid_setting}
+
+  defp upsert_paired_frame(state, frame) do
+    now = now_ms()
+
+    result =
+      transaction(state.connection, fn connection ->
+        Exqlite.query!(
+          connection,
+          """
+          INSERT INTO paired_frames(
+            frame_id, thing_id, title, medium, td_json, capabilities_json,
+            credential_ref, server_spki_fingerprint, connection_state,
+            paired_at_ms, updated_at_ms
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'waitingForContact', ?, ?)
+          ON CONFLICT(frame_id) DO UPDATE SET
+            thing_id = excluded.thing_id,
+            title = excluded.title,
+            medium = excluded.medium,
+            td_json = excluded.td_json,
+            capabilities_json = excluded.capabilities_json,
+            credential_ref = excluded.credential_ref,
+            server_spki_fingerprint = excluded.server_spki_fingerprint,
+            updated_at_ms = excluded.updated_at_ms
+          """,
+          [
+            frame.frame_id,
+            frame.thing_id,
+            frame.title,
+            frame.medium,
+            frame.td_json,
+            frame.capabilities_json,
+            frame.credential_ref,
+            frame.server_spki_fingerprint,
+            now,
+            now
+          ]
+        )
+
+        audit(connection, "frame.paired", nil, %{
+          "frameId" => frame.frame_id,
+          "thingId" => frame.thing_id
+        })
+
+        frame.frame_id
+      end)
+
+    case result do
+      {:ok, frame_id} -> get_paired_frame_record(state, frame_id)
+      {:error, %Exqlite.Error{message: message}} -> {:error, {:database, message}}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp list_paired_frame_records(state) do
+    state.connection
+    |> Exqlite.query!("""
+    SELECT frame_id, thing_id, title, medium, capabilities_json, connection_state
+    FROM paired_frames
+    ORDER BY title COLLATE NOCASE, frame_id
+    """)
+    |> rows_to_maps()
+    |> Enum.map(&decode_frame_record/1)
+  end
+
+  defp get_paired_frame_record(state, frame_id)
+       when is_binary(frame_id) and byte_size(frame_id) in 1..128 do
+    case query_one(
+           state.connection,
+           """
+           SELECT frame_id, thing_id, title, medium, td_json, capabilities_json,
+                  credential_ref, server_spki_fingerprint, connection_state,
+                  paired_at_ms, updated_at_ms
+           FROM paired_frames
+           WHERE frame_id = ?
+           """,
+           [frame_id]
+         ) do
+      {:ok, frame} -> {:ok, decode_frame_record(frame)}
+      :not_found -> :not_found
+    end
+  end
+
+  defp get_paired_frame_record(_state, _frame_id), do: :not_found
+
+  defp forget_paired_frame_record(state, frame_id)
+       when is_binary(frame_id) and byte_size(frame_id) in 1..128 do
+    case get_paired_frame_record(state, frame_id) do
+      {:ok, _frame} -> forget_existing_frame(state, frame_id)
+      :not_found -> {:error, :not_found}
+    end
+  end
+
+  defp forget_paired_frame_record(_state, _frame_id), do: {:error, :invalid_frame}
+
+  defp forget_existing_frame(state, frame_id) do
+    result =
+      transaction(state.connection, fn connection ->
+        Exqlite.query!(connection, "DELETE FROM frame_outboxes WHERE frame_id = ?", [frame_id])
+
+        Exqlite.query!(connection, "DELETE FROM frame_outbox_revisions WHERE frame_id = ?", [
+          frame_id
+        ])
+
+        Exqlite.query!(connection, "DELETE FROM frame_asset_refs WHERE frame_id = ?", [frame_id])
+        Exqlite.query!(connection, "DELETE FROM paired_frames WHERE frame_id = ?", [frame_id])
+
+        Exqlite.query!(
+          connection,
+          "DELETE FROM app_settings WHERE key = 'frame.selected' AND value = ?",
+          [frame_id]
+        )
+
+        audit(connection, "frame.forgotten", nil, %{"frameId" => frame_id})
+        :ok
+      end)
+
+    case result do
+      {:ok, :ok} -> :ok
+      {:error, %Exqlite.Error{message: message}} -> {:error, {:database, message}}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp decode_frame_record(frame) do
+    {capabilities_json, frame} = Map.pop!(frame, "capabilities_json")
+    Map.put(frame, "capabilities", JSON.decode!(capabilities_json))
+  end
 
   defp restore_master_record(state, digest) do
     with {:ok, %{"storage_state" => storage_state}} <-

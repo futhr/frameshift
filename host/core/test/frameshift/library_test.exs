@@ -4,6 +4,12 @@ defmodule Frameshift.LibraryTest do
   alias Frameshift.ContentStore
   alias Frameshift.Library
 
+  @frame_fixture Path.expand(
+                   "../../../../protocol/fixtures/valid/thing-description.json",
+                   __DIR__
+                 )
+  @frame_fingerprint "sha256:" <> String.duplicate("b", 64)
+
   setup do
     data_dir =
       Path.join(
@@ -92,6 +98,39 @@ defmodule Frameshift.LibraryTest do
 
     assert first["digest"] == second["digest"]
     assert second[:placement] == :existing
+  end
+
+  test "paired universal frame records survive restart and can be forgotten", %{
+    library: library,
+    data_dir: data_dir
+  } do
+    td_source = File.read!(@frame_fixture)
+
+    assert {:ok, frame} =
+             Library.register_paired_frame(
+               library,
+               td_source,
+               "keychain:persistent-ref-0001",
+               @frame_fingerprint
+             )
+
+    assert frame["frame_id"] == "sim-photo-00000001"
+    assert frame["medium"] == "photo"
+    assert frame["capabilities"]["stillOnly"]
+    assert frame["credential_ref"] == "keychain:persistent-ref-0001"
+    assert [%{"frame_id" => "sim-photo-00000001"}] = Library.list_paired_frames(library)
+
+    GenServer.stop(library)
+    {:ok, restarted} = Library.start_link(data_dir: data_dir, name: nil)
+
+    assert {:ok, persisted} = Library.get_paired_frame(restarted, "sim-photo-00000001")
+    assert persisted["server_spki_fingerprint"] == @frame_fingerprint
+
+    assert :ok = Library.forget_paired_frame(restarted, "sim-photo-00000001")
+    assert [] = Library.list_paired_frames(restarted)
+    assert :not_found = Library.get_paired_frame(restarted, "sim-photo-00000001")
+
+    GenServer.stop(restarted)
   end
 
   test "canonical recipes ignore map insertion order and preserve source order", %{

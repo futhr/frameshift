@@ -1,0 +1,49 @@
+defmodule Frameshift.FrameRegistryTest do
+  use ExUnit.Case, async: true
+
+  alias Frameshift.FrameRegistry
+
+  @fixture Path.expand("../../../../protocol/fixtures/valid/thing-description.json", __DIR__)
+  @fingerprint "sha256:" <> String.duplicate("a", 64)
+
+  test "admits a universal TD and preserves optional extension data" do
+    source =
+      @fixture
+      |> File.read!()
+      |> Jason.decode!()
+      |> Map.put("vendor:measuredPanelRevision", "panel-a3")
+      |> Jason.encode!()
+
+    assert {:ok, frame} =
+             FrameRegistry.admit(source, "keychain:frame-client-0001", @fingerprint)
+
+    assert frame.frame_id == "sim-photo-00000001"
+    assert frame.medium == "photo"
+    assert frame.server_spki_fingerprint == @fingerprint
+    assert JSON.decode!(frame.td_json)["vendor:measuredPanelRevision"] == "panel-a3"
+    assert JSON.decode!(frame.capabilities_json)["stillOnly"]
+  end
+
+  test "rejects invalid identity custody and unsupported semantic contracts" do
+    source = File.read!(@fixture)
+
+    assert {:error, :invalid_credential_reference} =
+             FrameRegistry.admit(source, "", @fingerprint)
+
+    assert {:error, :invalid_server_fingerprint} =
+             FrameRegistry.admit(source, "keychain:frame", "sha256:UPPERCASE")
+
+    missing_profile =
+      source
+      |> Jason.decode!()
+      |> Map.delete("profile")
+      |> Jason.encode!()
+
+    assert {:error, %Frameshift.Protocol.Thing.Error{code: :required_profile_missing}} =
+             FrameRegistry.admit(
+               missing_profile,
+               "keychain:frame",
+               @fingerprint
+             )
+  end
+end

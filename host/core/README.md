@@ -11,13 +11,17 @@ The current partial core implementation provides:
 - canonical recipe identities and artifact cache relationships;
 - master import, generated-variant lineage, labels, search, pinning, recoverable
   removal, and frame-reference protection;
+- a durable paired-frame registry that retains the admitted universal Thing
+  Description, capability instance, pinned server fingerprint, and opaque
+  Keychain credential reference without storing private key material;
 - startup reconciliation for interrupted active/trash file moves;
 - durable per-frame sleeping outboxes with monotonic revisions, supersession,
   acknowledgement checks, and current/previous-known-good reference rotation;
 - a supervised, single-job Zig renderer port with bounded framing, typed worker
   failures, explicit deadlines, diagnostic redaction, and restart-on-failure;
-- a canonical RGBA8 component pipeline that binds source digests to composition
-  recipes, cached artifacts, outboxes, and simulator convergence;
+- a versioned immutable master package that retains exact source bytes and
+  canonical sRGB RGBA8, then binds durable masters to composition recipes,
+  cached artifacts, outboxes, and simulator convergence;
 - an explicit still-generation provider contract with preflight, deadline,
   canonical cache, provenance, and no retry or fallback;
 - a persistent frame simulator with bounded storage, desired/current state,
@@ -41,6 +45,8 @@ or wire incompatibility fails the renderer integration tests directly.
 
 Production releases require `FRAMESHIFT_RENDERER_PATH` at runtime rather than
 capturing a build-machine path. The repository check assembles the OTP release,
-starts it with isolated data, verifies metadata initialization, and terminates
-it cleanly. Embedding and supervising that release from the Swift app remain a
-separate packaging and IPC gate.
+starts it with isolated data, verifies a real Swift instruction/import round
+trip, and terminates it cleanly. The packaging check embeds and supervises the
+release and renderer inside the macOS app; Developer ID signing, hardened
+runtime, notarization, and Service Management registration remain distribution
+gates.

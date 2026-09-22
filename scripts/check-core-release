@@ -7,6 +7,8 @@ renderer_path="$repository_root/renderer/zig-out/bin/frameshift-raster"
 release_root="$core_root/_build/prod/rel/frameshift_core"
 runtime_root=$(mktemp -d "${TMPDIR:-/tmp}/frameshift-release-check.XXXXXX")
 release_pid=''
+ipc_token=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ipc_token_file="$runtime_root/ipc-token"
 
 cleanup() {
   if [ -n "$release_pid" ] && kill -0 "$release_pid" 2>/dev/null; then
@@ -47,7 +49,12 @@ case "$missing_path_output" in
     ;;
 esac
 
+umask 077
+printf '%s' "$ipc_token" >"$ipc_token_file"
+chmod 600 "$ipc_token_file"
+
 FRAMESHIFT_DATA_DIR="$runtime_root/data" \
+FRAMESHIFT_IPC_TOKEN_FILE="$ipc_token_file" \
 FRAMESHIFT_RENDERER_PATH="$renderer_path" \
 RELEASE_DISTRIBUTION=none \
   "$release_root/bin/frameshift_core" start >"$runtime_root/release.log" 2>&1 &
@@ -83,6 +90,7 @@ if ! kill -0 "$release_pid" 2>/dev/null; then
 fi
 
 FRAMESHIFT_SOCKET_PATH="$runtime_root/data/core.sock" \
+FRAMESHIFT_IPC_TOKEN="$ipc_token" \
   swift run \
     --package-path "$repository_root/host/macos" \
     frameshift-ipc-probe

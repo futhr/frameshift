@@ -9,6 +9,7 @@ renderer="$app_bundle/Contents/Resources/bin/frameshift-raster"
 runtime_root=$(mktemp -d "${TMPDIR:-/tmp}/frameshift-package-check.XXXXXX")
 app_pid=''
 managed_core_pid=''
+ipc_token=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 
 cleanup() {
   if [ -n "$app_pid" ] && kill -0 "$app_pid" 2>/dev/null; then
@@ -29,6 +30,7 @@ test -x "$core"
 test -x "$renderer"
 
 FRAMESHIFT_DATA_DIR="$runtime_root/data" \
+FRAMESHIFT_IPC_TOKEN="$ipc_token" \
 FRAMESHIFT_SOCKET_PATH="$runtime_root/data/core.sock" \
 ERL_CRASH_DUMP="$runtime_root/erl-crash.dump" \
 ERL_CRASH_DUMP_SECONDS=0 \
@@ -65,6 +67,7 @@ case "$managed_core_pid" in
 esac
 
 FRAMESHIFT_SOCKET_PATH="$runtime_root/data/core.sock" \
+FRAMESHIFT_IPC_TOKEN="$ipc_token" \
   swift run \
     --package-path "$repository_root/host/macos" \
     frameshift-ipc-probe

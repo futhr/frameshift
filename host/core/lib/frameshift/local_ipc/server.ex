@@ -16,6 +16,7 @@ defmodule Frameshift.LocalIPC.Server do
   @maximum_request_bytes 64 * 1024
   @maximum_response_bytes 1024 * 1024
   @request_timeout_ms 5_000
+  @token_pattern ~r/^[0-9a-f]{64}$/
 
   defmodule State do
     @moduledoc false
@@ -34,13 +35,15 @@ defmodule Frameshift.LocalIPC.Server do
   @impl true
   def init(options) do
     path = options |> Keyword.fetch!(:path) |> Path.expand()
+    token = Keyword.fetch!(options, :token)
     library = Keyword.get(options, :library, Frameshift.Library)
     task_supervisor = Keyword.get(options, :task_supervisor, Frameshift.TaskSupervisor)
 
-    with :ok <- prepare_path(path),
+    with :ok <- validate_token(token),
+         :ok <- prepare_path(path),
          {:ok, listener} <- listen(path),
          :ok <- File.chmod(path, 0o600),
-         {:ok, acceptor} <- start_acceptor(task_supervisor, listener, library) do
+         {:ok, acceptor} <- start_acceptor(task_supervisor, listener, library, token) do
       Process.monitor(acceptor)
       {:ok, %State{acceptor: acceptor, listener: listener, path: path}}
     else
@@ -114,17 +117,17 @@ defmodule Frameshift.LocalIPC.Server do
     ])
   end
 
-  defp start_acceptor(task_supervisor, listener, library) do
+  defp start_acceptor(task_supervisor, listener, library, token) do
     Task.Supervisor.start_child(task_supervisor, fn ->
-      accept_loop(task_supervisor, listener, library)
+      accept_loop(task_supervisor, listener, library, token)
     end)
   end
 
-  defp accept_loop(task_supervisor, listener, library) do
+  defp accept_loop(task_supervisor, listener, library, token) do
     case :gen_tcp.accept(listener) do
       {:ok, socket} ->
-        hand_off(task_supervisor, socket, library)
-        accept_loop(task_supervisor, listener, library)
+        hand_off(task_supervisor, socket, library, token)
+        accept_loop(task_supervisor, listener, library, token)
 
       {:error, :closed} ->
         :ok
@@ -134,10 +137,10 @@ defmodule Frameshift.LocalIPC.Server do
     end
   end
 
-  defp hand_off(task_supervisor, socket, library) do
+  defp hand_off(task_supervisor, socket, library, token) do
     case Task.Supervisor.start_child(task_supervisor, fn ->
            receive do
-             {:serve, ^socket} -> serve(socket, library)
+             {:serve, ^socket} -> serve(socket, library, token)
            after
              @request_timeout_ms -> :gen_tcp.close(socket)
            end
@@ -153,10 +156,10 @@ defmodule Frameshift.LocalIPC.Server do
     end
   end
 
-  defp serve(socket, library) do
+  defp serve(socket, library, token) do
     response =
       case :gen_tcp.recv(socket, 0, @request_timeout_ms) do
-        {:ok, payload} -> dispatch(payload, library)
+        {:ok, payload} -> dispatch(payload, library, token)
         {:error, :timeout} -> error_response(nil, :request_timeout)
         {:error, _reason} -> error_response(nil, :invalid_request)
       end
@@ -176,8 +179,9 @@ defmodule Frameshift.LocalIPC.Server do
       :gen_tcp.close(socket)
   end
 
-  defp dispatch(payload, library) do
+  defp dispatch(payload, library, token) do
     with {:ok, request} <- decode_request(payload),
+         :ok <- authenticate(request, token),
          {:ok, response} <- execute_request(request, library) do
       response
     else
@@ -201,24 +205,24 @@ defmodule Frameshift.LocalIPC.Server do
   end
 
   defp validate_request(
-         %{"version" => 1, "requestId" => request_id, "operation" => operation} = request
-       )
-       when is_binary(request_id) and byte_size(request_id) in 1..64 and
-              operation in ["snapshot", "command"] do
+         %{
+           "version" => 1,
+           "requestId" => request_id,
+           "operation" => operation,
+           "auth" => auth
+         } = request
+       ) do
     allowed =
       if operation == "command",
-        do: ~w(version requestId operation command),
-        else: ~w(version requestId operation)
+        do: ~w(version requestId operation auth command),
+        else: ~w(version requestId operation auth)
 
-    cond do
-      Enum.any?(Map.keys(request), &(&1 not in allowed)) ->
-        {:error, {request_id, :invalid_request}}
-
-      operation == "command" and not is_map(Map.get(request, "command")) ->
-        {:error, {request_id, :invalid_command}}
-
-      true ->
-        {:ok, request}
+    with :ok <- validate_request_id(request_id),
+         :ok <- validate_operation(operation),
+         :ok <- validate_auth_shape(auth),
+         :ok <- validate_request_keys(request, allowed, request_id),
+         :ok <- validate_command_shape(request, operation, request_id) do
+      {:ok, request}
     end
   end
 
@@ -227,6 +231,64 @@ defmodule Frameshift.LocalIPC.Server do
     safe_id = if is_binary(request_id) and byte_size(request_id) in 1..64, do: request_id
     {:error, {safe_id, :invalid_request}}
   end
+
+  defp validate_request_id(request_id)
+       when is_binary(request_id) and byte_size(request_id) in 1..64,
+       do: :ok
+
+  defp validate_request_id(request_id),
+    do: {:error, {safe_request_id(request_id), :invalid_request}}
+
+  defp validate_operation(operation) when operation in ["snapshot", "command"], do: :ok
+  defp validate_operation(_operation), do: {:error, :invalid_request}
+
+  defp validate_auth_shape(auth) when is_binary(auth) and byte_size(auth) == 64, do: :ok
+  defp validate_auth_shape(_auth), do: {:error, :invalid_request}
+
+  defp validate_request_keys(request, allowed, request_id) do
+    if Enum.any?(Map.keys(request), &(&1 not in allowed)),
+      do: {:error, {request_id, :invalid_request}},
+      else: :ok
+  end
+
+  defp validate_command_shape(request, "command", request_id) do
+    if is_map(Map.get(request, "command")),
+      do: :ok,
+      else: {:error, {request_id, :invalid_command}}
+  end
+
+  defp validate_command_shape(_request, _operation, _request_id), do: :ok
+
+  defp safe_request_id(request_id)
+       when is_binary(request_id) and byte_size(request_id) in 1..64,
+       do: request_id
+
+  defp safe_request_id(_request_id), do: nil
+
+  defp validate_token(token) when is_binary(token) do
+    if Regex.match?(@token_pattern, token), do: :ok, else: {:error, :invalid_ipc_token}
+  end
+
+  defp validate_token(_token), do: {:error, :invalid_ipc_token}
+
+  defp authenticate(%{"requestId" => request_id, "auth" => candidate}, token) do
+    if secure_equal?(candidate, token),
+      do: :ok,
+      else: {:error, {request_id, :authentication_required}}
+  end
+
+  defp secure_equal?(left, right)
+       when is_binary(left) and is_binary(right) and byte_size(left) == byte_size(right) do
+    left
+    |> :binary.bin_to_list()
+    |> Enum.zip(:binary.bin_to_list(right))
+    |> Enum.reduce(0, fn {left_byte, right_byte}, difference ->
+      Bitwise.bor(difference, Bitwise.bxor(left_byte, right_byte))
+    end)
+    |> Kernel.==(0)
+  end
+
+  defp secure_equal?(_left, _right), do: false
 
   defp execute_request(%{"requestId" => request_id, "operation" => "snapshot"}, library) do
     {:ok, success_response(request_id, LocalAPI.snapshot(library))}

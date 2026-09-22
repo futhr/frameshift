@@ -3,6 +3,8 @@ defmodule Frameshift.Application do
 
   use Application
 
+  alias Frameshift.LocalIPC.Token
+
   @impl true
   def start(_type, _args) do
     children =
@@ -31,7 +33,17 @@ defmodule Frameshift.Application do
 
   defp local_ipc_children do
     if Application.fetch_env!(:frameshift_core, :start_local_ipc) do
-      [{Frameshift.LocalIPC.Server, path: Frameshift.Paths.socket_path()}]
+      token_path =
+        System.get_env("FRAMESHIFT_IPC_TOKEN_FILE") ||
+          raise "FRAMESHIFT_IPC_TOKEN_FILE is required when local IPC is enabled"
+
+      token =
+        case Token.consume(token_path) do
+          {:ok, token} -> token
+          {:error, reason} -> raise "could not consume local IPC bootstrap token: #{reason}"
+        end
+
+      [{Frameshift.LocalIPC.Server, path: Frameshift.Paths.socket_path(), token: token}]
     else
       []
     end

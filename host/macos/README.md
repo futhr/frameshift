@@ -6,11 +6,12 @@ application lifecycle. Durable library, recipe, outbox, render, and frame state
 remain owned by the bundled Elixir core.
 
 `LocalCoreClient` communicates with the versioned bounded Unix-domain-socket
-protocol. Imports use Image I/O to admit one still image, apply its orientation,
-convert into canonical sRGB RGBA8, and write a user-only temporary handoff. The
-core verifies the handoff digest and persists an immutable master containing the
-exact original bytes and normalized pixels. The handoff is removed after the
-terminal core response.
+protocol using a fresh 256-bit per-launch token delivered through a one-use
+user-only bootstrap file. Imports use Image I/O to admit one still image, apply
+its orientation, convert into canonical sRGB RGBA8, and write a user-only
+temporary handoff. The core verifies the handoff digest and persists an
+immutable master containing the exact original bytes and normalized pixels. The
+handoff is removed after the terminal core response.
 
 The packaged app embeds and supervises the production OTP release and Zig
 renderer. It is deliberately usable without a generation provider. Frame

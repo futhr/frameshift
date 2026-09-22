@@ -1,3 +1,4 @@
+import CryptoKit
 import Darwin
 import Foundation
 
@@ -14,13 +15,13 @@ public actor LocalCoreClient: CoreClient {
   }
 
   public func snapshot() async throws -> CoreSnapshot {
-    try await exchange(WireRequest(operation: "snapshot"))
+    try await exchange(operation: "snapshot")
   }
 
   public func send(_ command: CoreCommand) async throws -> CoreSnapshot {
     let prepared = try prepare(command)
     defer { prepared.decodedImport?.removeWorkDirectory() }
-    return try await exchange(WireRequest(operation: "command", command: prepared.command))
+    return try await exchange(operation: "command", command: prepared.command)
   }
 
   public static func defaultSocketPath() -> String {
@@ -55,21 +56,27 @@ public actor LocalCoreClient: CoreClient {
     return PreparedCommand(command: command.withDecodedImport(decoded), decodedImport: decoded)
   }
 
-  private func exchange(_ request: WireRequest) async throws -> CoreSnapshot {
+  private func exchange(operation: String, command: CoreCommand? = nil) async throws -> CoreSnapshot
+  {
+    try await BundledCore.shared.ensureRunning(socketPath: socketPath)
+
+    do {
+      return try await exchangeOnce(operation: operation, command: command)
+    } catch CoreClientError.coreUnavailable {
+      try await BundledCore.shared.ensureRunning(socketPath: socketPath, force: true)
+      return try await exchangeOnce(operation: operation, command: command)
+    }
+  }
+
+  private func exchangeOnce(operation: String, command: CoreCommand?) async throws -> CoreSnapshot {
+    let auth = try await BundledCore.shared.sessionToken(socketPath: socketPath)
+    let request = WireRequest(auth: auth, operation: operation, command: command)
     let payload = try encoder.encode(request)
     guard payload.count <= Self.maximumRequestBytes else {
       throw CoreClientError.invalidCommand
     }
 
-    try await BundledCore.shared.ensureRunning(socketPath: socketPath)
-
-    let responseData: Data
-    do {
-      responseData = try await send(payload)
-    } catch CoreClientError.coreUnavailable {
-      try await BundledCore.shared.ensureRunning(socketPath: socketPath, force: true)
-      responseData = try await send(payload)
-    }
+    let responseData = try await send(payload)
 
     let response: WireResponse
     do {
@@ -125,12 +132,18 @@ private actor BundledCore {
   static let shared = BundledCore()
 
   private var process: Process?
+  private var token: String?
 
   func ensureRunning(socketPath: String, force: Bool = false) async throws {
-    if !force, FileManager.default.fileExists(atPath: socketPath) { return }
+    if !force, FileManager.default.fileExists(atPath: socketPath) {
+      try loadExternalTokenIfNeeded()
+      return
+    }
 
     if process?.isRunning != true {
-      process = try launch(socketPath: socketPath)
+      let launched = try launch(socketPath: socketPath)
+      process = launched.process
+      token = launched.token
     }
 
     for _ in 0..<100 {
@@ -142,13 +155,21 @@ private actor BundledCore {
     throw CoreClientError.coreUnavailable
   }
 
-  func shutdown() {
-    guard let process, process.isRunning else { return }
-    process.terminate()
-    self.process = nil
+  func sessionToken(socketPath: String) async throws -> String {
+    try await ensureRunning(socketPath: socketPath)
+    guard let token else { throw CoreClientError.coreUnavailable }
+    return token
   }
 
-  private func launch(socketPath: String) throws -> Process {
+  func shutdown() {
+    if let process, process.isRunning {
+      process.terminate()
+    }
+    self.process = nil
+    token = nil
+  }
+
+  private func launch(socketPath: String) throws -> (process: Process, token: String) {
     guard let resources = Bundle.main.resourceURL else {
       throw CoreClientError.coreUnavailable
     }
@@ -187,6 +208,23 @@ private actor BundledCore {
       throw CoreClientError.coreUnavailable
     }
 
+    let configuredToken = ProcessInfo.processInfo.environment["FRAMESHIFT_IPC_TOKEN"]
+    let token = configuredToken.flatMap { Self.validToken($0) ? $0 : nil } ?? Self.makeToken()
+    let tokenURL = dataDirectory.appendingPathComponent(
+      "ipc-bootstrap-\(UUID().uuidString.lowercased())",
+      isDirectory: false
+    )
+    do {
+      try Data(token.utf8).write(to: tokenURL, options: .withoutOverwriting)
+      try FileManager.default.setAttributes(
+        [.posixPermissions: 0o600],
+        ofItemAtPath: tokenURL.path
+      )
+    } catch {
+      try? FileManager.default.removeItem(at: tokenURL)
+      throw CoreClientError.coreUnavailable
+    }
+
     var environment = ProcessInfo.processInfo.environment
     environment["FRAMESHIFT_DATA_DIR"] =
       environment["FRAMESHIFT_DATA_DIR"] ?? dataDirectory.path
@@ -196,6 +234,7 @@ private actor BundledCore {
     environment["ERL_CRASH_DUMP_SECONDS"] = "0"
     environment["FRAMESHIFT_CORE_PID_FILE"] =
       dataDirectory.appendingPathComponent("core.pid").path
+    environment["FRAMESHIFT_IPC_TOKEN_FILE"] = tokenURL.path
     environment["RELEASE_DISTRIBUTION"] = "none"
 
     let child = Process()
@@ -207,29 +246,56 @@ private actor BundledCore {
 
     do {
       try child.run()
-      return child
+      return (child, token)
     } catch {
+      try? FileManager.default.removeItem(at: tokenURL)
       throw CoreClientError.coreUnavailable
     }
+  }
+
+  private func loadExternalTokenIfNeeded() throws {
+    if token != nil { return }
+    guard let configured = ProcessInfo.processInfo.environment["FRAMESHIFT_IPC_TOKEN"],
+      Self.validToken(configured)
+    else {
+      throw CoreClientError.coreUnavailable
+    }
+    token = configured
+  }
+
+  private static func makeToken() -> String {
+    SymmetricKey(size: .bits256).withUnsafeBytes { bytes in
+      bytes.map { String(format: "%02x", $0) }.joined()
+    }
+  }
+
+  private static func validToken(_ candidate: String) -> Bool {
+    candidate.utf8.count == 64
+      && candidate.utf8.allSatisfy { byte in
+        (48...57).contains(byte) || (97...102).contains(byte)
+      }
   }
 }
 
 private struct WireRequest: Encodable, Sendable {
   let version: Int
   let requestID: String
+  let auth: String
   let operation: String
   let command: CoreCommand?
 
   private enum CodingKeys: String, CodingKey {
     case version
     case requestID = "requestId"
+    case auth
     case operation
     case command
   }
 
-  init(operation: String, command: CoreCommand? = nil) {
+  init(auth: String, operation: String, command: CoreCommand? = nil) {
     version = 1
     requestID = UUID().uuidString.lowercased()
+    self.auth = auth
     self.operation = operation
     self.command = command
   }

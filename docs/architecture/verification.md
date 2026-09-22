@@ -23,7 +23,8 @@ electronics, packaging, security review, or certification.
 | A durable normalized master is read back with object and package verification, rendered for a paired capability/profile, cached, queued to the sleeping outbox, and converges in-process | Core/renderer/simulator | `Frameshift.LibraryTest`, `Frameshift.RenderProfileTest`, `Frameshift.RenderPipelineTest` | Implemented through the product queue command for compatible RGB24 pull targets; installed pairing and real authenticated frame transport remain open |
 | One explicitly selected generation provider preflights, times out, caches exact repeats, and persists no provider context | Core generation | `Frameshift.GenerationTest` | Implemented with fixture providers only |
 | Production core configuration is relocatable, boots with an explicit renderer path, and serves the versioned local protocol | Elixir core/Swift shell | `scripts/check-core-release`, `frameshift-ipc-probe` | Implemented with a real Swift-to-release round trip |
-| Menu extra remains a snapshot/command client, launches the bundled OTP core and Zig worker, uses authoritative durable library/target state, and works with no generation provider | Swift shell/core | `Frameshift.LocalIPC.ServerTest`, `Frameshift.LocalAPITest`, `Frameshift.RenderPipelineTest`, `frameshift-shell-checks`, `frameshift-ipc-probe`, `scripts/check-packaged-app` | Implemented for import/instruction/pin/remove/target selection and render/queue to compatible pull targets; pairing UI, direct transport, session authentication, service registration, and signed distribution remain open |
+| A fresh 256-bit challenge crosses a one-use user-only bootstrap file and authenticates every bounded local request with constant-time comparison | Swift shell/core | `Frameshift.LocalIPC.TokenTest`, `Frameshift.LocalIPC.ServerTest`, `frameshift-ipc-probe`, `scripts/check-core-release`, `scripts/check-packaged-app` | Implemented for the per-launch protected-bootstrap profile; durable command receipts/replay suppression across core restarts remain open |
+| Menu extra remains a snapshot/command client, launches the bundled OTP core and Zig worker, uses authoritative durable library/target state, and works with no generation provider | Swift shell/core | `Frameshift.LocalIPC.ServerTest`, `Frameshift.LocalAPITest`, `Frameshift.RenderPipelineTest`, `frameshift-shell-checks`, `frameshift-ipc-probe`, `scripts/check-packaged-app` | Implemented for import/instruction/pin/remove/target selection and render/queue to compatible pull targets; pairing UI, direct transport, service registration, and signed distribution remain open |
 | Repository-owned build and checks contain no Python; shell and workflow files pass pinned linters | Repository policy | `scripts/check policy`, CI workflow | Enforced for tracked and untracked source files |
 
 ## Open evidence gates
@@ -35,8 +36,7 @@ The following remain open and must not be inferred from the automated rows:
   depth, mounting, and optical measurements;
 - pairing, mutual TLS, certificate rotation, authorization, and independent
   security review;
-- Keychain/bootstrap authentication of the local IPC peer, sandbox-safe file
-  handoff, and command replay receipts across core restarts;
+- sandbox-safe file bookmarks and command replay receipts across core restarts;
 - reference HTTPS transport, ExposedThing routing, and live semantic
   interoperability over mutually authenticated TLS;
 - real AI provider preflight, provenance, cost/privacy disclosure, cancellation,

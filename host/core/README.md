@@ -7,6 +7,8 @@ frame electronics.
 The current partial core implementation provides:
 
 - embedded Frame Protocol v0.1 schema validation with no runtime schema fetch;
+- an authenticated bounded Unix-socket command boundary whose fresh per-launch
+  challenge is consumed from a one-use user-only bootstrap file;
 - a single-owner SQLite library backed by immutable content-addressed files;
 - canonical recipe identities and artifact cache relationships;
 - master import, generated-variant lineage, labels, search, pinning, recoverable

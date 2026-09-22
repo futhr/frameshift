@@ -4,6 +4,8 @@ defmodule Frameshift.LocalIPC.ServerTest do
   alias Frameshift.Library
   alias Frameshift.LocalIPC.Server
 
+  @token String.duplicate("a", 64)
+
   setup do
     root =
       Path.join(
@@ -19,6 +21,7 @@ defmodule Frameshift.LocalIPC.ServerTest do
     {:ok, server} =
       Server.start_link(
         path: socket_path,
+        token: @token,
         library: library,
         task_supervisor: task_supervisor,
         name: nil
@@ -102,6 +105,26 @@ defmodule Frameshift.LocalIPC.ServerTest do
              })
   end
 
+  test "rejects a caller that knows only the socket path", context do
+    assert %{
+             "ok" => false,
+             "requestId" => "wrong-auth",
+             "error" => %{"code" => "authentication_required"}
+           } =
+             request(context.socket_path, %{
+               "version" => 1,
+               "requestId" => "wrong-auth",
+               "operation" => "snapshot",
+               "auth" => String.duplicate("b", 64)
+             })
+
+    assert %{"ok" => false, "error" => %{"code" => "invalid_request"}} =
+             request_bytes(
+               context.socket_path,
+               ~s({"version":1,"requestId":"missing-auth","operation":"snapshot"})
+             )
+  end
+
   test "does not replace a non-socket filesystem entry" do
     root = "/tmp/fs-u-#{System.unique_integer([:positive, :monotonic])}"
 
@@ -111,13 +134,17 @@ defmodule Frameshift.LocalIPC.ServerTest do
     on_exit(fn -> File.rm_rf!(root) end)
 
     previous = Process.flag(:trap_exit, true)
-    assert {:error, :unsafe_socket_path} = Server.start_link(path: path, name: nil)
+
+    assert {:error, :unsafe_socket_path} =
+             Server.start_link(path: path, token: @token, name: nil)
+
     Process.flag(:trap_exit, previous)
     assert File.read!(path) == "owner data"
   end
 
   defp request(path, document) do
     document
+    |> Map.put_new("auth", @token)
     |> RFC8785.encode!()
     |> then(&request_bytes(path, &1))
   end

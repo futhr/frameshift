@@ -76,10 +76,13 @@ bounded JSON depth/node/string/collection admission, duplicate-member
 rejection, request correlation, a 5 second socket deadline, and explicit
 command field allowlists. The application-support directory is mode `0700`
 and the socket is mode `0600`; the server refuses to replace a non-socket path.
-The release check performs a real Swift-to-Elixir snapshot, durable command,
-and refreshed-snapshot round trip. The required Keychain/bootstrap peer
-challenge is not yet implemented, so filesystem permissions alone are partial
-security evidence rather than completion of the authenticated IPC requirement.
+On every core launch the Swift owner generates a fresh 256-bit token, writes it
+to a uniquely named mode `0600` file inside the private directory, and passes
+only that path to the release. The core validates and removes the bootstrap
+file before opening the socket. Every request must carry the token and the core
+compares it in constant time, so knowing the socket path is insufficient. The
+release and packaged-app checks perform authenticated snapshot, durable command,
+import, and refreshed-snapshot round trips and reject missing or wrong tokens.
 
 The message schema includes no raw private key material. Large image bytes move
 through app-owned files/file descriptors rather than base64 JSON.

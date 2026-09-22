@@ -100,6 +100,25 @@ defmodule Frameshift.Library.Migrations do
        "CREATE INDEX masters_active_title ON masters(removed_at_ms, title)",
        "CREATE INDEX labels_lookup ON labels(label, master_digest)",
        "CREATE INDEX frame_asset_refs_digest ON frame_asset_refs(object_digest)"
+     ]},
+    {2,
+     [
+       """
+       CREATE TABLE frame_outbox_revisions (
+         frame_id TEXT PRIMARY KEY,
+         revision INTEGER NOT NULL CHECK (revision > 0)
+       ) STRICT
+       """,
+       """
+       CREATE TABLE frame_outboxes (
+         frame_id TEXT PRIMARY KEY REFERENCES frame_outbox_revisions(frame_id) ON DELETE RESTRICT,
+         revision INTEGER NOT NULL CHECK (revision > 0),
+         desired_digest TEXT NOT NULL REFERENCES objects(digest) ON DELETE RESTRICT,
+         profile_id TEXT NOT NULL,
+         playlist_revision TEXT,
+         queued_at_ms INTEGER NOT NULL
+       ) STRICT
+       """
      ]}
   ]
 

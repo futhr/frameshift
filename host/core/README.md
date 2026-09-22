@@ -12,9 +12,11 @@ The current research-preview slice provides:
 - master import, generated-variant lineage, labels, search, pinning, recoverable
   removal, and frame-reference protection;
 - startup reconciliation for interrupted active/trash file moves;
+- durable per-frame sleeping outboxes with monotonic revisions, supersession,
+  acknowledgement checks, and current/previous-known-good reference rotation;
 - a persistent frame simulator with bounded storage, desired/current state,
-  still playlists, redundant metadata records, and injected transfer, display,
-  storage, timing, and power-loss failures.
+  sleeping pull convergence, still playlists, redundant metadata records, and
+  injected contact, transfer, display, storage, timing, and power-loss failures.
 
 Run the complete core check from this directory:
 

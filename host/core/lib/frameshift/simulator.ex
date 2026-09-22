@@ -75,6 +75,12 @@ defmodule Frameshift.Simulator do
     GenServer.call(server, {:set_playlist, playlist, precondition})
   end
 
+  @spec pull_outbox(server(), map(), binary()) ::
+          {:ok, :no_work | map()} | {:error, term()}
+  def pull_outbox(server \\ __MODULE__, manifest, bytes) do
+    GenServer.call(server, {:pull_outbox, manifest, bytes}, :infinity)
+  end
+
   @impl true
   def init(options) do
     capabilities = Keyword.fetch!(options, :capabilities)
@@ -157,6 +163,19 @@ defmodule Frameshift.Simulator do
     case set_playlist_record(state, playlist, precondition) do
       {:ok, next_state} -> {:reply, {:ok, State.public(next_state)}, next_state}
       {:error, reason} -> {:reply, {:error, reason}, state}
+    end
+  end
+
+  def handle_call({:pull_outbox, manifest, bytes}, _from, state) do
+    case pull_outbox_record(state, manifest, bytes) do
+      {:ok, acknowledgement, next_state} ->
+        {:reply, {:ok, acknowledgement}, next_state}
+
+      {:error, reason, next_state} ->
+        {:reply, {:error, reason}, next_state}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
     end
   end
 
@@ -437,6 +456,99 @@ defmodule Frameshift.Simulator do
       end
     else
       {:error, reason} -> {:error, normalize_schema_error(reason)}
+    end
+  end
+
+  defp pull_outbox_record(%{faults: %{missed_contact: true}}, _manifest, _bytes),
+    do: {:error, :contact_missed}
+
+  defp pull_outbox_record(state, manifest, bytes) when is_binary(bytes) do
+    case Schema.validate("outbox-manifest", manifest) do
+      :ok -> receive_outbox_manifest(state, manifest, bytes)
+      {:error, reason} -> {:error, normalize_schema_error(reason)}
+    end
+  end
+
+  defp pull_outbox_record(_state, _manifest, _bytes), do: {:error, :invalid_document}
+
+  defp receive_outbox_manifest(state, %{"desiredAsset" => nil}, _bytes),
+    do: {:ok, :no_work, state}
+
+  defp receive_outbox_manifest(state, manifest, bytes),
+    do: receive_outbox_asset(state, manifest, bytes)
+
+  defp receive_outbox_asset(state, manifest, bytes) do
+    digest = manifest["desiredAsset"]
+    profile_id = manifest["artifactProfile"]
+
+    case put_asset_record(state, digest, profile_id, bytes) do
+      {:ok, disposition, uploaded} -> activate_outbox_asset(uploaded, manifest, disposition)
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp activate_outbox_asset(state, manifest, disposition) do
+    request = %{
+      "assetDigest" => manifest["desiredAsset"],
+      "artifactProfile" => manifest["artifactProfile"],
+      "requestId" => "outbox-#{manifest["revision"]}"
+    }
+
+    precondition = if state.desired_asset == nil, do: "*", else: State.etag(state)
+
+    case set_desired_record(state, request, precondition) do
+      {:ok, next_state} ->
+        complete_outbox_display(next_state, manifest, disposition)
+
+      {:error, :display_failed, failed} ->
+        outbox_acknowledgement(manifest, disposition, "failed", failed)
+
+      {:error, reason, next_state} ->
+        {:error, reason, next_state}
+
+      {:error, reason} ->
+        {:error, reason, state}
+    end
+  end
+
+  defp complete_outbox_display(state, manifest, disposition) do
+    cond do
+      state.current_asset == manifest["desiredAsset"] and state.display_state == "displayed" ->
+        outbox_acknowledgement(manifest, disposition, "displayed", state)
+
+      state.desired_asset == manifest["desiredAsset"] ->
+        resume_outbox_display(state, manifest, disposition)
+
+      true ->
+        {:error, :manifest_superseded, state}
+    end
+  end
+
+  defp resume_outbox_display(state, manifest, disposition) do
+    case perform_display(state) do
+      {:ok, displayed} ->
+        outbox_acknowledgement(manifest, disposition, "displayed", displayed)
+
+      {:error, :display_failed, failed} ->
+        outbox_acknowledgement(manifest, disposition, "failed", failed)
+
+      {:error, reason, next_state} ->
+        {:error, reason, next_state}
+    end
+  end
+
+  defp outbox_acknowledgement(manifest, disposition, refresh, state) do
+    acknowledgement = %{
+      "manifestRevision" => manifest["revision"],
+      "storage" => if(disposition == :existing, do: "unchanged", else: "verified"),
+      "refresh" => refresh,
+      "currentAsset" => state.current_asset,
+      "lastError" => state.last_error
+    }
+
+    case Schema.validate("outbox-ack", acknowledgement) do
+      :ok -> {:ok, acknowledgement, state}
+      {:error, reason} -> {:error, normalize_schema_error(reason), state}
     end
   end
 

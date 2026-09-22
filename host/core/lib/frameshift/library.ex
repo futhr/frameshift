@@ -11,6 +11,7 @@ defmodule Frameshift.Library do
   alias Frameshift.ContentStore
   alias Frameshift.Digest
   alias Frameshift.Library.Migrations
+  alias Frameshift.Protocol.Schema
 
   @type server :: GenServer.server()
   @type digest :: String.t()
@@ -118,6 +119,26 @@ defmodule Frameshift.Library do
 
   @spec get_master(server(), digest()) :: {:ok, map()} | :not_found
   def get_master(server \\ __MODULE__, digest), do: GenServer.call(server, {:get_master, digest})
+
+  @spec queue_outbox(server(), String.t(), digest(), String.t(), digest() | nil) ::
+          {:ok, map()} | {:error, term()}
+  def queue_outbox(server \\ __MODULE__, frame_id, digest, profile_id, playlist_revision \\ nil) do
+    GenServer.call(
+      server,
+      {:queue_outbox, frame_id, digest, profile_id, playlist_revision}
+    )
+  end
+
+  @spec outbox_manifest(server(), String.t()) :: {:ok, map()} | :empty
+  def outbox_manifest(server \\ __MODULE__, frame_id) do
+    GenServer.call(server, {:outbox_manifest, frame_id})
+  end
+
+  @spec acknowledge_outbox(server(), String.t(), map()) ::
+          :ok | {:ok, :pending} | {:error, term()}
+  def acknowledge_outbox(server \\ __MODULE__, frame_id, acknowledgement) do
+    GenServer.call(server, {:acknowledge_outbox, frame_id, acknowledgement})
+  end
 
   @impl true
   def init(options) do
@@ -249,6 +270,19 @@ defmodule Frameshift.Library do
 
   def handle_call({:get_master, digest}, _from, state) do
     {:reply, get_master_record(state, digest), state}
+  end
+
+  def handle_call({:queue_outbox, frame_id, digest, profile_id, playlist_revision}, _from, state) do
+    result = queue_outbox_record(state, frame_id, digest, profile_id, playlist_revision)
+    {:reply, result, state}
+  end
+
+  def handle_call({:outbox_manifest, frame_id}, _from, state) do
+    {:reply, outbox_manifest_record(state, frame_id), state}
+  end
+
+  def handle_call({:acknowledge_outbox, frame_id, acknowledgement}, _from, state) do
+    {:reply, acknowledge_outbox_record(state, frame_id, acknowledgement), state}
   end
 
   defp import_master_record(state, bytes, attributes, parent_digest, recipe_hash) do
@@ -681,6 +715,200 @@ defmodule Frameshift.Library do
          ) do
       {:ok, master} -> {:ok, decode_master_row(master)}
       :not_found -> :not_found
+    end
+  end
+
+  defp queue_outbox_record(state, frame_id, digest, profile_id, playlist_revision)
+       when is_binary(frame_id) and frame_id != "" and is_binary(profile_id) do
+    with true <- Digest.valid_sha256?(digest),
+         true <- playlist_revision == nil or Digest.valid_sha256?(playlist_revision),
+         :ok <-
+           Schema.validate("outbox-manifest", %{
+             "revision" => 1,
+             "desiredAsset" => digest,
+             "artifactProfile" => profile_id,
+             "playlistRevision" => playlist_revision
+           }),
+         {:ok, %{"profile_id" => ^profile_id}} <-
+           query_one(
+             state.connection,
+             "SELECT profile_id FROM artifacts WHERE digest = ?",
+             [digest]
+           ) do
+      result =
+        transaction(state.connection, fn connection ->
+          revision = next_outbox_revision(connection, frame_id)
+
+          Exqlite.query!(
+            connection,
+            "DELETE FROM frame_asset_refs WHERE frame_id = ? AND role = 'queued'",
+            [frame_id]
+          )
+
+          Exqlite.query!(
+            connection,
+            """
+            INSERT INTO frame_outboxes(
+              frame_id, revision, desired_digest, profile_id, playlist_revision, queued_at_ms
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(frame_id) DO UPDATE SET
+              revision = excluded.revision,
+              desired_digest = excluded.desired_digest,
+              profile_id = excluded.profile_id,
+              playlist_revision = excluded.playlist_revision,
+              queued_at_ms = excluded.queued_at_ms
+            """,
+            [frame_id, revision, digest, profile_id, playlist_revision, now_ms()]
+          )
+
+          Exqlite.query!(
+            connection,
+            "INSERT INTO frame_asset_refs(frame_id, role, object_digest) VALUES (?, 'queued', ?)",
+            [frame_id, digest]
+          )
+
+          audit(connection, "outbox.queued", digest, %{
+            "frameId" => frame_id,
+            "revision" => revision
+          })
+
+          revision
+        end)
+
+      case result do
+        {:ok, _revision} -> outbox_manifest_record(state, frame_id)
+        {:error, %Exqlite.Error{message: message}} -> {:error, {:database, message}}
+        {:error, reason} -> {:error, reason}
+      end
+    else
+      false -> {:error, :invalid_digest}
+      {:error, %JSV.ValidationError{}} -> {:error, :invalid_outbox}
+      :not_found -> {:error, :artifact_missing}
+      {:ok, _different_profile} -> {:error, :unsupported_profile}
+    end
+  end
+
+  defp queue_outbox_record(_state, _frame_id, _digest, _profile_id, _playlist_revision),
+    do: {:error, :invalid_outbox}
+
+  defp next_outbox_revision(connection, frame_id) do
+    connection
+    |> Exqlite.query!(
+      """
+      INSERT INTO frame_outbox_revisions(frame_id, revision)
+      VALUES (?, 1)
+      ON CONFLICT(frame_id) DO UPDATE SET revision = revision + 1
+      RETURNING revision
+      """,
+      [frame_id]
+    )
+    |> Map.fetch!(:rows)
+    |> then(fn [[revision]] -> revision end)
+  end
+
+  defp outbox_manifest_record(state, frame_id) do
+    case query_one(
+           state.connection,
+           """
+           SELECT revision, desired_digest, profile_id, playlist_revision
+           FROM frame_outboxes
+           WHERE frame_id = ?
+           """,
+           [frame_id]
+         ) do
+      {:ok, row} ->
+        {:ok,
+         %{
+           "revision" => row["revision"],
+           "desiredAsset" => row["desired_digest"],
+           "artifactProfile" => row["profile_id"],
+           "playlistRevision" => row["playlist_revision"]
+         }}
+
+      :not_found ->
+        :empty
+    end
+  end
+
+  defp acknowledge_outbox_record(state, frame_id, acknowledgement) when is_binary(frame_id) do
+    with :ok <- Schema.validate("outbox-ack", acknowledgement),
+         {:ok, manifest} <- outbox_manifest_record(state, frame_id),
+         :ok <- validate_acknowledgement(manifest, acknowledgement) do
+      if acknowledgement["refresh"] == "displayed" do
+        commit_outbox_acknowledgement(state, frame_id, manifest)
+      else
+        {:ok, :pending}
+      end
+    else
+      :empty -> {:error, :outbox_empty}
+      {:error, %JSV.ValidationError{}} -> {:error, :invalid_acknowledgement}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp acknowledge_outbox_record(_state, _frame_id, _acknowledgement),
+    do: {:error, :invalid_acknowledgement}
+
+  defp validate_acknowledgement(manifest, acknowledgement) do
+    cond do
+      acknowledgement["manifestRevision"] != manifest["revision"] ->
+        {:error, :outbox_revision_conflict}
+
+      acknowledgement["refresh"] == "displayed" and acknowledgement["storage"] == "failed" ->
+        {:error, :storage_not_verified}
+
+      acknowledgement["refresh"] == "displayed" and
+          acknowledgement["currentAsset"] != manifest["desiredAsset"] ->
+        {:error, :current_asset_mismatch}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp commit_outbox_acknowledgement(state, frame_id, manifest) do
+    digest = manifest["desiredAsset"]
+
+    result =
+      transaction(state.connection, fn connection ->
+        Exqlite.query!(
+          connection,
+          "DELETE FROM frame_asset_refs WHERE frame_id = ? AND role = 'previous-known-good'",
+          [frame_id]
+        )
+
+        Exqlite.query!(
+          connection,
+          """
+          INSERT INTO frame_asset_refs(frame_id, role, object_digest)
+          SELECT frame_id, 'previous-known-good', object_digest
+          FROM frame_asset_refs
+          WHERE frame_id = ? AND role = 'current'
+          """,
+          [frame_id]
+        )
+
+        Exqlite.query!(
+          connection,
+          "DELETE FROM frame_asset_refs WHERE frame_id = ? AND role IN ('current', 'queued')",
+          [frame_id]
+        )
+
+        Exqlite.query!(
+          connection,
+          "INSERT INTO frame_asset_refs(frame_id, role, object_digest) VALUES (?, 'current', ?)",
+          [frame_id, digest]
+        )
+
+        Exqlite.query!(connection, "DELETE FROM frame_outboxes WHERE frame_id = ?", [frame_id])
+        audit(connection, "outbox.acknowledged", digest, %{"frameId" => frame_id})
+        :ok
+      end)
+
+    case result do
+      {:ok, :ok} -> :ok
+      {:error, %Exqlite.Error{message: message}} -> {:error, {:database, message}}
+      {:error, reason} -> {:error, reason}
     end
   end
 

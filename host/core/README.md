@@ -11,7 +11,10 @@ The current research-preview slice provides:
 - canonical recipe identities and artifact cache relationships;
 - master import, generated-variant lineage, labels, search, pinning, recoverable
   removal, and frame-reference protection;
-- startup reconciliation for interrupted active/trash file moves.
+- startup reconciliation for interrupted active/trash file moves;
+- a persistent frame simulator with bounded storage, desired/current state,
+  still playlists, redundant metadata records, and injected transfer, display,
+  storage, timing, and power-loss failures.
 
 Run the complete core check from this directory:
 

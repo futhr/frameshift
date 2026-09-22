@@ -69,6 +69,9 @@ defmodule Frameshift.ContentStore do
   @spec delete_trashed(String.t(), String.t()) :: :ok | {:error, File.posix()}
   def delete_trashed(data_dir, digest), do: File.rm(trash_path(data_dir, digest))
 
+  @spec delete_active(String.t(), String.t()) :: :ok | {:error, File.posix()}
+  def delete_active(data_dir, digest), do: File.rm(object_path(data_dir, digest))
+
   @spec reconcile(String.t(), String.t(), String.t()) :: :ok | {:error, term()}
   def reconcile(data_dir, digest, storage_state) do
     object = object_path(data_dir, digest)

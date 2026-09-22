@@ -54,11 +54,11 @@ defmodule Frameshift.RenderPipelineTest do
     {:ok, master} = Library.import_master(context.library, @rgba, master_attributes())
 
     assert {:ok, artifact} =
-             RenderPipeline.render_rgba_master(
+             RenderPipeline.render_stored_rgba_master(
                context.library,
                context.renderer,
                master["digest"],
-               render_job(),
+               Map.delete(render_job(), :rgba),
                artifact_attributes()
              )
 
@@ -68,11 +68,11 @@ defmodule Frameshift.RenderPipelineTest do
     GenServer.stop(context.renderer)
 
     assert {:ok, cached} =
-             RenderPipeline.render_rgba_master(
+             RenderPipeline.render_stored_rgba_master(
                context.library,
                context.renderer,
                master["digest"],
-               render_job(),
+               Map.delete(render_job(), :rgba),
                artifact_attributes()
              )
 

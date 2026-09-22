@@ -1,11 +1,11 @@
 defmodule Frameshift.RenderPipeline do
   @moduledoc """
-  Connects a verified canonical RGBA8 master to the isolated renderer and
-  immutable artifact cache.
+  Connects a durable, verified canonical RGBA8 master to the isolated renderer
+  and immutable artifact cache.
 
   Image decoding remains an Apple-system boundary. This generic-profile entry
-  point therefore accepts only RGBA8 bytes whose digest is the registered master
-  digest; it cannot silently render pixels unrelated to the recipe source.
+  point reads RGBA8 bytes back from the content-addressed store; callers do not
+  inject replacement pixels for a registered digest.
   """
 
   alias Frameshift.Digest
@@ -14,6 +14,25 @@ defmodule Frameshift.RenderPipeline do
   alias Frameshift.Renderer.Protocol, as: RendererProtocol
 
   @required_attributes ~w(profile_id renderer_revision media_type)a
+
+  @spec render_stored_rgba_master(
+          GenServer.server(),
+          GenServer.server(),
+          String.t(),
+          map(),
+          map()
+        ) :: {:ok, map()} | {:error, term()}
+  def render_stored_rgba_master(library, renderer, master_digest, job, attributes) do
+    with {:ok, expected_bytes} <- expected_source_bytes(job),
+         {:ok, %{"bytes" => rgba}} <- Library.read_object(library, master_digest, expected_bytes),
+         true <- byte_size(rgba) == expected_bytes do
+      render_rgba_master(library, renderer, master_digest, Map.put(job, :rgba, rgba), attributes)
+    else
+      :not_found -> {:error, :master_missing}
+      false -> {:error, :source_dimensions_mismatch}
+      {:error, reason} -> {:error, reason}
+    end
+  end
 
   @spec render_rgba_master(
           GenServer.server(),
@@ -36,6 +55,13 @@ defmodule Frameshift.RenderPipeline do
       {:error, reason} -> {:error, reason}
     end
   end
+
+  defp expected_source_bytes(%{source_width: width, source_height: height})
+       when is_integer(width) and is_integer(height) and width > 0 and height > 0 and
+              width <= 32_768 and height <= 32_768 and width * height <= 16_777_216,
+       do: {:ok, width * height * 4}
+
+  defp expected_source_bytes(_job), do: {:error, :invalid_dimensions}
 
   defp validate_attributes(attributes) when is_map(attributes) do
     missing = Enum.reject(@required_attributes, &Map.has_key?(attributes, &1))

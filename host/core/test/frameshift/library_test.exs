@@ -30,7 +30,24 @@ defmodule Frameshift.LibraryTest do
     assert persisted["title"] == "Morning Study"
     assert persisted["provenance_json"] == %{"kind" => "local-import"}
 
+    assert {:ok, stored} = Library.read_object(restarted, imported["digest"])
+    assert stored["bytes"] == "master bytes"
+    assert stored["media_type"] == "image/png"
+
     GenServer.stop(restarted)
+  end
+
+  test "readback is bounded and re-verifies the content address", %{
+    library: library,
+    data_dir: data_dir
+  } do
+    {:ok, imported} = Library.import_master(library, "verified bytes", master_attributes())
+    digest = imported["digest"]
+
+    assert {:error, :object_too_large} = Library.read_object(library, digest, 4)
+
+    File.write!(ContentStore.object_path(data_dir, digest), "corrupt bytes", [:binary])
+    assert {:error, :content_address_mismatch} = Library.read_object(library, digest)
   end
 
   test "startup repairs an interrupted move to trash without losing active content", %{

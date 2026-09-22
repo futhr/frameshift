@@ -15,6 +15,7 @@ defmodule Frameshift.Library do
 
   @type server :: GenServer.server()
   @type digest :: String.t()
+  @maximum_read_bytes 128 * 1024 * 1024
 
   @required_master_fields ~w(title source_kind width height media_type provenance)a
   @label_provenance ~w(user vision filename metadata)a
@@ -134,6 +135,12 @@ defmodule Frameshift.Library do
 
   @spec get_master(server(), digest()) :: {:ok, map()} | :not_found
   def get_master(server \\ __MODULE__, digest), do: GenServer.call(server, {:get_master, digest})
+
+  @spec read_object(server(), digest(), pos_integer()) ::
+          {:ok, map()} | :not_found | {:error, term()}
+  def read_object(server \\ __MODULE__, digest, maximum_bytes \\ @maximum_read_bytes) do
+    GenServer.call(server, {:read_object, digest, maximum_bytes}, :infinity)
+  end
 
   @spec queue_outbox(server(), String.t(), digest(), String.t(), digest() | nil) ::
           {:ok, map()} | {:error, term()}
@@ -294,6 +301,10 @@ defmodule Frameshift.Library do
 
   def handle_call({:get_master, digest}, _from, state) do
     {:reply, get_master_record(state, digest), state}
+  end
+
+  def handle_call({:read_object, digest, maximum_bytes}, _from, state) do
+    {:reply, read_object_record(state, digest, maximum_bytes), state}
   end
 
   def handle_call({:queue_outbox, frame_id, digest, profile_id, playlist_revision}, _from, state) do
@@ -818,6 +829,33 @@ defmodule Frameshift.Library do
       :not_found -> :not_found
     end
   end
+
+  defp read_object_record(state, digest, maximum_bytes)
+       when is_integer(maximum_bytes) and maximum_bytes > 0 do
+    case query_one(
+           state.connection,
+           "SELECT digest, byte_count, media_type, storage_state FROM objects WHERE digest = ?",
+           [digest]
+         ) do
+      {:ok, %{"storage_state" => "active", "byte_count" => byte_count} = object}
+      when byte_count <= maximum_bytes ->
+        case ContentStore.read(state.data_dir, digest, maximum_bytes) do
+          {:ok, bytes} -> {:ok, Map.put(object, "bytes", bytes)}
+          {:error, reason} -> {:error, reason}
+        end
+
+      {:ok, %{"storage_state" => "active"}} ->
+        {:error, :object_too_large}
+
+      {:ok, _trashed} ->
+        {:error, :object_in_trash}
+
+      :not_found ->
+        :not_found
+    end
+  end
+
+  defp read_object_record(_state, _digest, _maximum_bytes), do: {:error, :invalid_read}
 
   defp cached_generation_record(state, recipe_hash) do
     case query_one(

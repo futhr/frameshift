@@ -7,9 +7,15 @@ defmodule Frameshift.ContentStore do
 
   @spec prepare(String.t()) :: :ok | {:error, File.posix()}
   def prepare(data_dir) do
-    Enum.reduce_while(~w(objects/sha256 work trash), :ok, fn relative, :ok ->
-      case File.mkdir_p(Path.join(data_dir, relative)) do
-        :ok -> {:cont, :ok}
+    directories = [
+      data_dir | Enum.map(~w(objects objects/sha256 work trash), &Path.join(data_dir, &1))
+    ]
+
+    Enum.reduce_while(directories, :ok, fn path, :ok ->
+      with :ok <- File.mkdir_p(path),
+           :ok <- File.chmod(path, 0o700) do
+        {:cont, :ok}
+      else
         {:error, reason} -> {:halt, {:error, reason}}
       end
     end)
@@ -35,6 +41,25 @@ defmodule Frameshift.ContentStore do
       end
     end
   end
+
+  @spec read(String.t(), String.t(), pos_integer()) :: {:ok, binary()} | {:error, term()}
+  def read(data_dir, digest, maximum_bytes)
+      when is_binary(data_dir) and is_binary(digest) and is_integer(maximum_bytes) and
+             maximum_bytes > 0 do
+    with true <- Digest.valid_sha256?(digest),
+         {:ok, file} <- File.open(object_path(data_dir, digest), [:read, :binary]) do
+      try do
+        read_open_file(file, digest, maximum_bytes)
+      after
+        File.close(file)
+      end
+    else
+      false -> {:error, :invalid_digest}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  def read(_data_dir, _digest, _maximum_bytes), do: {:error, :invalid_read}
 
   @spec move_to_trash(String.t(), String.t()) :: :ok | {:error, term()}
   def move_to_trash(data_dir, digest) do
@@ -167,6 +192,30 @@ defmodule Frameshift.ContentStore do
       digest
     end
   end
+
+  defp read_open_file(file, digest, maximum_bytes) do
+    with {:ok, info} <- :file.read_file_info(file),
+         stat = File.Stat.from_record(info),
+         :ok <- validate_read_stat(stat, maximum_bytes),
+         bytes when is_binary(bytes) <- IO.binread(file, stat.size + 1),
+         true <- byte_size(bytes) == stat.size,
+         true <- Digest.sha256(bytes) == digest do
+      {:ok, bytes}
+    else
+      :eof -> {:error, :object_changed}
+      false -> {:error, :content_address_mismatch}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp validate_read_stat(%File.Stat{type: :regular, size: size}, maximum_bytes)
+       when size <= maximum_bytes,
+       do: :ok
+
+  defp validate_read_stat(%File.Stat{type: :regular}, _maximum_bytes),
+    do: {:error, :object_too_large}
+
+  defp validate_read_stat(%File.Stat{}, _maximum_bytes), do: {:error, :object_not_regular}
 
   defp hash_stream(file, context) do
     case IO.binread(file, 64 * 1024) do

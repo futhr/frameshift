@@ -1,0 +1,25 @@
+# Elixir
+/_build/
+/deps/
+/host/core/_build/
+/host/core/deps/
+/host/core/erl_crash.dump
+
+# Zig
+/.zig-cache/
+/zig-out/
+/renderer/.zig-cache/
+/renderer/zig-out/
+
+# Swift
+/.build/
+/host/macos/.build/
+/host/macos/.swiftpm/
+
+# macOS and editor state
+.DS_Store
+*.xcuserstate
+
+# Local runtime data
+/var/
+

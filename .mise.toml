@@ -1,0 +1,8 @@
+[tools]
+elixir = "1.19.6-otp-28"
+erlang = "28.5.0.6"
+zig = "0.15.2"
+
+[settings]
+experimental = true
+

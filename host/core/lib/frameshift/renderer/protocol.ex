@@ -3,7 +3,14 @@ defmodule Frameshift.Renderer.Protocol do
 
   @maximum_frame_bytes 64 * 1024 * 1024
   @maximum_dimension 32_768
-  @maximum_pixels 16_777_216
+  @maximum_target_pixels 16_777_216
+  @request_header_bytes 52
+  @maximum_palette_bytes 256 * 3
+  @maximum_source_pixels div(
+                           @maximum_frame_bytes - @request_header_bytes -
+                             @maximum_palette_bytes,
+                           4
+                         )
 
   @output_formats %{rgb24: 1, indexed8: 2}
   @resize_filters %{nearest: 1, bilinear: 2}
@@ -36,6 +43,9 @@ defmodule Frameshift.Renderer.Protocol do
 
   @spec maximum_frame_bytes() :: pos_integer()
   def maximum_frame_bytes, do: @maximum_frame_bytes
+
+  @spec maximum_source_pixels() :: pos_integer()
+  def maximum_source_pixels, do: @maximum_source_pixels
 
   @spec encode_request(map()) :: {:ok, iodata()} | {:error, term()}
   def encode_request(job) when is_map(job) do
@@ -177,10 +187,10 @@ defmodule Frameshift.Renderer.Protocol do
       not Enum.all?(dimensions, &(is_integer(&1) and &1 > 0 and &1 <= @maximum_dimension)) ->
         {:error, :invalid_dimensions}
 
-      job.source_width * job.source_height > @maximum_pixels ->
+      job.source_width * job.source_height > @maximum_source_pixels ->
         {:error, :source_too_large}
 
-      job.target_width * job.target_height > @maximum_pixels ->
+      job.target_width * job.target_height > @maximum_target_pixels ->
         {:error, :target_too_large}
 
       true ->
@@ -244,7 +254,7 @@ defmodule Frameshift.Renderer.Protocol do
   defp validate_response_dimensions(width, height) do
     if width > 0 and height > 0 and
          width <= @maximum_dimension and height <= @maximum_dimension and
-         width * height <= @maximum_pixels,
+         width * height <= @maximum_target_pixels,
        do: :ok,
        else: {:error, :invalid_response_dimensions}
   end

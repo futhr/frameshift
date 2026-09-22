@@ -104,6 +104,12 @@ defmodule Frameshift.LocalAPITest do
              |> Map.put("importWidth", 0)
              |> then(&LocalAPI.execute(context.library, &1))
 
+    assert {:error, :invalid_dimensions} =
+             context.import_path
+             |> import_command(context.canonical_path)
+             |> Map.merge(%{"importWidth" => 4_096, "importHeight" => 4_096})
+             |> then(&LocalAPI.execute(context.library, &1))
+
     assert {:error, :invalid_command} =
              context.import_path
              |> import_command(context.canonical_path)

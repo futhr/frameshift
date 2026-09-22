@@ -18,7 +18,7 @@ package struct DecodedImport {
 package enum AppleImageDecoder {
   private static let maximumSourceBytes = 128 * 1024 * 1024
   private static let maximumDimension = 32_768
-  private static let maximumPixels = 16_777_216
+  package static let maximumPixels = 16_777_011
   private static let supportedMediaTypes: Set<String> = [
     "image/gif",
     "image/heic",
@@ -116,7 +116,7 @@ package enum AppleImageDecoder {
     }
   }
 
-  private static func validateDimensions(width: Int, height: Int) throws {
+  package static func validateDimensions(width: Int, height: Int) throws {
     let (pixels, overflow) = width.multipliedReportingOverflow(by: height)
     guard width > 0, height > 0, width <= maximumDimension, height <= maximumDimension,
       !overflow, pixels <= maximumPixels

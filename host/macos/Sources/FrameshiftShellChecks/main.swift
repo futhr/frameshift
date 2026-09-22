@@ -81,6 +81,18 @@ private struct FrameshiftShellChecks {
   }
 
   private static func checkAppleImageDecode() throws {
+    try expect(
+      AppleImageDecoder.maximumPixels == 16_777_011,
+      "decoder pixel bound diverged from the largest renderer request envelope"
+    )
+
+    do {
+      try AppleImageDecoder.validateDimensions(width: 4_096, height: 4_096)
+      throw CheckFailure(description: "decoder admitted pixels that cannot fit a render request")
+    } catch CoreClientError.importTooLarge {
+      // Expected: the complete request must still fit with a 256-entry palette.
+    }
+
     let fixtureDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(
       "frameshift-decode-check-\(UUID().uuidString.lowercased())",
       isDirectory: true

@@ -33,6 +33,8 @@ defmodule Frameshift.RendererTest do
   end
 
   test "host validation rejects malformed work before it reaches the port" do
+    assert Protocol.maximum_source_pixels() == 16_777_011
+
     assert {:error, :invalid_crop} =
              Protocol.encode_request(%{job() | crop_width: 3})
 
@@ -41,6 +43,15 @@ defmodule Frameshift.RendererTest do
 
     assert {:error, :invalid_profile} =
              Protocol.encode_request(%{job() | output_format: :rgb24, dither_mode: :ordered_2x2})
+
+    assert {:error, :source_too_large} =
+             Protocol.encode_request(%{
+               job()
+               | source_width: 4_096,
+                 source_height: 4_096,
+                 crop_width: 4_096,
+                 crop_height: 4_096
+             })
   end
 
   test "host validation failures do not terminate the owner" do

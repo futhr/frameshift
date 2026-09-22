@@ -11,13 +11,14 @@ defmodule Frameshift.LocalAPI do
   alias Frameshift.Library
   alias Frameshift.MasterPackage
   alias Frameshift.Renderer
+  alias Frameshift.Renderer.Protocol, as: RendererProtocol
   alias Frameshift.RenderPipeline
   alias Frameshift.RenderProfile
 
   @maximum_import_bytes 128 * 1024 * 1024
-  @maximum_rgba_bytes 64 * 1024 * 1024
+  @maximum_rgba_bytes RendererProtocol.maximum_source_pixels() * 4
   @maximum_dimension 32_768
-  @maximum_pixels 16_777_216
+  @maximum_pixels RendererProtocol.maximum_source_pixels()
   @instruction_key "generation.instruction"
   @selected_target_key "frame.selected"
 

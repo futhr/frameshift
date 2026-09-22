@@ -88,7 +88,7 @@ The message schema includes no raw private key material. Large image bytes move
 through app-owned files/file descriptors rather than base64 JSON.
 
 The implemented import boundary admits one still image with Image I/O, rejects
-multi-image containers and inputs above 128 MiB or 16,777,216 decoded pixels,
+multi-image containers and inputs above 128 MiB or 16,777,011 decoded pixels,
 applies embedded orientation, converts to sRGB RGBA8 with straight alpha, and
 writes a mode `0600` handoff inside a mode `0700` temporary directory. The core
 re-sniffs the original media type, checks dimensions and exact byte length,

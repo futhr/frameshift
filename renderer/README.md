@@ -42,8 +42,11 @@ header is followed by `paletteCount × 3` RGB bytes and exact
 | 48 | `u16` | palette entry count |
 | 50 | `u16` | reserved, zero |
 
-Lengths are capped at 64 MiB, dimensions at 32,768, and decoded source/target
-rasters at 16,777,216 pixels. All integers are big-endian.
+Lengths are capped at 64 MiB, dimensions at 32,768, and raster arithmetic at
+16,777,216 pixels. Because the complete request contains a 52-byte header and
+up to 768 palette bytes in addition to four bytes per source pixel, the host
+import boundary admits at most 16,777,011 source pixels. Target output remains
+bounded independently. All integers are big-endian.
 
 ## Wire response v0.1
 

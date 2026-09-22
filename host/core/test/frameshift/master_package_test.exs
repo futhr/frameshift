@@ -20,6 +20,7 @@ defmodule Frameshift.MasterPackageTest do
   test "rejects malformed lengths, dimensions, flags, and oversized declarations" do
     assert {:error, :invalid_rgba} = MasterPackage.encode("source", <<0, 0, 0>>, 1, 1)
     assert {:error, :invalid_dimensions} = MasterPackage.encode("source", <<>>, 0, 1)
+    assert {:error, :invalid_dimensions} = MasterPackage.encode("source", <<>>, 4_096, 4_096)
     assert {:error, :invalid_master_package} = MasterPackage.decode("short")
 
     invalid_flags =

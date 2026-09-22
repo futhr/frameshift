@@ -12,7 +12,7 @@ defmodule Frameshift.MasterPackage do
   @version 1
   @header_bytes 32
   @maximum_dimension 32_768
-  @maximum_pixels 16_777_216
+  @maximum_pixels Frameshift.Renderer.Protocol.maximum_source_pixels()
   @maximum_source_bytes 128 * 1024 * 1024
   @maximum_rgba_bytes @maximum_pixels * 4
   @maximum_package_bytes @header_bytes + @maximum_rgba_bytes + @maximum_source_bytes

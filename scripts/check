@@ -14,6 +14,14 @@ check_policy() {
     echo "$prohibited_files" >&2
     return 1
   fi
+
+  mise exec -- shellcheck \
+    "$repository_root/scripts/check" \
+    "$repository_root/scripts/check-core-release" \
+    "$repository_root/scripts/format" \
+    "$repository_root/scripts/package-macos" \
+    "$repository_root/host/core/test/fixtures/hanging-worker.sh"
+  mise exec -- actionlint "$repository_root/.github/workflows/check.yml"
 }
 
 check_renderer() {

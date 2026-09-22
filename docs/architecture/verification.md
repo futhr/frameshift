@@ -19,7 +19,7 @@ packaging, or certification.
 | One explicitly selected generation provider preflights, times out, caches exact repeats, and persists no provider context | Core generation | `Frameshift.GenerationTest` | Implemented with fixture providers only |
 | Production core configuration is relocatable and boots with an explicit renderer path | Elixir core | `scripts/check-core-release` | Implemented as an isolated OTP release smoke check |
 | Menu extra remains a snapshot/command client and works with no generation provider | Swift shell | `frameshift-shell-checks`, ad-hoc `.app` packaging check | Implemented with the preview client |
-| Repository-owned build and checks contain no Python | Repository policy | `scripts/check policy`, shellcheck, CI workflow | Enforced for tracked source files |
+| Repository-owned build and checks contain no Python; shell and workflow files pass pinned linters | Repository policy | `scripts/check policy`, CI workflow | Enforced for tracked and untracked source files |
 
 ## Open evidence gates
 

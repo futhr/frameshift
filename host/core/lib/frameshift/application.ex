@@ -8,7 +8,7 @@ defmodule Frameshift.Application do
     children =
       [
         {Task.Supervisor, name: Frameshift.TaskSupervisor}
-      ] ++ library_children()
+      ] ++ library_children() ++ renderer_children()
 
     Supervisor.start_link(children, strategy: :one_for_one, name: Frameshift.Supervisor)
   end
@@ -16,6 +16,14 @@ defmodule Frameshift.Application do
   defp library_children do
     if Application.fetch_env!(:frameshift_core, :start_library) do
       [{Frameshift.Library, data_dir: Frameshift.Paths.data_dir()}]
+    else
+      []
+    end
+  end
+
+  defp renderer_children do
+    if Application.fetch_env!(:frameshift_core, :start_renderer) do
+      [{Frameshift.Renderer, path: Application.fetch_env!(:frameshift_core, :renderer_path)}]
     else
       []
     end

@@ -7,11 +7,14 @@ defmodule Frameshift.LocalAPI do
   copied immediately into content-addressed storage and are never persisted.
   """
 
+  alias Frameshift.Digest
   alias Frameshift.Library
+  alias Frameshift.MasterPackage
 
   @maximum_import_bytes 128 * 1024 * 1024
+  @maximum_rgba_bytes 64 * 1024 * 1024
   @maximum_dimension 32_768
-  @maximum_pixels 268_435_456
+  @maximum_pixels 16_777_216
   @instruction_key "generation.instruction"
 
   @type result :: {:ok, map()} | {:error, atom()}
@@ -50,24 +53,35 @@ defmodule Frameshift.LocalAPI do
            "importPath" => path,
            "importWidth" => width,
            "importHeight" => height,
-           "importMediaType" => media_type
+           "importMediaType" => media_type,
+           "importCanonicalPath" => canonical_path,
+           "importCanonicalDigest" => canonical_digest
          } = command
        ) do
     with :ok <- validate_import_description(path, width, height, media_type, command),
-         {:ok, bytes} <- read_import(path),
-         ^media_type <- media_type(bytes),
+         :ok <- validate_import_path(canonical_path),
+         :ok <- validate_digest(canonical_digest),
+         {:ok, original} <- read_file(path, @maximum_import_bytes),
+         ^media_type <- media_type(original),
+         {:ok, rgba} <- read_file(canonical_path, @maximum_rgba_bytes),
+         :ok <- validate_canonical(rgba, width, height, canonical_digest),
+         {:ok, package} <- MasterPackage.encode(original, rgba, width, height),
          {:ok, _master} <-
-           Library.import_master(library, bytes, %{
+           Library.import_master(library, package, %{
              title: import_title(path),
              source_kind: :import,
              width: width,
              height: height,
-             media_type: media_type,
-             orientation: Map.get(command, "importOrientation", 1),
-             color_profile: Map.get(command, "importColorProfile"),
+             media_type: MasterPackage.media_type(),
+             orientation: 1,
+             color_profile: "sRGB",
              provenance: %{
                "kind" => "local-import",
-               "originalFilename" => Path.basename(path)
+               "originalFilename" => Path.basename(path),
+               "originalMediaType" => media_type,
+               "originalOrientation" => Map.get(command, "importOrientation", 1),
+               "originalColorProfile" => Map.get(command, "importColorProfile"),
+               "canonicalRepresentation" => "rgba8-srgb-straight-alpha-top-left"
              }
            }) do
       {:ok, snapshot(library, "Image imported into the durable library")}
@@ -129,7 +143,7 @@ defmodule Frameshift.LocalAPI do
   defp allowed_command_keys("updateInstruction"), do: ~w(id kind instruction)
 
   defp allowed_command_keys("importFile") do
-    ~w(id kind importPath importWidth importHeight importMediaType importOrientation importColorProfile)
+    ~w(id kind importPath importWidth importHeight importMediaType importOrientation importColorProfile importCanonicalPath importCanonicalDigest)
   end
 
   defp allowed_command_keys("setPinned"), do: ~w(id kind itemID isPinned)
@@ -198,13 +212,13 @@ defmodule Frameshift.LocalAPI do
 
   defp validate_import_color_profile(_color_profile), do: {:error, :invalid_color_profile}
 
-  defp read_import(path) do
+  defp read_file(path, maximum_bytes) do
     case File.open(path, [:read, :binary]) do
       {:ok, file} ->
         try do
           with {:ok, info} <- :file.read_file_info(file),
                stat = File.Stat.from_record(info),
-               :ok <- validate_import_stat(stat),
+               :ok <- validate_import_stat(stat, maximum_bytes),
                bytes when is_binary(bytes) <- IO.binread(file, stat.size + 1),
                true <- byte_size(bytes) == stat.size do
             {:ok, bytes}
@@ -222,12 +236,26 @@ defmodule Frameshift.LocalAPI do
     end
   end
 
-  defp validate_import_stat(%File.Stat{type: :regular, size: size})
-       when size > 0 and size <= @maximum_import_bytes,
+  defp validate_import_stat(%File.Stat{type: :regular, size: size}, maximum_bytes)
+       when size > 0 and size <= maximum_bytes,
        do: :ok
 
-  defp validate_import_stat(%File.Stat{type: :regular}), do: {:error, :import_too_large}
-  defp validate_import_stat(%File.Stat{}), do: {:error, :import_not_regular}
+  defp validate_import_stat(%File.Stat{type: :regular}, _maximum_bytes),
+    do: {:error, :import_too_large}
+
+  defp validate_import_stat(%File.Stat{}, _maximum_bytes), do: {:error, :import_not_regular}
+
+  defp validate_digest(digest) do
+    if Digest.valid_sha256?(digest), do: :ok, else: {:error, :invalid_import}
+  end
+
+  defp validate_canonical(rgba, width, height, expected_digest) do
+    cond do
+      byte_size(rgba) != width * height * 4 -> {:error, :invalid_canonical_image}
+      Digest.sha256(rgba) != expected_digest -> {:error, :canonical_digest_mismatch}
+      true -> :ok
+    end
+  end
 
   defp media_type(<<137, "PNG\r\n", 26, 10, _rest::binary>>), do: "image/png"
   defp media_type(<<255, 216, 255, _rest::binary>>), do: "image/jpeg"
@@ -260,6 +288,8 @@ defmodule Frameshift.LocalAPI do
               :invalid_dimensions,
               :invalid_orientation,
               :invalid_color_profile,
+              :invalid_canonical_image,
+              :canonical_digest_mismatch,
               :unsupported_media_type,
               :import_too_large,
               :import_not_regular,

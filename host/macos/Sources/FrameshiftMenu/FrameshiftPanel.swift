@@ -226,7 +226,7 @@ private struct ResultCard: View {
         Image(systemName: "trash")
       }
       .buttonStyle(.borderless)
-      .help("Remove from the preview library")
+      .help("Remove from the library")
       .accessibilityLabel("Remove \(item.title)")
     }
     .padding(10)

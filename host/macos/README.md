@@ -1,15 +1,22 @@
-# Frameshift macOS shell
+# Frameshift macOS application
 
-This Swift package is the first native menu-bar shell slice. It owns SwiftUI
-presentation and ephemeral UI state. Durable library, recipe, outbox, render,
-and frame state remain owned by the Elixir core.
+This Swift package is the native menu-bar application. It owns SwiftUI
+presentation, Apple framework integration, image decoding, secure handoff, and
+application lifecycle. Durable library, recipe, outbox, render, and frame state
+remain owned by the bundled Elixir core.
 
-The executable currently runs against `PreviewCoreClient`, an in-memory actor
-with three explicitly experimental preview targets. Manual import records only
-preview metadata; it does not yet copy source bytes into the Elixir library.
-Generation is visibly unavailable when no provider is configured. Pairing,
-Keychain identities, Vision metadata, authenticated local IPC, background
-launch, Developer ID signing, and notarization remain unimplemented gates.
+`LocalCoreClient` communicates with the versioned bounded Unix-domain-socket
+protocol. Imports use Image I/O to admit one still image, apply its orientation,
+convert into canonical sRGB RGBA8, and write a user-only temporary handoff. The
+core verifies the handoff digest and persists an immutable master containing the
+exact original bytes and normalized pixels. The handoff is removed after the
+terminal core response.
+
+The packaged app embeds and supervises the production OTP release and Zig
+renderer. It is deliberately usable without a generation provider. Frame
+pairing, Keychain-backed local/session and frame identities, render/send UI,
+Vision metadata, Service Management registration, Developer ID signing,
+hardened runtime, and notarization remain tracked product gates.
 
 Build and test with the system Swift 6 toolchain:
 
@@ -17,16 +24,14 @@ Build and test with the system Swift 6 toolchain:
 swift format lint --recursive --strict Sources Package.swift
 swift run frameshift-shell-checks
 ../../scripts/package-macos
+../../scripts/check-packaged-app .build/artifacts/Frameshift.app
 ```
 
-The check executable is used because the standalone Command Line Tools SDK in
-the current development environment does not ship the XCTest or Swift Testing
-runner plugins. It exits nonzero on failed client/model checks and does not ship
-inside the eventual app bundle.
+The check executable exercises model behavior and real Apple image decoding.
+The IPC probe performs a real instruction and image-import round trip against a
+production core release. Neither check executable is copied into the app.
 
-`swift run frameshift-menu` launches the executable directly for local UI work.
-The packaging script creates an ad-hoc-signed research bundle at
-`.build/artifacts/Frameshift.app` with `LSUIElement` enabled. It contains only
-the preview Swift shell: the Elixir release and Zig worker are not embedded or
-supervised yet. Developer ID signing, hardened runtime, notarization, and a
-production bundle identifier remain distribution gates.
+`swift run frameshift-menu` launches the Swift executable directly, but the
+bundled core is available only in the packaged `.app`. The package script
+creates an ad-hoc-signed local artifact; release signing and notarization require
+external Apple credentials and services.

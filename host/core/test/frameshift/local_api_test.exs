@@ -1,10 +1,13 @@
 defmodule Frameshift.LocalAPITest do
   use ExUnit.Case, async: true
 
+  alias Frameshift.Digest
   alias Frameshift.Library
   alias Frameshift.LocalAPI
+  alias Frameshift.MasterPackage
 
   @png <<137, "PNG\r\n", 26, 10, 0, 0, 0, 13, "IHDR", 0, 0, 0, 2, 0, 0, 0, 1, 8, 6, 0, 0, 0>>
+  @rgba <<255, 0, 0, 255, 0, 255, 0, 128>>
 
   setup do
     root =
@@ -15,8 +18,10 @@ defmodule Frameshift.LocalAPITest do
 
     data_dir = Path.join(root, "library")
     import_path = Path.join(root, "quiet-study.png")
+    canonical_path = Path.join(root, "quiet-study.rgba")
     File.mkdir_p!(root)
     File.write!(import_path, @png, [:binary])
+    File.write!(canonical_path, @rgba, [:binary])
     {:ok, library} = Library.start_link(data_dir: data_dir, name: nil)
 
     on_exit(fn ->
@@ -24,7 +29,12 @@ defmodule Frameshift.LocalAPITest do
       File.rm_rf!(root)
     end)
 
-    %{data_dir: data_dir, import_path: import_path, library: library}
+    %{
+      canonical_path: canonical_path,
+      data_dir: data_dir,
+      import_path: import_path,
+      library: library
+    }
   end
 
   test "commands mutate durable core state rather than a shell-owned copy", context do
@@ -44,9 +54,17 @@ defmodule Frameshift.LocalAPITest do
     assert snapshot["instruction"] == "A quiet geometric still"
 
     assert {:ok, imported} =
-             LocalAPI.execute(context.library, import_command(context.import_path))
+             LocalAPI.execute(
+               context.library,
+               import_command(context.import_path, context.canonical_path)
+             )
 
     assert [%{"title" => "quiet-study", "isPinned" => false} = item] = imported["items"]
+
+    assert {:ok, %{"bytes" => package}} = Library.read_object(context.library, item["digest"])
+
+    assert {:ok, %{rgba: @rgba, original: @png, width: 2, height: 1}} =
+             MasterPackage.decode(package)
 
     assert {:ok, pinned} =
              LocalAPI.execute(context.library, %{
@@ -72,27 +90,36 @@ defmodule Frameshift.LocalAPITest do
   test "import validates Apple-decoded metadata against the actual file type", context do
     assert {:error, :media_type_mismatch} =
              context.import_path
-             |> import_command()
+             |> import_command(context.canonical_path)
              |> Map.put("importMediaType", "image/jpeg")
              |> then(&LocalAPI.execute(context.library, &1))
 
     assert {:error, :invalid_dimensions} =
              context.import_path
-             |> import_command()
+             |> import_command(context.canonical_path)
              |> Map.put("importWidth", 0)
              |> then(&LocalAPI.execute(context.library, &1))
 
     assert {:error, :invalid_command} =
              context.import_path
-             |> import_command()
+             |> import_command(context.canonical_path)
              |> Map.put("credential", "must-not-cross-this-boundary")
+             |> then(&LocalAPI.execute(context.library, &1))
+
+    assert {:error, :canonical_digest_mismatch} =
+             context.import_path
+             |> import_command(context.canonical_path)
+             |> Map.put("importCanonicalDigest", "sha256:" <> String.duplicate("0", 64))
              |> then(&LocalAPI.execute(context.library, &1))
   end
 
   test "remove is recoverable library state and unavailable target commands fail explicitly",
        context do
     assert {:ok, imported} =
-             LocalAPI.execute(context.library, import_command(context.import_path))
+             LocalAPI.execute(
+               context.library,
+               import_command(context.import_path, context.canonical_path)
+             )
 
     [item] = imported["items"]
 
@@ -112,10 +139,12 @@ defmodule Frameshift.LocalAPITest do
              })
   end
 
-  defp import_command(path) do
+  defp import_command(path, canonical_path) do
     %{
       "kind" => "importFile",
       "importPath" => path,
+      "importCanonicalPath" => canonical_path,
+      "importCanonicalDigest" => Digest.sha256(@rgba),
       "importWidth" => 2,
       "importHeight" => 1,
       "importMediaType" => "image/png",

@@ -1,13 +1,9 @@
 import Darwin
 import Foundation
-import ImageIO
-import UniformTypeIdentifiers
 
 public actor LocalCoreClient: CoreClient {
   private static let maximumRequestBytes = 64 * 1024
   private static let maximumResponseBytes = 1024 * 1024
-  private static let maximumImportBytes = 128 * 1024 * 1024
-
   private let socketPath: String
   private let decoder = JSONDecoder()
   private let encoder = JSONEncoder()
@@ -23,7 +19,8 @@ public actor LocalCoreClient: CoreClient {
 
   public func send(_ command: CoreCommand) async throws -> CoreSnapshot {
     let prepared = try prepare(command)
-    return try await exchange(WireRequest(operation: "command", command: prepared))
+    defer { prepared.decodedImport?.removeWorkDirectory() }
+    return try await exchange(WireRequest(operation: "command", command: prepared.command))
   }
 
   public static func defaultSocketPath() -> String {
@@ -49,11 +46,13 @@ public actor LocalCoreClient: CoreClient {
     await BundledCore.shared.shutdown()
   }
 
-  private func prepare(_ command: CoreCommand) throws -> CoreCommand {
-    guard command.kind == .importFile else { return command }
+  private func prepare(_ command: CoreCommand) throws -> PreparedCommand {
+    guard command.kind == .importFile else {
+      return PreparedCommand(command: command, decodedImport: nil)
+    }
     guard let path = command.importPath else { throw CoreClientError.invalidCommand }
-    let metadata = try Self.inspectImage(at: URL(fileURLWithPath: path))
-    return command.withImportMetadata(metadata)
+    let decoded = try AppleImageDecoder.decode(URL(fileURLWithPath: path))
+    return PreparedCommand(command: command.withDecodedImport(decoded), decodedImport: decoded)
   }
 
   private func exchange(_ request: WireRequest) async throws -> CoreSnapshot {
@@ -101,49 +100,12 @@ public actor LocalCoreClient: CoreClient {
     }.value
   }
 
-  private static func inspectImage(at url: URL) throws -> ImportMetadata {
-    let values: URLResourceValues
-    do {
-      values = try url.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey])
-    } catch {
-      throw CoreClientError.importUnreadable
-    }
-
-    guard values.isRegularFile == true, let size = values.fileSize else {
-      throw CoreClientError.importUnreadable
-    }
-    guard size > 0, size <= maximumImportBytes else {
-      throw CoreClientError.importTooLarge
-    }
-    guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-      CGImageSourceGetCount(source) > 0,
-      let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
-      let width = (properties[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue,
-      let height = (properties[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue,
-      width > 0,
-      height > 0,
-      let typeIdentifier = CGImageSourceGetType(source),
-      let mediaType = UTType(typeIdentifier as String)?.preferredMIMEType
-    else {
-      throw CoreClientError.importUnreadable
-    }
-
-    let orientation = (properties[kCGImagePropertyOrientation] as? NSNumber)?.intValue ?? 1
-    let colorProfile = properties[kCGImagePropertyProfileName] as? String
-
-    return ImportMetadata(
-      width: width,
-      height: height,
-      mediaType: mediaType,
-      orientation: orientation,
-      colorProfile: colorProfile
-    )
-  }
-
   private static func clientError(for code: String?) -> CoreClientError {
     switch code {
     case "import_too_large": .importTooLarge
-    case "import_unreadable", "import_not_regular", "import_changed": .importUnreadable
+    case "import_unreadable", "import_not_regular", "import_changed",
+      "invalid_canonical_image", "canonical_digest_mismatch":
+      .importUnreadable
     case "unsupported_media_type", "media_type_mismatch": .unsupportedMedia
     case "item_not_found": .itemNotFound
     case "target_not_found": .targetNotFound
@@ -152,6 +114,11 @@ public actor LocalCoreClient: CoreClient {
     default: .protocolFailure
     }
   }
+}
+
+private struct PreparedCommand {
+  let command: CoreCommand
+  let decodedImport: DecodedImport?
 }
 
 private actor BundledCore {

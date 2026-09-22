@@ -130,6 +130,8 @@ public struct CoreCommand: Codable, Equatable, Sendable {
   public let importMediaType: String?
   public let importOrientation: Int?
   public let importColorProfile: String?
+  public let importCanonicalPath: String?
+  public let importCanonicalDigest: String?
 
   public init(
     id: UUID = UUID(),
@@ -143,7 +145,9 @@ public struct CoreCommand: Codable, Equatable, Sendable {
     importHeight: Int? = nil,
     importMediaType: String? = nil,
     importOrientation: Int? = nil,
-    importColorProfile: String? = nil
+    importColorProfile: String? = nil,
+    importCanonicalPath: String? = nil,
+    importCanonicalDigest: String? = nil
   ) {
     self.id = id
     self.kind = kind
@@ -157,10 +161,13 @@ public struct CoreCommand: Codable, Equatable, Sendable {
     self.importMediaType = importMediaType
     self.importOrientation = importOrientation
     self.importColorProfile = importColorProfile
+    self.importCanonicalPath = importCanonicalPath
+    self.importCanonicalDigest = importCanonicalDigest
   }
 
-  func withImportMetadata(_ metadata: ImportMetadata) -> CoreCommand {
-    CoreCommand(
+  func withDecodedImport(_ decoded: DecodedImport) -> CoreCommand {
+    let metadata = decoded.metadata
+    return CoreCommand(
       id: id,
       kind: kind,
       targetID: targetID,
@@ -172,15 +179,17 @@ public struct CoreCommand: Codable, Equatable, Sendable {
       importHeight: metadata.height,
       importMediaType: metadata.mediaType,
       importOrientation: metadata.orientation,
-      importColorProfile: metadata.colorProfile
+      importColorProfile: metadata.colorProfile,
+      importCanonicalPath: decoded.canonicalURL.path,
+      importCanonicalDigest: decoded.canonicalDigest
     )
   }
 }
 
-struct ImportMetadata: Sendable {
-  let width: Int
-  let height: Int
-  let mediaType: String
-  let orientation: Int
-  let colorProfile: String?
+package struct ImportMetadata: Sendable {
+  package let width: Int
+  package let height: Int
+  package let mediaType: String
+  package let orientation: Int
+  package let colorProfile: String?
 }

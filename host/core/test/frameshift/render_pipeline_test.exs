@@ -3,12 +3,14 @@ defmodule Frameshift.RenderPipelineTest do
 
   alias Frameshift.Digest
   alias Frameshift.Library
+  alias Frameshift.MasterPackage
   alias Frameshift.Renderer
   alias Frameshift.RenderPipeline
   alias Frameshift.Simulator
 
   @frame_id "sim-pipeline-0001"
-  @profile_id "urn:frameshift:experimental:test-rgb24-v1"
+  @profile_id "urn:frameshift:test:rgb24-v1"
+  @original <<137, "PNG\r\n", 26, 10, 1, 2, 3>>
   @rgba <<1, 2, 3, 255, 4, 5, 6, 255>>
   @rgb <<1, 2, 3, 4, 5, 6>>
   @renderer_dir Path.expand("../../../../renderer", __DIR__)
@@ -51,10 +53,11 @@ defmodule Frameshift.RenderPipelineTest do
   end
 
   test "a canonical master renders, caches, queues, and converges", context do
-    {:ok, master} = Library.import_master(context.library, @rgba, master_attributes())
+    {:ok, package} = MasterPackage.encode(@original, @rgba, 2, 1)
+    {:ok, master} = Library.import_master(context.library, package, master_attributes())
 
     assert {:ok, artifact} =
-             RenderPipeline.render_stored_rgba_master(
+             RenderPipeline.render_stored_master(
                context.library,
                context.renderer,
                master["digest"],
@@ -68,7 +71,7 @@ defmodule Frameshift.RenderPipelineTest do
     GenServer.stop(context.renderer)
 
     assert {:ok, cached} =
-             RenderPipeline.render_stored_rgba_master(
+             RenderPipeline.render_stored_master(
                context.library,
                context.renderer,
                master["digest"],
@@ -95,16 +98,17 @@ defmodule Frameshift.RenderPipelineTest do
     assert :ok = Library.acknowledge_outbox(context.library, @frame_id, acknowledgement)
   end
 
-  test "pixels unrelated to the registered master never reach the worker", context do
-    {:ok, master} = Library.import_master(context.library, @rgba, master_attributes())
-    mismatched = %{render_job() | rgba: <<0, 0, 0, 255, 0, 0, 0, 255>>}
+  test "metadata that disagrees with the durable canonical representation is rejected", context do
+    {:ok, package} = MasterPackage.encode(@original, @rgba, 2, 1)
+    {:ok, master} = Library.import_master(context.library, package, master_attributes())
+    mismatched = %{render_job() | source_width: 1}
 
-    assert {:error, :source_mismatch} =
-             RenderPipeline.render_rgba_master(
+    assert {:error, :source_dimensions_mismatch} =
+             RenderPipeline.render_stored_master(
                context.library,
                context.renderer,
                master["digest"],
-               mismatched,
+               Map.delete(mismatched, :rgba),
                artifact_attributes()
              )
   end
@@ -140,7 +144,7 @@ defmodule Frameshift.RenderPipelineTest do
       source_kind: :import,
       width: 2,
       height: 1,
-      media_type: "application/vnd.frameshift.experimental.rgba8",
+      media_type: MasterPackage.media_type(),
       provenance: %{"kind" => "test-fixture"}
     }
   end
@@ -149,7 +153,7 @@ defmodule Frameshift.RenderPipelineTest do
     %{
       profile_id: @profile_id,
       renderer_revision: "frameshift-raster-v0.1",
-      media_type: "application/vnd.frameshift.experimental.rgb24"
+      media_type: "application/vnd.frameshift.rgb24"
     }
   end
 
@@ -200,7 +204,7 @@ defmodule Frameshift.RenderPipelineTest do
         "artifactProfiles" => [
           %{
             "id" => @profile_id,
-            "mediaType" => "application/vnd.frameshift.experimental.rgb24",
+            "mediaType" => "application/vnd.frameshift.rgb24",
             "width" => 2,
             "height" => 1,
             "maximumAssetBytes" => 6,

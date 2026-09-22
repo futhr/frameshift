@@ -1,6 +1,9 @@
+import CoreGraphics
 import CryptoKit
 import Foundation
 import FrameshiftShell
+import ImageIO
+import UniformTypeIdentifiers
 
 private struct CheckFailure: Error, CustomStringConvertible {
   let description: String
@@ -14,6 +17,7 @@ private struct FrameshiftShellChecks {
     try await checkInvalidIdentities()
     try await checkShellModel()
     try await checkRedactedErrors()
+    try checkAppleImageDecode()
     print("Frameshift shell checks passed")
   }
 
@@ -74,6 +78,95 @@ private struct FrameshiftShellChecks {
       snapshot.generationAvailability == .notConfigured,
       "generation must not appear available without a provider"
     )
+  }
+
+  private static func checkAppleImageDecode() throws {
+    let fixtureDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "frameshift-decode-check-\(UUID().uuidString.lowercased())",
+      isDirectory: true
+    )
+    try FileManager.default.createDirectory(
+      at: fixtureDirectory, withIntermediateDirectories: false)
+    defer { try? FileManager.default.removeItem(at: fixtureDirectory) }
+
+    let sourceURL = fixtureDirectory.appendingPathComponent("oriented.png")
+    let pixels = Data([255, 0, 0, 255, 0, 255, 0, 255])
+    let image = try makeImage(width: 2, height: 1, rgba: pixels)
+    try writeImage(image, to: sourceURL, type: .png, orientation: 6)
+
+    let decoded = try AppleImageDecoder.decode(sourceURL)
+    defer { decoded.removeWorkDirectory() }
+    let rgba = try Data(contentsOf: decoded.canonicalURL)
+
+    try expect(decoded.metadata.width == 1, "orientation did not rotate decoded width")
+    try expect(decoded.metadata.height == 2, "orientation did not rotate decoded height")
+    try expect(decoded.metadata.orientation == 6, "source orientation was not retained")
+    try expect(decoded.metadata.mediaType == "image/png", "decoded media type changed")
+    try expect(
+      rgba == pixels,
+      "canonical pixels are not top-left RGBA8: \(Array(rgba))"
+    )
+
+    let digest = SHA256.hash(data: rgba).map { String(format: "%02x", $0) }.joined()
+    try expect(
+      decoded.canonicalDigest == "sha256:\(digest)",
+      "canonical handoff digest does not identify its bytes"
+    )
+
+    let attributes = try FileManager.default.attributesOfItem(atPath: decoded.canonicalURL.path)
+    let permissions = (attributes[.posixPermissions] as? NSNumber)?.intValue
+    try expect(permissions == 0o600, "canonical handoff is not user-only")
+  }
+
+  private static func makeImage(width: Int, height: Int, rgba: Data) throws -> CGImage {
+    let info = CGBitmapInfo(
+      rawValue: CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.last.rawValue
+    )
+    guard let provider = CGDataProvider(data: rgba as CFData),
+      let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
+      let image = CGImage(
+        width: width,
+        height: height,
+        bitsPerComponent: 8,
+        bitsPerPixel: 32,
+        bytesPerRow: width * 4,
+        space: colorSpace,
+        bitmapInfo: info,
+        provider: provider,
+        decode: nil,
+        shouldInterpolate: false,
+        intent: .defaultIntent
+      )
+    else {
+      throw CheckFailure(description: "could not create decode fixture")
+    }
+    return image
+  }
+
+  private static func writeImage(
+    _ image: CGImage,
+    to url: URL,
+    type: UTType,
+    orientation: Int
+  ) throws {
+    guard
+      let destination = CGImageDestinationCreateWithURL(
+        url as CFURL,
+        type.identifier as CFString,
+        1,
+        nil
+      )
+    else {
+      throw CheckFailure(description: "could not create image destination")
+    }
+    CGImageDestinationAddImage(
+      destination,
+      image,
+      [kCGImagePropertyOrientation: orientation] as CFDictionary
+    )
+    guard CGImageDestinationFinalize(destination) else {
+      throw CheckFailure(description: "could not write decode fixture")
+    }
   }
 
   private static func checkInvalidIdentities() async throws {

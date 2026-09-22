@@ -26,13 +26,15 @@ defmodule Frameshift.Transport.HTTPClient do
   }
   @status_line_allowance 512
   @header_wire_allowance 4
+  @maximum_header_value_bytes 8 * 1024
 
   @impl Wotex.Binding.HTTP.Client
   def request(%Request{} = request, %MTLSCredential{} = credential, config)
       when is_map(config) do
     config = Map.merge(@default_config, config)
 
-    with {:ok, uri} <- authorize_target(Request.uri(request), credential),
+    with :ok <- validate_header_value_sizes(Request.headers(request)),
+         {:ok, uri} <- authorize_target(Request.uri(request), credential),
          {:ok, timeout} <- remaining_timeout(Request.deadline(request)),
          {:ok, addresses} <- resolve_addresses(uri.host, config),
          :ok <- authorize_addresses(addresses, config),
@@ -258,6 +260,7 @@ defmodule Frameshift.Transport.HTTPClient do
 
   defp validate_headers(headers, request) do
     with {:ok, normalized} <- Headers.new(headers, :response),
+         :ok <- validate_header_value_sizes(normalized),
          :ok <-
            Headers.validate_limits(
              normalized,
@@ -268,6 +271,16 @@ defmodule Frameshift.Transport.HTTPClient do
       :ok
     else
       {:error, _error} -> {:error, :invalid_response_headers}
+    end
+  end
+
+  defp validate_header_value_sizes(headers) do
+    if Enum.all?(headers, fn {_name, value} ->
+         byte_size(value) <= @maximum_header_value_bytes
+       end) do
+      :ok
+    else
+      {:error, :header_value_too_large}
     end
   end
 

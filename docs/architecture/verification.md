@@ -13,7 +13,8 @@ electronics, packaging, security review, or certification.
 | Immutable content-addressed masters, recipe identity, recoverable removal, protected references, and verified readback | Elixir core | `Frameshift.LibraryTest`, `Frameshift.LocalAPITest` | Implemented for the local durable library; App Sandbox bookmarks and retention UI remain open |
 | Bounded control JSON, duplicate-key rejection, embedded schemas, and version skew rejection | Frame Protocol/core | `Frameshift.Protocol.JSONTest`, `Frameshift.Protocol.SchemaTest`, protocol fixtures | Implemented for v0.1 fixtures |
 | Bounded W3C TD/TM admission, unknown-extension preservation, required-profile rejection, and deterministic advertised Form selection | Frame Protocol/core | `Frameshift.Protocol.ThingTest`, embedded Thing Models, Frame and Host Outbox TD fixtures | Implemented for the semantic admission/selection boundary; live bindings remain open |
-| A selected finite JSON Property/Action Form executes through the pinned Wotex HTTP binding with exact credential audience, local-address admission, mutual TLS, no pooling/redirect/retry path, absolute deadline, and bounded response collection | Frame Protocol/core | `Frameshift.Transport.HTTPClientTest` with generated independent server/client certificate chains and a live loopback TLS socket | Implemented for the finite client binding; Keychain credential resolution, binary artifact transfer, full direct reconciliation, SSE lifecycle, and production-device interoperability remain open |
+| A selected finite JSON Property/Action Form executes through the pinned Wotex HTTP binding with exact credential audience, local-address admission, mutual TLS, no pooling/redirect/retry path, absolute deadline, and bounded response collection | Frame Protocol/core | `Frameshift.Transport.HTTPClientTest` with generated independent server/client certificate chains and a live loopback TLS socket | Implemented for the finite client binding; Keychain credential resolution, SSE lifecycle, and production-device interoperability remain open |
+| An awake push-capable frame receives an exact rendered artifact and desired-state request through its advertised binary/JSON Forms, strong ETag preconditions, bounded typed problems, explicit idempotent retry rules, and a final authoritative state read | Frame Protocol/core | `Frameshift.DirectSyncTest` across two route-independent TD variants; `Frameshift.Transport.HTTPClientTest` over live mutually authenticated, SPKI-pinned loopback TLS | Implemented for the reference HTTPS orchestration and client port; installed Keychain credential resolution and independent live-device interoperability remain open |
 | A paired frame record binds one admitted universal TD and capability instance to a pinned server SPKI fingerprint and opaque Keychain credential reference, survives restart, and supplies UI targets without vendor branching | Frame Protocol/core | `Frameshift.FrameRegistryTest`, `Frameshift.LibraryTest`, `Frameshift.LocalAPITest` | Implemented for post-pairing durable custody; Bonjour discovery, physical pair mode, certificate issuance/rotation, and Keychain writes remain open |
 | Desired/current separation, verified storage, idempotence, still-only playlists, and power-loss recovery | Simulator | `Frameshift.SimulatorTest` | Implemented in software simulation |
 | Sleeping contact keeps only the newest manifest and converges after missed/failed contact | Core/simulator | `Frameshift.OutboxTest` | Implemented in software simulation |
@@ -39,9 +40,8 @@ The following remain open and must not be inferred from the automated rows:
   security review;
 - sandbox-safe file bookmarks and UI acceptance of imported security-scoped
   references across app restarts;
-- Keychain-backed reference HTTPS credentials, binary artifact transfer,
-  direct desired/current reconciliation, SSE lifecycle, ExposedThing routing,
-  and live interoperability with independent devices;
+- Keychain-backed reference HTTPS credentials, SSE lifecycle, ExposedThing
+  routing, and live interoperability with independent devices;
 - real AI provider preflight, provenance, cost/privacy disclosure, cancellation,
   and local-only network isolation;
 - VoiceOver/manual accessibility acceptance, Service Management background

@@ -242,6 +242,11 @@ operation, security, and Frameshift binding metadata.
 Pairing and firmware-update resources are intentionally separate profiles. They
 are never inferred from the existence of the display API.
 
+An SSE Event Form declares `contentType: application/json` because its data is
+the Interaction Affordance representation, and declares `subprotocol: sse` for
+the HTTP stream mapping. `text/event-stream` is the wire response media type,
+not the Form's event-data representation type.
+
 ## 9. Asset upload
 
 The upload request MUST contain:

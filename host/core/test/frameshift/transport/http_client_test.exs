@@ -1,6 +1,10 @@
 defmodule Frameshift.Transport.HTTPClientTest do
   use ExUnit.Case, async: false
 
+  alias Frameshift.Digest
+  alias Frameshift.DirectSync
+  alias Frameshift.DirectSync.Artifact
+  alias Frameshift.Protocol.Thing
   alias Frameshift.Transport.{HTTPClient, MTLSCredential, SPKIPin}
   alias Wotex.Binding.HTTP, as: WotexHTTP
   alias Wotex.Binding.HTTP.{Request, Response}
@@ -130,6 +134,86 @@ defmodule Frameshift.Transport.HTTPClientTest do
     assert bytes =~ "GET /state HTTP/1.1"
   end
 
+  test "runs the complete advertised binary push and state reconciliation over pinned mTLS",
+       pki do
+    bytes = <<1, 3, 5, 7, 9, 11>>
+    digest = Digest.sha256(bytes)
+    profile_id = "urn:frameshift:profile:sim-rgb24-v1"
+    media_type = "application/vnd.frameshift.rgb24"
+    request_id = "live-direct-sync"
+    {:ok, artifact} = Artifact.new(bytes, digest, profile_id, media_type)
+
+    empty = frame_state(0, "empty", nil, nil, nil)
+    pending = frame_state(1, "refreshing", digest, nil, request_id)
+    displayed = frame_state(2, "displayed", digest, digest, nil)
+
+    server =
+      serve_sequence(pki.server, [
+        json_http_response(200, empty, [{"ETag", ~s("state-0")}]),
+        "HTTP/1.1 201 Created\r\nContent-Length: 0\r\n\r\n",
+        json_http_response(202, pending),
+        json_http_response(200, displayed, [{"ETag", ~s("state-2")}])
+      ])
+
+    document =
+      "../../../../../protocol/fixtures/valid/thing-description.json"
+      |> Path.expand(__DIR__)
+      |> File.read!()
+      |> RFC8785.decode!()
+      |> Map.put("base", server.origin <> "/")
+
+    {:ok, td} = document |> RFC8785.encode!() |> Thing.parse_frame()
+
+    {:ok, config} =
+      WotexHTTP.config(
+        client: {HTTPClient, %{allow_loopback: true}},
+        max_request_bytes: 64 * 1024,
+        max_response_bytes: 64 * 1024,
+        max_event_bytes: 64 * 1024,
+        max_header_count: 64,
+        max_header_bytes: 64 * 8 * 1024,
+        max_uri_bytes: 1_024
+      )
+
+    sync_context =
+      Context.new!(
+        request_id: request_id,
+        deadline: System.monotonic_time(:millisecond) + 10_000
+      )
+
+    assert {:ok, %{outcome: :displayed, installation: :created}} =
+             DirectSync.sync(
+               td,
+               artifact,
+               credential(pki, server.origin),
+               config,
+               sync_context
+             )
+
+    requests =
+      Enum.map(1..4, fn index ->
+        assert_receive {reference, ^index, request_bytes} when reference == server.request
+        request_bytes
+      end)
+
+    [initial_request, install_request, desired_request, final_request] = requests
+    hex = Digest.hex!(digest)
+    encoded_digest = bytes |> then(&:crypto.hash(:sha256, &1)) |> Base.encode64()
+
+    assert initial_request =~ "GET /v0/state HTTP/1.1"
+    assert install_request =~ "PUT /v0/assets/sha256/#{hex} HTTP/1.1"
+    assert install_request =~ "content-length: 6"
+    assert install_request =~ "content-digest: sha-256=:#{encoded_digest}:"
+    assert install_request =~ "frameshift-artifact-profile: #{profile_id}"
+    assert install_request =~ "if-none-match: *"
+    assert String.ends_with?(install_request, bytes)
+    assert desired_request =~ "PUT /v0/desired HTTP/1.1"
+    assert desired_request =~ "if-none-match: *"
+    assert desired_request =~ request_id
+    assert final_request =~ "GET /v0/state HTTP/1.1"
+    assert_receive {:server_finished, reference, :ok} when reference == server.request
+  end
+
   test "rejects a different server pin during the TLS handshake", pki do
     %{url: url} = serve_once(pki.server, "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n42")
 
@@ -161,6 +245,20 @@ defmodule Frameshift.Transport.HTTPClientTest do
     assert {:error, :deadline_required} =
              HTTPClient.request(
                request("https://192.168.1.20/state", deadline: nil),
+               credential,
+               %{}
+             )
+  end
+
+  test "rejects an oversized request header value before network I/O", pki do
+    credential = credential(pki, "https://192.168.1.20")
+
+    assert {:error, :header_value_too_large} =
+             HTTPClient.request(
+               request("https://192.168.1.20/state",
+                 headers: [{"x-large", String.duplicate("x", 8 * 1024 + 1)}],
+                 max_header_bytes: 16 * 1024
+               ),
                credential,
                %{}
              )
@@ -263,7 +361,7 @@ defmodule Frameshift.Transport.HTTPClientTest do
     deadline = Keyword.get(options, :deadline, System.monotonic_time(:millisecond) + 5_000)
 
     {:ok, request} =
-      Request.new("GET", url, [], nil,
+      Request.new("GET", url, Keyword.get(options, :headers, []), nil,
         request_id: "http-client-test",
         deadline: deadline,
         operation: :readproperty,
@@ -272,7 +370,7 @@ defmodule Frameshift.Transport.HTTPClientTest do
         max_response_bytes: Keyword.get(options, :max_response_bytes, 4_096),
         max_event_bytes: 4_096,
         max_header_count: 16,
-        max_header_bytes: 4_096,
+        max_header_bytes: Keyword.get(options, :max_header_bytes, 4_096),
         max_uri_bytes: 1_024
       )
 
@@ -335,6 +433,69 @@ defmodule Frameshift.Transport.HTTPClientTest do
     %{url: "https://localhost:#{port}/state", request: request_message}
   end
 
+  defp serve_sequence(server_config, responses) do
+    options =
+      server_config ++
+        [
+          active: false,
+          mode: :binary,
+          reuseaddr: true,
+          verify: :verify_peer,
+          fail_if_no_peer_cert: true
+        ]
+
+    {:ok, listener} = :ssl.listen(0, options)
+    {:ok, {_, port}} = :ssl.sockname(listener)
+    owner = self()
+    request_message = make_ref()
+
+    pid =
+      spawn(fn ->
+        result = serve_responses(listener, responses, owner, request_message)
+
+        send(owner, {:server_finished, request_message, result})
+        :ssl.close(listener)
+      end)
+
+    on_exit(fn ->
+      :ssl.close(listener)
+      if Process.alive?(pid), do: Process.exit(pid, :kill)
+    end)
+
+    %{origin: "https://localhost:#{port}", request: request_message}
+  end
+
+  defp serve_responses(listener, responses, owner, request_message) do
+    responses
+    |> Enum.with_index(1)
+    |> Enum.reduce_while(:ok, fn {response, index}, :ok ->
+      case serve_response(listener, response) do
+        {:ok, request_bytes} ->
+          send(owner, {request_message, index, request_bytes})
+          {:cont, :ok}
+
+        error ->
+          {:halt, error}
+      end
+    end)
+  end
+
+  defp serve_response(listener, response) do
+    with {:ok, transport} <- :ssl.transport_accept(listener, 5_000),
+         {:ok, socket} <- :ssl.handshake(transport, 5_000) do
+      serve_connected(socket, response)
+    end
+  end
+
+  defp serve_connected(socket, response) do
+    with {:ok, request_bytes} <- receive_request(socket, <<>>),
+         :ok <- :ssl.send(socket, response) do
+      {:ok, request_bytes}
+    end
+  after
+    :ssl.close(socket)
+  end
+
   defp receive_headers(socket, bytes) do
     if String.contains?(bytes, "\r\n\r\n") do
       {:ok, bytes}
@@ -342,5 +503,71 @@ defmodule Frameshift.Transport.HTTPClientTest do
       with {:ok, more} <- :ssl.recv(socket, 0, 5_000),
            do: receive_headers(socket, bytes <> more)
     end
+  end
+
+  defp receive_request(socket, bytes) do
+    case :binary.match(bytes, "\r\n\r\n") do
+      {header_end, 4} ->
+        body_start = header_end + 4
+        expected = content_length(binary_part(bytes, 0, header_end))
+        receive_request_body(socket, bytes, body_start, expected)
+
+      :nomatch ->
+        with {:ok, more} <- :ssl.recv(socket, 0, 5_000),
+             do: receive_request(socket, bytes <> more)
+    end
+  end
+
+  defp receive_request_body(_socket, bytes, body_start, expected)
+       when byte_size(bytes) - body_start >= expected,
+       do: {:ok, binary_part(bytes, 0, body_start + expected)}
+
+  defp receive_request_body(socket, bytes, body_start, expected) do
+    with {:ok, more} <- :ssl.recv(socket, 0, 5_000),
+         do: receive_request_body(socket, bytes <> more, body_start, expected)
+  end
+
+  defp content_length(headers) do
+    headers
+    |> String.split("\r\n")
+    |> Enum.find_value(0, &parse_content_length/1)
+  end
+
+  defp parse_content_length(line) do
+    case String.split(line, ":", parts: 2) do
+      [name, value] ->
+        if String.downcase(name) == "content-length",
+          do: value |> String.trim() |> String.to_integer()
+
+      _other ->
+        nil
+    end
+  end
+
+  defp json_http_response(status, document, extra_headers \\ []) do
+    body = RFC8785.encode!(document)
+    reason = if status == 200, do: "OK", else: "Accepted"
+
+    headers =
+      [
+        {"Content-Type", "application/json"},
+        {"Content-Length", Integer.to_string(byte_size(body))}
+      ] ++
+        extra_headers
+
+    encoded_headers = Enum.map_join(headers, "", fn {name, value} -> "#{name}: #{value}\r\n" end)
+    "HTTP/1.1 #{status} #{reason}\r\n#{encoded_headers}\r\n#{body}"
+  end
+
+  defp frame_state(revision, display_state, desired, current, pending_request_id) do
+    %{
+      "stateRevision" => revision,
+      "displayState" => display_state,
+      "desiredAsset" => desired,
+      "currentAsset" => current,
+      "previousKnownGood" => nil,
+      "pendingRequestId" => pending_request_id,
+      "lastError" => nil
+    }
   end
 end

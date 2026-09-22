@@ -97,6 +97,17 @@ defmodule Frameshift.Protocol.ThingTest do
     assert selection.profile.id == :frameshift_https_artifact_v0_1
   end
 
+  test "SSE Forms declare the JSON event representation separately from stream framing" do
+    assert {:ok, td} = Thing.parse_frame(frame_source())
+    assert {:ok, profile} = Thing.reference_https_profile()
+
+    assert {:ok, selection} =
+             Thing.select_frame(td, :event, "stateChanged", :subscribeevent, [profile])
+
+    assert Wotex.Form.to_map(selection.form)["contentType"] == "application/json"
+    assert Wotex.Form.to_map(selection.form)["subprotocol"] == "sse"
+  end
+
   test "rejects unknown required profiles before Form selection" do
     invalid =
       frame_source()

@@ -88,12 +88,7 @@ defmodule Frameshift.Protocol.Thing do
       id: :frameshift_https_json_v0_1,
       schemes: ["https"],
       operations: Wotex.Runtime.operations(),
-      media_types: [
-        "application/json",
-        "application/problem+json",
-        "application/td+json",
-        "text/event-stream"
-      ]
+      media_types: ["application/json"]
     )
   end
 

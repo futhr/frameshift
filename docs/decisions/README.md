@@ -135,8 +135,9 @@ evidence, but it must change explicitly.
 - **Implementation reference:** The sibling Wotex checkout supplies patterns
   for bounded admission, deterministic selection, explicit credential and
   transport ports, supervised subscriptions, and evidence-scoped conformance.
-  Frameshift may consume pinned Wotex packages after dependency qualification;
-  it still owns binary artifact transfer, transport security policy, canonical
-  state, and proof of physical display effects.
+  Frameshift consumes the qualified Wotex packages from the Wotex GitHub
+  organization at one pinned full commit; it still owns binary artifact
+  transfer, transport security policy, canonical state, and proof of physical
+  display effects.
 - **Detail:** [Protocol foundations](../research/protocol-foundations.md) and
   [Universal Frame Protocol](../architecture/frame-protocol.md)

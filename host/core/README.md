@@ -22,6 +22,10 @@ The current partial core implementation provides:
   the credential's exact advertised HTTPS authority and local addresses,
   performs mutual TLS with an SPKI-pinned frame, refuses pooling and redirects,
   and enforces absolute deadlines plus bounded headers and response bodies;
+- a direct-frame reference HTTPS synchronizer that follows selected Wotex
+  Forms, uploads digest-addressed binary artifacts with exact profile metadata,
+  applies strong-ETag desired-state preconditions, performs only explicitly
+  safe bounded retries, and confirms display truth from the state Property;
 - startup reconciliation for interrupted active/trash file moves;
 - durable per-frame sleeping outboxes with monotonic revisions, supersession,
   acknowledgement checks, and current/previous-known-good reference rotation;

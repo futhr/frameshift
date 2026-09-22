@@ -47,9 +47,10 @@ mapping.
 
 ## Wotex implementation reference
 
-The local sibling checkout at `../wotex` was inspected at commit
-`e6aa01a69ea35447afa989d5dea061618d20b3cf` dated 2026-09-22. Its origin is
-`https://github.com/wotex-project/wotex.git`. The repository declares
+The dependency source was inspected at commit
+`e6aa01a69ea35447afa989d5dea061618d20b3cf` dated 2026-09-22 from the Wotex
+GitHub organization at `https://github.com/wotex-project/wotex.git`. The
+repository declares
 Apache-2.0; the inspected `LICENSE` SHA-256 is
 `f5b91731217e7913145b2b9ad04f63656a8a16d2b0e9ecca9bd256fbfc26a4d9`.
 No package was published to Hex at the inspected revision.
@@ -88,19 +89,20 @@ The inspected Wotex HTTP package supports JSON property/action operations and
 SSE through a consumer-supplied client. It intentionally does not provide an
 HTTP server, connection pool, TLS policy, binary artifact representation, or
 proof of Action effects. Frameshift therefore must supply its own bounded
-binary artifact binding, mutual-TLS client/server ownership, and display-state
-reconciliation even if it later consumes Wotex packages.
+binary artifact mapping, mutual-TLS client/server ownership, and display-state
+reconciliation around the selected Wotex Forms.
 
-Frameshift consumes only `wotex` and `wotex_runtime`, both pinned in
-`host/core/mix.lock` to the inspected full commit. No sibling path participates
-in the build. At that revision WTX.01 through WTX.04 and WRT.01 through WRT.03
-are catalogued as implemented, with their claims explicitly limited to the
-listed TD/TM/value/runtime mechanics rather than full W3C conformance. Both
-packages declare Apache-2.0 and include the inspected license; `wotex` also
-ships a notice for its modified W3C TD schema. Frameshift tests the exact
-admission and selection behavior it relies on instead of inheriting a broader
-upstream claim. Repository-wide license and notice assembly is still required
-before distribution.
+Frameshift consumes `wotex`, `wotex_runtime`, and `wotex_binding_http`, all
+pinned in `host/core/mix.lock` to the inspected full commit from the Wotex
+GitHub organization. No sibling path participates in the build; `../wotex` may
+advance independently. At that revision WTX.01 through WTX.04 and WRT.01
+through WRT.03 are catalogued as implemented, with their claims explicitly
+limited to the listed TD/TM/value/runtime mechanics rather than full W3C
+conformance. The packages declare Apache-2.0 and include the inspected license;
+`wotex` also ships a notice for its modified W3C TD schema. Frameshift tests
+the exact admission, selection, and HTTP-port behavior it relies on instead of
+inheriting a broader upstream claim. Repository-wide license and notice
+assembly is still required before distribution.
 
 ## Universal semantic boundary
 

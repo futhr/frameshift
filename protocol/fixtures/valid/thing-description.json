@@ -126,11 +126,11 @@
   "events": {
     "stateChanged": {
       "data": { "type": "object" },
-      "forms": [{ "href": "v0/events/state", "contentType": "text/event-stream", "subprotocol": "sse", "op": ["subscribeevent", "unsubscribeevent"] }]
+      "forms": [{ "href": "v0/events/state", "contentType": "application/json", "subprotocol": "sse", "op": ["subscribeevent", "unsubscribeevent"] }]
     },
     "displayCompleted": {
       "data": { "type": "object" },
-      "forms": [{ "href": "v0/events/display", "contentType": "text/event-stream", "subprotocol": "sse", "op": ["subscribeevent", "unsubscribeevent"] }]
+      "forms": [{ "href": "v0/events/display", "contentType": "application/json", "subprotocol": "sse", "op": ["subscribeevent", "unsubscribeevent"] }]
     }
   },
   "frameshift:capabilities": {

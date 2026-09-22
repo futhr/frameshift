@@ -10,6 +10,9 @@ defmodule Frameshift.LocalAPI do
   alias Frameshift.Digest
   alias Frameshift.Library
   alias Frameshift.MasterPackage
+  alias Frameshift.Renderer
+  alias Frameshift.RenderPipeline
+  alias Frameshift.RenderProfile
 
   @maximum_import_bytes 128 * 1024 * 1024
   @maximum_rgba_bytes 64 * 1024 * 1024
@@ -37,8 +40,16 @@ defmodule Frameshift.LocalAPI do
 
   @spec execute(GenServer.server(), map()) :: result()
   def execute(library \\ Library, command) do
+    execute_with_renderer(library, Renderer, command)
+  end
+
+  @spec execute_with_renderer(GenServer.server(), GenServer.server(), map()) :: result()
+  def execute_with_renderer(library, renderer, command) do
     with :ok <- validate_command_shape(command) do
-      do_execute(library, command)
+      case command do
+        %{"kind" => "queue"} -> do_queue(library, renderer, command)
+        _command -> do_execute(library, command)
+      end
     end
   end
 
@@ -134,8 +145,40 @@ defmodule Frameshift.LocalAPI do
   end
 
   defp do_execute(_library, %{"kind" => "selectTarget"}), do: {:error, :target_not_found}
-  defp do_execute(_library, %{"kind" => "queue"}), do: {:error, :target_not_found}
   defp do_execute(_library, _command), do: {:error, :invalid_command}
+
+  defp do_queue(
+         library,
+         renderer,
+         %{"targetID" => target_id, "itemID" => master_digest}
+       )
+       when is_binary(target_id) and is_binary(master_digest) do
+    with {:ok, frame} <- fetch_target(library, target_id),
+         :ok <- validate_pull_target(frame),
+         {:ok, master} <- fetch_master(library, master_digest),
+         {:ok, compilation} <- RenderProfile.compile(master, frame["capabilities"]),
+         {:ok, artifact} <-
+           RenderPipeline.render_stored_master(
+             library,
+             renderer,
+             master_digest,
+             compilation.job,
+             compilation.attributes
+           ),
+         {:ok, _manifest} <-
+           Library.queue_outbox(
+             library,
+             target_id,
+             artifact["digest"],
+             compilation.profile["id"]
+           ) do
+      {:ok, snapshot(library, "Queued for #{frame["title"]} • waiting for next contact")}
+    else
+      {:error, reason} -> {:error, normalize_queue_error(reason)}
+    end
+  end
+
+  defp do_queue(_library, _renderer, _command), do: {:error, :invalid_command}
 
   defp validate_command_shape(%{"kind" => kind} = command) when is_binary(kind) do
     id = Map.get(command, "id")
@@ -181,16 +224,12 @@ defmodule Frameshift.LocalAPI do
       "title" => master["title"],
       "digest" => master["digest"],
       "isPinned" => master["pinned"],
-      "queuedTargetID" => nil
+      "queuedTargetID" => master["queued_target_id"]
     }
   end
 
   defp frame_target(frame) do
-    profile_id =
-      frame["capabilities"]["storage"]["artifactProfiles"]
-      |> Enum.map(& &1["id"])
-      |> Enum.sort()
-      |> hd()
+    profile_id = selected_profile_id(frame["capabilities"])
 
     %{
       "id" => frame["frame_id"],
@@ -211,6 +250,46 @@ defmodule Frameshift.LocalAPI do
 
   defp default_status([]), do: "Core connected • no paired frame"
   defp default_status(_targets), do: "Core connected • paired frames ready"
+
+  defp selected_profile_id(capabilities) do
+    case RenderProfile.compile(%{"width" => 1, "height" => 1}, capabilities) do
+      {:ok, compilation} -> compilation.profile["id"]
+      {:error, _reason} -> capabilities["storage"]["artifactProfiles"] |> hd() |> Map.fetch!("id")
+    end
+  end
+
+  defp validate_pull_target(%{"capabilities" => %{"transferModes" => transfer_modes}}) do
+    if "pull" in transfer_modes, do: :ok, else: {:error, :compatible_binding_unavailable}
+  end
+
+  defp fetch_target(library, target_id) do
+    case Library.get_paired_frame(library, target_id) do
+      {:ok, frame} -> {:ok, frame}
+      :not_found -> {:error, :target_not_found}
+    end
+  end
+
+  defp fetch_master(library, master_digest) do
+    case Library.get_master(library, master_digest) do
+      {:ok, master} -> {:ok, master}
+      :not_found -> {:error, :item_not_found}
+    end
+  end
+
+  defp normalize_queue_error(reason)
+       when reason in [
+              :target_not_found,
+              :item_not_found,
+              :unsupported_profile,
+              :compatible_binding_unavailable,
+              :master_missing,
+              :source_dimensions_mismatch,
+              :unsupported_source_representation,
+              :artifact_missing
+            ],
+       do: reason
+
+  defp normalize_queue_error(_reason), do: :queue_failed
 
   defp validate_import_description(path, width, height, media_type, command) do
     orientation = Map.get(command, "importOrientation", 1)

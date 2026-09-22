@@ -3,6 +3,7 @@ defmodule Frameshift.RenderPipelineTest do
 
   alias Frameshift.Digest
   alias Frameshift.Library
+  alias Frameshift.LocalAPI
   alias Frameshift.MasterPackage
   alias Frameshift.Renderer
   alias Frameshift.RenderPipeline
@@ -15,6 +16,10 @@ defmodule Frameshift.RenderPipelineTest do
   @rgb <<1, 2, 3, 4, 5, 6>>
   @renderer_dir Path.expand("../../../../renderer", __DIR__)
   @renderer_path Path.join(@renderer_dir, "zig-out/bin/frameshift-raster")
+  @thing_fixture Path.expand(
+                   "../../../../protocol/fixtures/valid/thing-description.json",
+                   __DIR__
+                 )
 
   setup_all do
     {output, status} =
@@ -52,49 +57,51 @@ defmodule Frameshift.RenderPipelineTest do
     %{library: library, renderer: renderer, simulator: simulator}
   end
 
-  test "a canonical master renders, caches, queues, and converges", context do
+  test "a queued core command renders, caches, and converges through a universal target",
+       context do
     {:ok, package} = MasterPackage.encode(@original, @rgba, 2, 1)
     {:ok, master} = Library.import_master(context.library, package, master_attributes())
 
-    assert {:ok, artifact} =
-             RenderPipeline.render_stored_master(
+    assert {:ok, _frame} =
+             Library.register_paired_frame(
                context.library,
-               context.renderer,
-               master["digest"],
-               Map.delete(render_job(), :rgba),
-               artifact_attributes()
+               thing_description(),
+               "keychain:pipeline-frame",
+               "sha256:" <> String.duplicate("d", 64)
              )
 
-    assert artifact[:cache] == :miss
-    assert artifact["digest"] == Digest.sha256(@rgb)
+    command = %{
+      "kind" => "queue",
+      "targetID" => @frame_id,
+      "itemID" => master["digest"]
+    }
+
+    assert {:ok, queued} =
+             LocalAPI.execute_with_renderer(context.library, context.renderer, command)
+
+    assert [%{"queuedTargetID" => @frame_id}] = queued["items"]
+
+    assert {:ok, manifest} = Library.outbox_manifest(context.library, @frame_id)
+    assert manifest["desiredAsset"] == Digest.sha256(@rgb)
+    assert manifest["artifactProfile"] == @profile_id
+
+    assert {:ok, %{"bytes" => @rgb}} =
+             Library.read_object(context.library, manifest["desiredAsset"])
 
     GenServer.stop(context.renderer)
 
-    assert {:ok, cached} =
-             RenderPipeline.render_stored_master(
-               context.library,
-               context.renderer,
-               master["digest"],
-               Map.delete(render_job(), :rgba),
-               artifact_attributes()
-             )
+    assert {:ok, _cached_queue} =
+             LocalAPI.execute_with_renderer(context.library, context.renderer, command)
 
-    assert cached[:cache] == :hit
-    assert cached["digest"] == artifact["digest"]
-
-    {:ok, manifest} =
-      Library.queue_outbox(
-        context.library,
-        @frame_id,
-        artifact["digest"],
-        @profile_id
-      )
+    assert {:ok, repeated_manifest} = Library.outbox_manifest(context.library, @frame_id)
+    assert repeated_manifest["desiredAsset"] == manifest["desiredAsset"]
+    assert repeated_manifest["revision"] == manifest["revision"] + 1
 
     assert {:ok, acknowledgement} =
-             Simulator.pull_outbox(context.simulator, manifest, @rgb)
+             Simulator.pull_outbox(context.simulator, repeated_manifest, @rgb)
 
     assert acknowledgement["refresh"] == "displayed"
-    assert acknowledgement["currentAsset"] == artifact["digest"]
+    assert acknowledgement["currentAsset"] == manifest["desiredAsset"]
     assert :ok = Library.acknowledge_outbox(context.library, @frame_id, acknowledgement)
   end
 
@@ -155,6 +162,28 @@ defmodule Frameshift.RenderPipelineTest do
       renderer_revision: "frameshift-raster-v0.1",
       media_type: "application/vnd.frameshift.rgb24"
     }
+  end
+
+  defp thing_description do
+    @thing_fixture
+    |> File.read!()
+    |> Jason.decode!()
+    |> Map.put("id", "urn:frameshift:device:#{@frame_id}")
+    |> Map.put("title", "Pipeline Frame")
+    |> Map.put("frameshift:capabilities", capabilities())
+    |> put_in(
+      ["actions", "installAsset", "input", "contentMediaType"],
+      artifact_attributes().media_type
+    )
+    |> put_in(
+      ["actions", "installAsset", "forms", Access.at(0), "contentType"],
+      artifact_attributes().media_type
+    )
+    |> put_in(
+      ["actions", "installAsset", "forms", Access.at(0), "frameshift:artifactProfile"],
+      @profile_id
+    )
+    |> Jason.encode!()
   end
 
   defp capabilities do

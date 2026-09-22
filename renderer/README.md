@@ -3,7 +3,7 @@
 `frameshift-raster` is the isolated deterministic raster process. It accepts
 bounded, length-framed binary jobs on standard input and emits one framed
 terminal response per complete job on standard output. It receives canonical
-RGBA8 pixels, explicit composition parameters, and either an experimental
+RGBA8 pixels, explicit composition parameters, and either an uncompressed
 RGB24 profile or a caller-supplied indexed palette. It receives no credentials,
 URLs, provider configuration, or frame identity.
 

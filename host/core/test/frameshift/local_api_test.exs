@@ -29,7 +29,7 @@ defmodule Frameshift.LocalAPITest do
     {:ok, library} = Library.start_link(data_dir: data_dir, name: nil)
 
     on_exit(fn ->
-      if Process.alive?(library), do: GenServer.stop(library)
+      stop_if_alive(library)
       File.rm_rf!(root)
     end)
 
@@ -131,7 +131,7 @@ defmodule Frameshift.LocalAPITest do
              LocalAPI.execute(context.library, %{"kind" => "remove", "itemID" => item["id"]})
 
     assert {:ok, _removed_master} = Library.get_master(context.library, item["digest"])
-    assert {:error, :target_not_found} = LocalAPI.execute(context.library, %{"kind" => "queue"})
+    assert {:error, :invalid_command} = LocalAPI.execute(context.library, %{"kind" => "queue"})
 
     missing = "sha256:" <> String.duplicate("0", 64)
 
@@ -188,5 +188,11 @@ defmodule Frameshift.LocalAPITest do
       "importOrientation" => 1,
       "importColorProfile" => "sRGB"
     }
+  end
+
+  defp stop_if_alive(process) do
+    if Process.alive?(process), do: GenServer.stop(process)
+  catch
+    :exit, _reason -> :ok
   end
 end

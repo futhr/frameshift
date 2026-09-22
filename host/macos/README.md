@@ -14,9 +14,10 @@ terminal core response.
 
 The packaged app embeds and supervises the production OTP release and Zig
 renderer. It is deliberately usable without a generation provider. Frame
-pairing, Keychain-backed local/session and frame identities, render/send UI,
-Vision metadata, Service Management registration, Developer ID signing,
-hardened runtime, and notarization remain tracked product gates.
+pairing, Keychain-backed local/session and frame identities, exact target
+previews, direct push transport, Vision metadata, Service Management
+registration, Developer ID signing, hardened runtime, and notarization remain
+tracked product gates.
 
 Build and test with the system Swift 6 toolchain:
 

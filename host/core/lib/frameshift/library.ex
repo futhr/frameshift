@@ -780,7 +780,15 @@ defmodule Frameshift.Library do
     sql = """
     SELECT DISTINCT m.digest, m.title, m.source_kind, m.width, m.height,
            m.color_profile, m.orientation, m.provenance_json, m.parent_digest,
-           m.generation_recipe_hash, (p.object_digest IS NOT NULL) AS pinned
+           m.generation_recipe_hash, (p.object_digest IS NOT NULL) AS pinned,
+           (
+             SELECT fo.frame_id
+             FROM frame_outboxes fo
+             JOIN artifacts a ON a.digest = fo.desired_digest
+             WHERE a.master_digest = m.digest
+             ORDER BY fo.queued_at_ms DESC, fo.frame_id
+             LIMIT 1
+           ) AS queued_target_id
     FROM masters m
     LEFT JOIN labels l ON l.master_digest = m.digest
     LEFT JOIN pins p ON p.object_digest = m.digest

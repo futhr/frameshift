@@ -19,6 +19,9 @@ The current partial core implementation provides:
   acknowledgement checks, and current/previous-known-good reference rotation;
 - a supervised, single-job Zig renderer port with bounded framing, typed worker
   failures, explicit deadlines, diagnostic redaction, and restart-on-failure;
+- a vendor-neutral profile compiler that selects advertised capability
+  structure, creates a deterministic centered composition, and queues exact
+  RGB24 output for sleeping pull targets;
 - a versioned immutable master package that retains exact source bytes and
   canonical sRGB RGBA8, then binds durable masters to composition recipes,
   cached artifacts, outboxes, and simulator convergence;

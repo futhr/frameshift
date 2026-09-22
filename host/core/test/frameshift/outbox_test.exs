@@ -6,7 +6,7 @@ defmodule Frameshift.OutboxTest do
   alias Frameshift.Simulator
 
   @frame_id "sim-test-0000001"
-  @profile_id "urn:frameshift:experimental:test-rgb24-v1"
+  @profile_id "urn:frameshift:test:rgb24-v1"
   @first_bytes <<1, 2, 3, 4, 5, 6>>
   @second_bytes <<6, 5, 4, 3, 2, 1>>
 
@@ -154,7 +154,7 @@ defmodule Frameshift.OutboxTest do
       recipe_hash: recipe_hash,
       profile_id: @profile_id,
       renderer_revision: "outbox-test-v1",
-      media_type: "application/vnd.frameshift.experimental.rgb24"
+      media_type: "application/vnd.frameshift.rgb24"
     }
 
     {:ok, artifact} = Library.register_artifact(library, bytes, attributes)
@@ -219,7 +219,7 @@ defmodule Frameshift.OutboxTest do
         "artifactProfiles" => [
           %{
             "id" => @profile_id,
-            "mediaType" => "application/vnd.frameshift.experimental.rgb24",
+            "mediaType" => "application/vnd.frameshift.rgb24",
             "width" => 2,
             "height" => 1,
             "maximumAssetBytes" => 6,

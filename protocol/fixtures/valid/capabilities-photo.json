@@ -46,8 +46,8 @@
     "digestAlgorithms": ["sha-256"],
     "artifactProfiles": [
       {
-        "id": "urn:frameshift:experimental:sim-rgb24-v1",
-        "mediaType": "application/vnd.frameshift.experimental.rgb24",
+        "id": "urn:frameshift:profile:sim-rgb24-v1",
+        "mediaType": "application/vnd.frameshift.rgb24",
         "width": 1920,
         "height": 1080,
         "maximumAssetBytes": 6220800,

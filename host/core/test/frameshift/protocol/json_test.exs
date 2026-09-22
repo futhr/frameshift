@@ -5,7 +5,7 @@ defmodule Frameshift.Protocol.JSONTest do
 
   @valid_desired ~S({
     "assetDigest":"sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-    "artifactProfile":"urn:frameshift:experimental:sim-rgb24-v1",
+    "artifactProfile":"urn:frameshift:profile:sim-rgb24-v1",
     "requestId":"request-0001"
   })
 

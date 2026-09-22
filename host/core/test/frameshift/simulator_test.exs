@@ -4,7 +4,7 @@ defmodule Frameshift.SimulatorTest do
   alias Frameshift.Digest
   alias Frameshift.Simulator
 
-  @profile_id "urn:frameshift:experimental:test-rgb24-v1"
+  @profile_id "urn:frameshift:test:rgb24-v1"
   @first_bytes <<1, 2, 3, 4, 5, 6>>
   @second_bytes <<6, 5, 4, 3, 2, 1>>
 
@@ -280,7 +280,7 @@ defmodule Frameshift.SimulatorTest do
         "artifactProfiles" => [
           %{
             "id" => @profile_id,
-            "mediaType" => "application/vnd.frameshift.experimental.rgb24",
+            "mediaType" => "application/vnd.frameshift.rgb24",
             "width" => 2,
             "height" => 1,
             "maximumAssetBytes" => 6,

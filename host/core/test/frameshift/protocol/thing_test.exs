@@ -87,7 +87,7 @@ defmodule Frameshift.Protocol.ThingTest do
 
     assert {:ok, artifact_profile} =
              Thing.reference_https_artifact_profile([
-               "application/vnd.frameshift.experimental.rgb24"
+               "application/vnd.frameshift.rgb24"
              ])
 
     assert {:ok, selection} =

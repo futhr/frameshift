@@ -230,7 +230,7 @@ defmodule Frameshift.GenerationTest do
         parameters: %{"quality" => "preview"},
         reproducibility: "deterministic",
         seed: 7,
-        target_profile_id: "experimental-rgb24",
+        target_profile_id: "test-rgb24",
         target_profile_revision: "preview-v1",
         title: "Generated Study"
       },

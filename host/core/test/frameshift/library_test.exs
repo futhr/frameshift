@@ -172,9 +172,9 @@ defmodule Frameshift.LibraryTest do
     attributes = %{
       master_digest: master["digest"],
       recipe_hash: recipe_hash,
-      profile_id: "urn:frameshift:experimental:test-rgb24",
+      profile_id: "urn:frameshift:test:rgb24",
       renderer_revision: "test-renderer-v1",
-      media_type: "application/vnd.frameshift.experimental.rgb24"
+      media_type: "application/vnd.frameshift.rgb24"
     }
 
     assert {:ok, first} = Library.register_artifact(library, <<0, 1, 2, 3, 4, 5>>, attributes)

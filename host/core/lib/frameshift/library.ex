@@ -114,6 +114,19 @@ defmodule Frameshift.Library do
     GenServer.call(server, {:put_setting, key, value})
   end
 
+  @spec claim_command(server(), String.t(), digest()) ::
+          {:ok, :execute | :pending | {:replay, :ok | {:error, String.t()}}}
+          | {:error, term()}
+  def claim_command(server \\ __MODULE__, command_id, command_hash) do
+    GenServer.call(server, {:claim_command, command_id, command_hash})
+  end
+
+  @spec complete_command(server(), String.t(), digest(), :ok | {:error, atom()}) ::
+          :ok | {:error, term()}
+  def complete_command(server \\ __MODULE__, command_id, command_hash, outcome) do
+    GenServer.call(server, {:complete_command, command_id, command_hash, outcome})
+  end
+
   @spec register_paired_frame(server(), binary(), String.t(), String.t()) ::
           {:ok, map()} | {:error, term()}
   def register_paired_frame(
@@ -287,6 +300,14 @@ defmodule Frameshift.Library do
 
   def handle_call({:put_setting, key, value}, _from, state) do
     {:reply, put_setting_record(state, key, value), state}
+  end
+
+  def handle_call({:claim_command, command_id, command_hash}, _from, state) do
+    {:reply, claim_command_record(state, command_id, command_hash), state}
+  end
+
+  def handle_call({:complete_command, command_id, command_hash, outcome}, _from, state) do
+    {:reply, complete_command_record(state, command_id, command_hash, outcome), state}
   end
 
   def handle_call(
@@ -828,6 +849,142 @@ defmodule Frameshift.Library do
   end
 
   defp put_setting_record(_state, _key, _value), do: {:error, :invalid_setting}
+
+  defp claim_command_record(state, command_id, command_hash)
+       when is_binary(command_id) and byte_size(command_id) in 1..64 and
+              is_binary(command_hash) do
+    if Digest.valid_sha256?(command_hash) do
+      result =
+        Exqlite.query!(
+          state.connection,
+          """
+          INSERT INTO command_receipts(
+            command_id, command_hash, status, error_code, created_at_ms, completed_at_ms
+          ) VALUES (?, ?, 'pending', NULL, ?, NULL)
+          ON CONFLICT(command_id) DO NOTHING
+          RETURNING command_id
+          """,
+          [command_id, command_hash, now_ms()]
+        )
+
+      case result.rows do
+        [[^command_id]] -> {:ok, :execute}
+        [] -> existing_command_receipt(state, command_id, command_hash)
+      end
+    else
+      {:error, :invalid_command_hash}
+    end
+  rescue
+    error in Exqlite.Error -> {:error, {:database, error.message}}
+  end
+
+  defp claim_command_record(_state, _command_id, _command_hash),
+    do: {:error, :invalid_command_receipt}
+
+  defp existing_command_receipt(state, command_id, command_hash) do
+    case query_one(
+           state.connection,
+           "SELECT command_hash, status, error_code FROM command_receipts WHERE command_id = ?",
+           [command_id]
+         ) do
+      {:ok, %{"command_hash" => ^command_hash, "status" => "pending"}} ->
+        {:ok, :pending}
+
+      {:ok, %{"command_hash" => ^command_hash, "status" => "succeeded"}} ->
+        {:ok, {:replay, :ok}}
+
+      {:ok,
+       %{
+         "command_hash" => ^command_hash,
+         "status" => "failed",
+         "error_code" => error_code
+       }}
+      when is_binary(error_code) ->
+        {:ok, {:replay, {:error, error_code}}}
+
+      {:ok, _different} ->
+        {:error, :command_id_conflict}
+
+      :not_found ->
+        {:error, :command_receipt_missing}
+    end
+  end
+
+  defp complete_command_record(state, command_id, command_hash, outcome)
+       when is_binary(command_id) and byte_size(command_id) in 1..64 and
+              is_binary(command_hash) do
+    with true <- Digest.valid_sha256?(command_hash),
+         {:ok, status, error_code} <- encode_command_outcome(outcome) do
+      result =
+        Exqlite.query!(
+          state.connection,
+          """
+          UPDATE command_receipts
+          SET status = ?, error_code = ?, completed_at_ms = ?
+          WHERE command_id = ? AND command_hash = ? AND status = 'pending'
+          RETURNING command_id
+          """,
+          [status, error_code, now_ms(), command_id, command_hash]
+        )
+
+      case result.rows do
+        [[^command_id]] ->
+          :ok
+
+        [] ->
+          validate_completed_receipt(state, command_id, command_hash, status, error_code)
+      end
+    else
+      false -> {:error, :invalid_command_hash}
+      {:error, reason} -> {:error, reason}
+    end
+  rescue
+    error in Exqlite.Error -> {:error, {:database, error.message}}
+  end
+
+  defp complete_command_record(_state, _command_id, _command_hash, _outcome),
+    do: {:error, :invalid_command_receipt}
+
+  defp encode_command_outcome(:ok), do: {:ok, "succeeded", nil}
+
+  defp encode_command_outcome({:error, code}) when is_atom(code) and not is_nil(code) do
+    encoded = Atom.to_string(code)
+
+    if byte_size(encoded) in 1..64 and String.match?(encoded, ~r/^[a-z0-9_]+$/),
+      do: {:ok, "failed", encoded},
+      else: {:error, :invalid_command_outcome}
+  end
+
+  defp encode_command_outcome(_outcome), do: {:error, :invalid_command_outcome}
+
+  defp validate_completed_receipt(state, command_id, command_hash, status, error_code) do
+    case query_one(
+           state.connection,
+           """
+           SELECT command_hash, status, error_code
+           FROM command_receipts
+           WHERE command_id = ?
+           """,
+           [command_id]
+         ) do
+      {:ok,
+       %{
+         "command_hash" => ^command_hash,
+         "status" => ^status,
+         "error_code" => ^error_code
+       }} ->
+        :ok
+
+      {:ok, %{"command_hash" => ^command_hash, "status" => "pending"}} ->
+        {:error, :command_completion_failed}
+
+      {:ok, _different} ->
+        {:error, :command_id_conflict}
+
+      :not_found ->
+        {:error, :command_receipt_missing}
+    end
+  end
 
   defp upsert_paired_frame(state, frame) do
     now = now_ms()

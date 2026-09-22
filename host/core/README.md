@@ -8,7 +8,9 @@ The current partial core implementation provides:
 
 - embedded Frame Protocol v0.1 schema validation with no runtime schema fetch;
 - an authenticated bounded Unix-socket command boundary whose fresh per-launch
-  challenge is consumed from a one-use user-only bootstrap file;
+  challenge is consumed from a one-use user-only bootstrap file, with durable
+  command receipts that suppress completed replays and expose crash-window
+  outcomes for authoritative state reconciliation;
 - a single-owner SQLite library backed by immutable content-addressed files;
 - canonical recipe identities and artifact cache relationships;
 - master import, generated-variant lineage, labels, search, pinning, recoverable

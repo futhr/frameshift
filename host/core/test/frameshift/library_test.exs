@@ -2,6 +2,7 @@ defmodule Frameshift.LibraryTest do
   use ExUnit.Case, async: true
 
   alias Frameshift.ContentStore
+  alias Frameshift.Digest
   alias Frameshift.Library
 
   @frame_fixture Path.expand(
@@ -41,6 +42,74 @@ defmodule Frameshift.LibraryTest do
     assert stored["media_type"] == "image/png"
 
     GenServer.stop(restarted)
+  end
+
+  test "command receipts preserve terminal outcomes and pending crash windows across restart", %{
+    library: library,
+    data_dir: data_dir
+  } do
+    success_hash = Digest.sha256("successful command")
+    failure_hash = Digest.sha256("failed command")
+    pending_hash = Digest.sha256("pending command")
+
+    assert {:ok, :execute} = Library.claim_command(library, "success-id", success_hash)
+    assert {:ok, :pending} = Library.claim_command(library, "success-id", success_hash)
+    assert :ok = Library.complete_command(library, "success-id", success_hash, :ok)
+    assert :ok = Library.complete_command(library, "success-id", success_hash, :ok)
+    assert {:ok, {:replay, :ok}} = Library.claim_command(library, "success-id", success_hash)
+
+    assert {:ok, :execute} = Library.claim_command(library, "failure-id", failure_hash)
+
+    assert :ok =
+             Library.complete_command(library, "failure-id", failure_hash, {
+               :error,
+               :invalid_command
+             })
+
+    assert {:ok, {:replay, {:error, "invalid_command"}}} =
+             Library.claim_command(library, "failure-id", failure_hash)
+
+    assert {:ok, :execute} = Library.claim_command(library, "pending-id", pending_hash)
+    assert {:ok, :pending} = Library.claim_command(library, "pending-id", pending_hash)
+
+    assert {:error, :command_id_conflict} =
+             Library.claim_command(library, "success-id", Digest.sha256("different command"))
+
+    GenServer.stop(library)
+    {:ok, restarted} = Library.start_link(data_dir: data_dir, name: nil)
+
+    assert {:ok, {:replay, :ok}} =
+             Library.claim_command(restarted, "success-id", success_hash)
+
+    assert {:ok, {:replay, {:error, "invalid_command"}}} =
+             Library.claim_command(restarted, "failure-id", failure_hash)
+
+    assert {:ok, :pending} = Library.claim_command(restarted, "pending-id", pending_hash)
+
+    GenServer.stop(restarted)
+  end
+
+  test "command receipt input is bounded and completion is identity checked", %{library: library} do
+    hash = Digest.sha256("command")
+
+    assert {:error, :invalid_command_receipt} = Library.claim_command(library, "", hash)
+
+    assert {:error, :invalid_command_receipt} =
+             Library.claim_command(library, String.duplicate("a", 65), hash)
+
+    assert {:error, :invalid_command_hash} =
+             Library.claim_command(library, "command-id", "not-a-digest")
+
+    assert {:error, :command_receipt_missing} =
+             Library.complete_command(library, "command-id", hash, :ok)
+
+    assert {:ok, :execute} = Library.claim_command(library, "command-id", hash)
+
+    assert {:error, :command_id_conflict} =
+             Library.complete_command(library, "command-id", Digest.sha256("other"), :ok)
+
+    assert {:error, :invalid_command_outcome} =
+             Library.complete_command(library, "command-id", hash, {:error, "not-an-atom"})
   end
 
   test "readback is bounded and re-verifies the content address", %{

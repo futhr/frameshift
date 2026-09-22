@@ -109,6 +109,8 @@ public actor LocalCoreClient: CoreClient {
 
   private static func clientError(for code: String?) -> CoreClientError {
     switch code {
+    case "command_id_conflict": .commandIDConflict
+    case "command_outcome_unknown": .commandOutcomeUnknown
     case "import_too_large": .importTooLarge
     case "import_unreadable", "import_not_regular", "import_changed",
       "invalid_canonical_image", "canonical_digest_mismatch":

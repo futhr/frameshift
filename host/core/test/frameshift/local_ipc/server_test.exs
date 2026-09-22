@@ -1,6 +1,7 @@
 defmodule Frameshift.LocalIPC.ServerTest do
   use ExUnit.Case, async: true
 
+  alias Frameshift.Digest
   alias Frameshift.Library
   alias Frameshift.LocalIPC.Server
 
@@ -35,7 +36,7 @@ defmodule Frameshift.LocalIPC.ServerTest do
       File.rm_rf!(root)
     end)
 
-    %{server: server, socket_path: socket_path}
+    %{library: library, server: server, socket_path: socket_path}
   end
 
   test "serves one correlated bounded snapshot over a private Unix socket", context do
@@ -67,6 +68,7 @@ defmodule Frameshift.LocalIPC.ServerTest do
         "requestId" => "request-2",
         "operation" => "command",
         "command" => %{
+          "id" => "command-2",
           "kind" => "updateInstruction",
           "instruction" => "Stored by the core"
         }
@@ -83,6 +85,75 @@ defmodule Frameshift.LocalIPC.ServerTest do
       })
 
     assert refreshed["snapshot"]["instruction"] == "Stored by the core"
+  end
+
+  test "replays a completed command without executing it again and rejects conflicting reuse",
+       context do
+    command = %{
+      "id" => "stable-command-id",
+      "kind" => "updateInstruction",
+      "instruction" => "First value"
+    }
+
+    assert %{"ok" => true, "snapshot" => %{"instruction" => "First value"}} =
+             command_request(context.socket_path, "initial-request", command)
+
+    assert :ok = Library.put_setting(context.library, "generation.instruction", "Later value")
+
+    assert %{
+             "ok" => true,
+             "snapshot" => %{
+               "instruction" => "Later value",
+               "statusMessage" => "Command already applied"
+             }
+           } = command_request(context.socket_path, "retry-request", command)
+
+    conflicting = Map.put(command, "instruction", "Conflicting value")
+
+    assert %{
+             "ok" => false,
+             "requestId" => "conflict-request",
+             "error" => %{"code" => "command_id_conflict"}
+           } = command_request(context.socket_path, "conflict-request", conflicting)
+
+    assert {:ok, "Later value"} =
+             Library.get_setting(context.library, "generation.instruction")
+  end
+
+  test "reports a claimed command's crash window without repeating its mutation", context do
+    command = %{
+      "id" => "pending-command-id",
+      "kind" => "updateInstruction",
+      "instruction" => "Must not run"
+    }
+
+    command_hash =
+      command
+      |> RFC8785.encode!()
+      |> Digest.sha256()
+
+    assert {:ok, :execute} =
+             Library.claim_command(context.library, command["id"], command_hash)
+
+    assert %{
+             "ok" => false,
+             "requestId" => "pending-request",
+             "error" => %{"code" => "command_outcome_unknown"}
+           } = command_request(context.socket_path, "pending-request", command)
+
+    assert :not_found = Library.get_setting(context.library, "generation.instruction")
+  end
+
+  test "requires a stable command identifier", context do
+    assert %{
+             "ok" => false,
+             "requestId" => "missing-command-id",
+             "error" => %{"code" => "invalid_command"}
+           } =
+             command_request(context.socket_path, "missing-command-id", %{
+               "kind" => "updateInstruction",
+               "instruction" => "Rejected"
+             })
   end
 
   test "rejects duplicate JSON members and unknown request fields", context do
@@ -162,6 +233,15 @@ defmodule Frameshift.LocalIPC.ServerTest do
     {:ok, response} = :gen_tcp.recv(socket, 0, 5_000)
     :gen_tcp.close(socket)
     Jason.decode!(response)
+  end
+
+  defp command_request(path, request_id, command) do
+    request(path, %{
+      "version" => 1,
+      "requestId" => request_id,
+      "operation" => "command",
+      "command" => command
+    })
   end
 
   defp stop_process(process) do

@@ -6,6 +6,8 @@ public protocol CoreClient: Sendable {
 }
 
 public enum CoreClientError: Error, Equatable, Sendable {
+  case commandIDConflict
+  case commandOutcomeUnknown
   case coreUnavailable
   case importTooLarge
   case importUnreadable

@@ -61,7 +61,27 @@ public final class ShellModel {
   }
 
   private func send(_ command: CoreCommand) async {
-    await perform { try await client.send(command) }
+    guard !isBusy else { return }
+    isBusy = true
+    defer { isBusy = false }
+
+    do {
+      apply(try await client.send(command))
+      errorMessage = nil
+    } catch CoreClientError.commandOutcomeUnknown {
+      do {
+        apply(try await client.snapshot())
+        errorMessage =
+          "The core restarted before it could confirm the command. Current state was refreshed; review it before trying again."
+      } catch {
+        errorMessage =
+          "The core restarted before it could confirm the command. Reconnect and review current state before trying again."
+      }
+    } catch CoreClientError.commandIDConflict {
+      errorMessage = "The command identity was rejected. Refresh and try the operation again."
+    } catch {
+      errorMessage = "The core command could not be completed."
+    }
   }
 
   private func perform(_ operation: () async throws -> CoreSnapshot) async {
@@ -70,12 +90,15 @@ public final class ShellModel {
     defer { isBusy = false }
 
     do {
-      let next = try await operation()
-      snapshot = next
-      draftInstruction = next.instruction
+      apply(try await operation())
       errorMessage = nil
     } catch {
       errorMessage = "The core command could not be completed."
     }
+  }
+
+  private func apply(_ next: CoreSnapshot) {
+    snapshot = next
+    draftInstruction = next.instruction
   }
 }

@@ -177,6 +177,34 @@ defmodule Frameshift.Library.Migrations do
        ) STRICT
        """,
        "CREATE INDEX paired_frames_title ON paired_frames(title COLLATE NOCASE, frame_id)"
+     ]},
+    {6,
+     [
+       """
+       CREATE TABLE command_receipts (
+         command_id TEXT PRIMARY KEY CHECK (length(command_id) BETWEEN 1 AND 64),
+         command_hash TEXT NOT NULL CHECK (
+           length(command_hash) = 71 AND
+           substr(command_hash, 1, 7) = 'sha256:' AND
+           substr(command_hash, 8) NOT GLOB '*[^0-9a-f]*'
+         ),
+         status TEXT NOT NULL CHECK (status IN ('pending', 'succeeded', 'failed')),
+         error_code TEXT CHECK (
+           error_code IS NULL OR (
+             length(error_code) BETWEEN 1 AND 64 AND
+             error_code NOT GLOB '*[^a-z0-9_]*'
+           )
+         ),
+         created_at_ms INTEGER NOT NULL,
+         completed_at_ms INTEGER,
+         CHECK (
+           (status = 'pending' AND error_code IS NULL AND completed_at_ms IS NULL) OR
+           (status = 'succeeded' AND error_code IS NULL AND completed_at_ms IS NOT NULL) OR
+           (status = 'failed' AND error_code IS NOT NULL AND completed_at_ms IS NOT NULL)
+         )
+       ) STRICT
+       """,
+       "CREATE INDEX command_receipts_completed ON command_receipts(completed_at_ms DESC)"
      ]}
   ]
 

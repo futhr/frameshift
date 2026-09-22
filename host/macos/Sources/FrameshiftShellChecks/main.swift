@@ -214,6 +214,17 @@ private struct FrameshiftShellChecks {
     )
     let commandKinds = await recorder.commandKinds()
     try expect(commandKinds == [.updateInstruction], "shell bypassed the command client")
+
+    let reconcilingModel = ShellModel(client: UnknownOutcomeClient())
+    await reconcilingModel.saveInstruction()
+    try expect(
+      reconcilingModel.snapshot.instruction == "Reconciled state",
+      "shell did not refresh authoritative state after an unknown command outcome"
+    )
+    try expect(
+      reconcilingModel.errorMessage?.contains("review it before trying again") == true,
+      "shell did not explain the unknown-outcome recovery"
+    )
   }
 
   @MainActor
@@ -351,6 +362,19 @@ private struct FailingClient: CoreClient {
   func send(_ command: CoreCommand) async throws -> CoreSnapshot {
     _ = command
     throw CoreClientError.invalidCommand
+  }
+}
+
+private struct UnknownOutcomeClient: CoreClient {
+  func snapshot() async throws -> CoreSnapshot {
+    var refreshed = CoreSnapshot.checkFixture
+    refreshed.instruction = "Reconciled state"
+    return refreshed
+  }
+
+  func send(_ command: CoreCommand) async throws -> CoreSnapshot {
+    _ = command
+    throw CoreClientError.commandOutcomeUnknown
   }
 }
 

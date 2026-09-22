@@ -11,6 +11,8 @@ defmodule Frameshift.LocalIPC.Server do
 
   require Logger
 
+  alias Frameshift.Digest
+  alias Frameshift.Library
   alias Frameshift.LocalAPI
 
   @maximum_request_bytes 64 * 1024
@@ -252,9 +254,13 @@ defmodule Frameshift.LocalIPC.Server do
   end
 
   defp validate_command_shape(request, "command", request_id) do
-    if is_map(Map.get(request, "command")),
-      do: :ok,
-      else: {:error, {request_id, :invalid_command}}
+    case Map.get(request, "command") do
+      %{"id" => command_id} when is_binary(command_id) and byte_size(command_id) in 1..64 ->
+        :ok
+
+      _invalid ->
+        {:error, {request_id, :invalid_command}}
+    end
   end
 
   defp validate_command_shape(_request, _operation, _request_id), do: :ok
@@ -298,9 +304,60 @@ defmodule Frameshift.LocalIPC.Server do
          %{"requestId" => request_id, "operation" => "command", "command" => command},
          library
        ) do
-    case LocalAPI.execute(library, command) do
-      {:ok, snapshot} -> {:ok, success_response(request_id, snapshot)}
+    with {:ok, command_hash} <- command_hash(command),
+         {:ok, disposition} <- Library.claim_command(library, command["id"], command_hash) do
+      execute_command(disposition, request_id, command, command_hash, library)
+    else
       {:error, code} -> {:error, {request_id, code}}
+    end
+  end
+
+  defp execute_command(:execute, request_id, command, command_hash, library) do
+    outcome = LocalAPI.execute(library, command)
+
+    receipt_outcome =
+      case outcome do
+        {:ok, _snapshot} -> :ok
+        {:error, code} -> {:error, code}
+      end
+
+    case Library.complete_command(library, command["id"], command_hash, receipt_outcome) do
+      :ok -> command_response(request_id, outcome)
+      {:error, _reason} -> {:error, {request_id, :command_outcome_unknown}}
+    end
+  end
+
+  defp execute_command({:replay, :ok}, request_id, _command, _command_hash, library) do
+    {:ok, success_response(request_id, LocalAPI.snapshot(library, "Command already applied"))}
+  end
+
+  defp execute_command(
+         {:replay, {:error, error_code}},
+         request_id,
+         _command,
+         _command_hash,
+         _library
+       ) do
+    {:error, {request_id, error_code}}
+  end
+
+  defp execute_command(:pending, request_id, _command, _command_hash, _library),
+    do: {:error, {request_id, :command_outcome_unknown}}
+
+  defp command_response(request_id, {:ok, snapshot}),
+    do: {:ok, success_response(request_id, snapshot)}
+
+  defp command_response(request_id, {:error, code}), do: {:error, {request_id, code}}
+
+  defp command_hash(command) do
+    canonical_result =
+      command
+      |> Map.delete("importCanonicalPath")
+      |> RFC8785.encode()
+
+    case canonical_result do
+      {:ok, canonical} -> {:ok, Digest.sha256(canonical)}
+      {:error, _reason} -> {:error, :invalid_command}
     end
   end
 
@@ -309,11 +366,13 @@ defmodule Frameshift.LocalIPC.Server do
   end
 
   defp error_response(request_id, code) do
+    encoded_code = if is_atom(code), do: Atom.to_string(code), else: code
+
     %{
       "version" => 1,
       "requestId" => request_id,
       "ok" => false,
-      "error" => %{"code" => Atom.to_string(code)}
+      "error" => %{"code" => encoded_code}
     }
   end
 

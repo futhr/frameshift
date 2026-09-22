@@ -70,6 +70,17 @@ before allocation. Commands carry a unique ID and receive progress snapshots
 plus exactly one terminal response. Reconnection obtains a fresh full snapshot
 and does not replay completed UI commands blindly.
 
+Before executing a mutation, the core durably binds its command ID to the
+SHA-256 digest of its RFC 8785 canonical form. Completed outcomes remain in the
+library so the same ID and digest return the prior disposition without running
+the effect again; reuse of an ID for different content is rejected. Receipts
+contain no command payload, source path, temporary path, artwork, or credential.
+If the core stops after claiming an ID but before recording its terminal
+outcome, that ID remains pending and returns `command_outcome_unknown` rather
+than risking a duplicate effect. The shell then reads a fresh authoritative
+snapshot and asks the user to review it before issuing a new command ID. This
+is an explicit durable at-most-once boundary, not a false exactly-once claim.
+
 The implemented v1 boundary currently uses one four-byte-big-endian-length
 prefixed JSON request and response per connection, a 64 KiB request ceiling,
 bounded JSON depth/node/string/collection admission, duplicate-member

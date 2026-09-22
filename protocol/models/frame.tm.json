@@ -1,0 +1,207 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    { "frameshift": "urn:frameshift:vocabulary:0.1#" }
+  ],
+  "@type": "tm:ThingModel",
+  "id": "urn:frameshift:model:frame:0.1",
+  "title": "Frameshift Frame Thing Model 0.1",
+  "schemaDefinitions": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "requestId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "desired": {
+      "type": "object",
+      "required": ["assetDigest", "artifactProfile", "requestId"],
+      "properties": {
+        "assetDigest": { "tm:ref": "#/schemaDefinitions/digest" },
+        "artifactProfile": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "requestId": { "tm:ref": "#/schemaDefinitions/requestId" }
+      },
+      "additionalProperties": false
+    },
+    "state": {
+      "type": "object",
+      "required": [
+        "stateRevision",
+        "displayState",
+        "desiredAsset",
+        "currentAsset",
+        "previousKnownGood",
+        "pendingRequestId",
+        "lastError"
+      ],
+      "properties": {
+        "stateRevision": { "type": "integer", "minimum": 0 },
+        "displayState": {
+          "type": "string",
+          "enum": ["empty", "preparing", "refreshing", "displayed", "failed", "recovering"]
+        },
+        "desiredAsset": {
+          "oneOf": [
+            { "tm:ref": "#/schemaDefinitions/digest" },
+            { "type": "null" }
+          ]
+        },
+        "currentAsset": {
+          "oneOf": [
+            { "tm:ref": "#/schemaDefinitions/digest" },
+            { "type": "null" }
+          ]
+        },
+        "previousKnownGood": {
+          "oneOf": [
+            { "tm:ref": "#/schemaDefinitions/digest" },
+            { "type": "null" }
+          ]
+        },
+        "pendingRequestId": {
+          "oneOf": [
+            { "tm:ref": "#/schemaDefinitions/requestId" },
+            { "type": "null" }
+          ]
+        },
+        "lastError": {
+          "oneOf": [
+            { "type": "object" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "playlist": {
+      "type": "object",
+      "required": ["revision", "mode", "entries"],
+      "properties": {
+        "revision": { "tm:ref": "#/schemaDefinitions/digest" },
+        "mode": { "type": "string", "enum": ["hold", "cycle"] },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10000,
+          "items": {
+            "type": "object",
+            "required": ["assetDigest", "dwellMs"],
+            "properties": {
+              "assetDigest": { "tm:ref": "#/schemaDefinitions/digest" },
+              "dwellMs": { "type": "integer", "minimum": 1, "maximum": 31536000000 }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "properties": {
+    "capabilities": {
+      "type": "object",
+      "readOnly": true,
+      "required": [
+        "protocolMajor",
+        "protocolMinor",
+        "deviceId",
+        "stillOnly",
+        "geometry",
+        "color",
+        "refresh",
+        "power",
+        "storage"
+      ],
+      "additionalProperties": true
+    },
+    "state": {
+      "tm:ref": "#/schemaDefinitions/state",
+      "readOnly": true,
+      "observable": true
+    },
+    "playlist": {
+      "tm:ref": "#/schemaDefinitions/playlist",
+      "readOnly": true,
+      "observable": true
+    }
+  },
+  "actions": {
+    "installAsset": {
+      "safe": false,
+      "idempotent": true,
+      "input": {
+        "type": "string",
+        "contentEncoding": "binary",
+        "contentMediaType": "application/octet-stream"
+      },
+      "output": { "type": "object" }
+    },
+    "removeAsset": {
+      "safe": false,
+      "idempotent": true,
+      "input": {
+        "type": "object",
+        "required": ["assetDigest"],
+        "properties": {
+          "assetDigest": { "tm:ref": "#/schemaDefinitions/digest" }
+        },
+        "additionalProperties": false
+      },
+      "output": { "tm:ref": "#/schemaDefinitions/state" }
+    },
+    "setDesired": {
+      "safe": false,
+      "idempotent": true,
+      "input": { "tm:ref": "#/schemaDefinitions/desired" },
+      "output": { "tm:ref": "#/schemaDefinitions/state" }
+    },
+    "replacePlaylist": {
+      "safe": false,
+      "idempotent": true,
+      "input": { "tm:ref": "#/schemaDefinitions/playlist" },
+      "output": { "tm:ref": "#/schemaDefinitions/state" }
+    },
+    "retryDisplay": {
+      "safe": false,
+      "idempotent": true,
+      "output": { "tm:ref": "#/schemaDefinitions/state" }
+    }
+  },
+  "events": {
+    "stateChanged": {
+      "data": {
+        "type": "object",
+        "required": ["stateRevision"],
+        "properties": {
+          "stateRevision": { "type": "integer", "minimum": 0 }
+        },
+        "additionalProperties": true
+      }
+    },
+    "displayCompleted": {
+      "data": {
+        "type": "object",
+        "required": ["requestId", "displayState", "currentAsset"],
+        "properties": {
+          "requestId": { "tm:ref": "#/schemaDefinitions/requestId" },
+          "displayState": { "type": "string", "enum": ["displayed", "failed"] },
+          "currentAsset": {
+            "oneOf": [
+              { "tm:ref": "#/schemaDefinitions/digest" },
+              { "type": "null" }
+            ]
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "frameshift:profile": "urn:frameshift:profile:frame:0.1"
+}

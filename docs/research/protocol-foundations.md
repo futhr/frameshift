@@ -91,10 +91,16 @@ proof of Action effects. Frameshift therefore must supply its own bounded
 binary artifact binding, mutual-TLS client/server ownership, and display-state
 reconciliation even if it later consumes Wotex packages.
 
-Before adding Wotex as a dependency, Frameshift must pin all selected packages
-to one immutable commit, record their exact package catalogue status, verify
-the archive/license inventory, and run clean-consumer tests. A mutable sibling
-path is permitted only for local development and is not release evidence.
+Frameshift consumes only `wotex` and `wotex_runtime`, both pinned in
+`host/core/mix.lock` to the inspected full commit. No sibling path participates
+in the build. At that revision WTX.01 through WTX.04 and WRT.01 through WRT.03
+are catalogued as implemented, with their claims explicitly limited to the
+listed TD/TM/value/runtime mechanics rather than full W3C conformance. Both
+packages declare Apache-2.0 and include the inspected license; `wotex` also
+ships a notice for its modified W3C TD schema. Frameshift tests the exact
+admission and selection behavior it relies on instead of inheriting a broader
+upstream claim. Repository-wide license and notice assembly is still required
+before distribution.
 
 ## Universal semantic boundary
 

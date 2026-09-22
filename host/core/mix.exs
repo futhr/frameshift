@@ -1,6 +1,8 @@
 defmodule FrameshiftCore.MixProject do
   use Mix.Project
 
+  @wotex_ref "e6aa01a69ea35447afa989d5dea061618d20b3cf"
+
   def project do
     [
       app: :frameshift_core,
@@ -31,6 +33,16 @@ defmodule FrameshiftCore.MixProject do
       {:exqlite, "~> 0.40.0"},
       {:jsv, "~> 0.22.0"},
       {:rfc8785, "~> 1.0.0"},
+      {:wotex,
+       git: "https://github.com/wotex-project/wotex.git",
+       ref: @wotex_ref,
+       sparse: "packages/wotex",
+       override: true},
+      {:wotex_runtime,
+       git: "https://github.com/wotex-project/wotex.git",
+       ref: @wotex_ref,
+       sparse: "packages/wotex-runtime",
+       override: true},
       {:credo, "~> 1.7.19", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4.8", only: [:dev, :test], runtime: false}
     ]

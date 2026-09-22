@@ -12,6 +12,7 @@ electronics, packaging, security review, or certification.
 | --- | --- | --- | --- |
 | Immutable content-addressed masters, recipe identity, recoverable removal, and protected references | Elixir core | `Frameshift.LibraryTest` | Partial product evidence; installed import/readback flow remains open |
 | Bounded control JSON, duplicate-key rejection, embedded schemas, and version skew rejection | Frame Protocol/core | `Frameshift.Protocol.JSONTest`, `Frameshift.Protocol.SchemaTest`, protocol fixtures | Implemented for v0.1 fixtures |
+| Bounded W3C TD/TM admission, unknown-extension preservation, required-profile rejection, and deterministic advertised Form selection | Frame Protocol/core | `Frameshift.Protocol.ThingTest`, embedded Thing Models, Frame and Host Outbox TD fixtures | Implemented for the semantic admission/selection boundary; live bindings remain open |
 | Desired/current separation, verified storage, idempotence, still-only playlists, and power-loss recovery | Simulator | `Frameshift.SimulatorTest` | Implemented in software simulation |
 | Sleeping contact keeps only the newest manifest and converges after missed/failed contact | Core/simulator | `Frameshift.OutboxTest` | Implemented in software simulation |
 | Fixed-point crop, nearest/bilinear resize, alpha composition, caller-supplied palette, and deterministic dither | Zig renderer | Zig golden, boundary, malformed-input, and parser-fuzz tests | Implemented for experimental generic profiles |
@@ -33,8 +34,8 @@ The following remain open and must not be inferred from the automated rows:
   security review;
 - authenticated Swift–Elixir local IPC, Keychain identities, and sandbox file
   handoff;
-- bounded W3C TD/TM admission, extension-preserving round trips, deterministic
-  Form selection, reference HTTPS binding, and live semantic interoperability;
+- reference HTTPS transport, ExposedThing routing, and live semantic
+  interoperability over mutually authenticated TLS;
 - real AI provider preflight, provenance, cost/privacy disclosure, cancellation,
   and local-only network isolation;
 - VoiceOver/manual accessibility acceptance, background lifecycle, embedded

@@ -1,9 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.frameshift.invalid/v0.1/thing-description.schema.json",
-  "title": "Constrained Frame Protocol v0.1 Thing Description",
+  "title": "Frameshift Frame Thing Description semantic overlay v0.1",
   "type": "object",
-  "required": ["@context", "id", "title", "securityDefinitions", "security", "properties", "actions", "forms", "frameshift:capabilities"],
+  "required": ["@context", "id", "title", "profile", "securityDefinitions", "security", "properties", "actions", "events", "frameshift:capabilities"],
   "properties": {
     "@context": {
       "oneOf": [
@@ -18,24 +18,34 @@
     },
     "id": { "type": "string", "minLength": 1, "maxLength": 256 },
     "title": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "profile": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "contains": { "const": "urn:frameshift:profile:frame:0.1" },
+      "items": { "type": "string", "minLength": 1, "maxLength": 256 }
+    },
     "securityDefinitions": { "type": "object", "minProperties": 1 },
     "security": {
       "type": "array",
       "minItems": 1,
       "items": { "type": "string", "minLength": 1, "maxLength": 64 }
     },
-    "properties": { "type": "object" },
-    "actions": { "type": "object" },
+    "properties": {
+      "type": "object",
+      "required": ["capabilities", "state", "playlist"]
+    },
+    "actions": {
+      "type": "object",
+      "required": ["installAsset", "removeAsset", "setDesired", "replacePlaylist", "retryDisplay"]
+    },
+    "events": {
+      "type": "object",
+      "required": ["stateChanged", "displayCompleted"]
+    },
     "forms": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["href"],
-        "properties": {
-          "href": { "type": "string", "pattern": "^https://" }
-        },
-        "additionalProperties": true
-      }
+      "type": "array"
     },
     "frameshift:capabilities": { "$ref": "capabilities.schema.json" }
   },

@@ -1,27 +1,138 @@
 {
   "@context": [
     "https://www.w3.org/2022/wot/td/v1.1",
-    { "frameshift": "urn:frameshift:td:v0#" }
+    {
+      "frameshift": "urn:frameshift:vocabulary:0.1#",
+      "htv": "http://www.w3.org/2011/http#"
+    }
   ],
   "id": "urn:frameshift:device:sim-photo-00000001",
   "title": "Frameshift simulated photo frame",
+  "profile": ["urn:frameshift:profile:frame:0.1"],
+  "base": "https://frame.invalid/",
   "securityDefinitions": {
-    "mtls": { "scheme": "cert" }
+    "mtls": {
+      "scheme": "auto",
+      "frameshift:mechanism": "mutual-tls"
+    }
   },
   "security": ["mtls"],
   "properties": {
+    "capabilities": {
+      "type": "object",
+      "readOnly": true,
+      "forms": [{ "href": "v0/capabilities", "contentType": "application/json", "op": "readproperty" }]
+    },
     "state": {
-      "forms": [{ "href": "https://frame.invalid/v0/state", "op": "readproperty" }]
+      "type": "object",
+      "readOnly": true,
+      "observable": true,
+      "forms": [{ "href": "v0/state", "contentType": "application/json", "op": "readproperty" }]
+    },
+    "playlist": {
+      "type": "object",
+      "readOnly": true,
+      "observable": true,
+      "forms": [{ "href": "v0/playlist", "contentType": "application/json", "op": "readproperty" }]
     }
   },
   "actions": {
+    "installAsset": {
+      "idempotent": true,
+      "input": {
+        "type": "string",
+        "contentEncoding": "binary",
+        "contentMediaType": "application/vnd.frameshift.experimental.rgb24"
+      },
+      "output": { "type": "object" },
+      "uriVariables": {
+        "digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "forms": [
+        {
+          "href": "v0/assets/sha256/{digest}",
+          "contentType": "application/vnd.frameshift.experimental.rgb24",
+          "op": "invokeaction",
+          "htv:methodName": "PUT",
+          "frameshift:artifactProfile": "urn:frameshift:experimental:sim-rgb24-v1"
+        }
+      ]
+    },
+    "removeAsset": {
+      "idempotent": true,
+      "input": {
+        "type": "object",
+        "required": ["assetDigest"],
+        "properties": {
+          "assetDigest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": { "type": "object" },
+      "forms": [
+        {
+          "href": "v0/actions/remove-asset",
+          "contentType": "application/json",
+          "op": "invokeaction",
+          "htv:methodName": "DELETE"
+        }
+      ]
+    },
+    "setDesired": {
+      "idempotent": true,
+      "input": { "type": "object" },
+      "output": { "type": "object" },
+      "forms": [
+        {
+          "href": "v0/desired",
+          "contentType": "application/json",
+          "op": "invokeaction",
+          "htv:methodName": "PUT"
+        }
+      ]
+    },
+    "replacePlaylist": {
+      "idempotent": true,
+      "input": { "type": "object" },
+      "output": { "type": "object" },
+      "forms": [
+        {
+          "href": "v0/playlist",
+          "contentType": "application/json",
+          "op": "invokeaction",
+          "htv:methodName": "PUT"
+        }
+      ]
+    },
     "retryDisplay": {
-      "forms": [{ "href": "https://frame.invalid/v0/actions/retry-display", "op": "invokeaction" }]
+      "idempotent": true,
+      "output": { "type": "object" },
+      "forms": [
+        {
+          "href": "v0/actions/retry-display",
+          "contentType": "application/json",
+          "op": "invokeaction",
+          "htv:methodName": "POST"
+        }
+      ]
     }
   },
-  "forms": [
-    { "href": "https://frame.invalid/.well-known/wot" }
-  ],
+  "events": {
+    "stateChanged": {
+      "data": { "type": "object" },
+      "forms": [{ "href": "v0/events/state", "contentType": "text/event-stream", "subprotocol": "sse", "op": ["subscribeevent", "unsubscribeevent"] }]
+    },
+    "displayCompleted": {
+      "data": { "type": "object" },
+      "forms": [{ "href": "v0/events/display", "contentType": "text/event-stream", "subprotocol": "sse", "op": ["subscribeevent", "unsubscribeevent"] }]
+    }
+  },
   "frameshift:capabilities": {
     "protocolMajor": 0,
     "protocolMinor": 1,

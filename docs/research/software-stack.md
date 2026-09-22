@@ -43,11 +43,11 @@ frame coordination, and protocol semantics. The first implementation should be
 an OTP release run as a per-user process. It should expose only a local Unix
 domain socket to the Swift shell; it must not open a general LAN control port.
 
-Candidate libraries must be pinned and revalidated when implementation starts:
+Selected libraries and bounded candidates are tracked independently:
 
 | Need | Candidate | Use boundary |
 | --- | --- | --- |
-| WoT value/runtime | Pinned Wotex `wotex` and `wotex_runtime` packages | Bounded TD/TM admission, extension preservation, deterministic Form selection, typed requests/results, and explicit credential/transport ports. Frameshift retains state, policy, binary assets, and effect truth. |
+| WoT value/runtime | Wotex `wotex` and `wotex_runtime`, both pinned to `e6aa01a69ea35447afa989d5dea061618d20b3cf` | Bounded TD/TM admission, extension preservation, deterministic Form selection, typed requests/results, and explicit credential/transport ports. Frameshift retains state, policy, binary assets, and effect truth. |
 | WoT HTTP mapping | Pinned `wotex_binding_http` plus a Frameshift-owned client | JSON Property/Action and SSE mapping only. It is not the binary artifact binding, TLS policy, HTTP server, or physical-effect proof. |
 | HTTP client | `Req` | Disable automatic redirects and retries for frame writes; set absolute operation deadlines. |
 | HTTP server for simulator/optional Nerves bridge | `Plug` + `Bandit` | Small explicit router; not a dependency of MCU firmware. |
@@ -55,11 +55,12 @@ Candidate libraries must be pinned and revalidated when implementation starts:
 | Host JSON | `Jason` or OTP-native equivalent available at implementation time | Bounded decode; reject duplicate/unknown required fields; preserve TD extensions. MCU parsing is a separate Zig selection. |
 | Discovery | macOS Network framework/Bonjour through Swift; `mdns_lite` on Nerves | Advertise only the privacy-minimal introduction record. |
 
-The Wotex packages were inspected in the sibling checkout at the immutable
-revision recorded in [protocol foundations](protocol-foundations.md). They are
-not published to Hex at that revision; a release dependency must pin every
-selected package to the same commit and pass archive, license, and clean-
-consumer qualification. A sibling path is development-only.
+The selected Wotex packages are fetched from their upstream Git repository at
+the immutable revision recorded in [protocol foundations](protocol-foundations.md).
+The lockfile records the same full commit for both packages; the sibling
+checkout is not a build input. Their Apache-2.0 files and Wotex's bundled W3C
+schema notice were inspected at that revision. Repository-wide third-party
+notice assembly remains a separate distribution gate.
 
 Req is convenient but enables redirect and retry steps by default. Frameshift
 must construct a restricted request pipeline for mutations rather than inherit

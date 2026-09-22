@@ -1,0 +1,63 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "frameshift": "urn:frameshift:vocabulary:0.1#",
+      "htv": "http://www.w3.org/2011/http#"
+    }
+  ],
+  "id": "urn:frameshift:host:simulated-outbox-0001",
+  "title": "Frameshift host outbox",
+  "profile": ["urn:frameshift:profile:host-outbox:0.1"],
+  "base": "https://host.invalid/",
+  "securityDefinitions": {
+    "mtls": {
+      "scheme": "auto",
+      "frameshift:mechanism": "mutual-tls"
+    }
+  },
+  "security": ["mtls"],
+  "properties": {
+    "manifest": {
+      "type": "object",
+      "readOnly": true,
+      "observable": true,
+      "forms": [
+        {
+          "href": "v0/outbox/manifest",
+          "contentType": "application/json",
+          "op": "readproperty"
+        }
+      ]
+    },
+    "artifact": {
+      "type": "string",
+      "readOnly": true,
+      "uriVariables": {
+        "digest": { "type": "string" }
+      },
+      "forms": [
+        {
+          "href": "v0/outbox/assets/sha256/{digest}",
+          "contentType": "application/octet-stream",
+          "op": "readproperty"
+        }
+      ]
+    }
+  },
+  "actions": {
+    "acknowledge": {
+      "idempotent": true,
+      "input": { "type": "object" },
+      "output": { "type": "object" },
+      "forms": [
+        {
+          "href": "v0/outbox/ack",
+          "contentType": "application/json",
+          "op": "invokeaction",
+          "htv:methodName": "POST"
+        }
+      ]
+    }
+  }
+}

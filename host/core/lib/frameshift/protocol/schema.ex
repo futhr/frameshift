@@ -1,7 +1,11 @@
 defmodule Frameshift.Protocol.Schema do
   @moduledoc """
-  Loads and validates Frame Protocol control documents against the canonical
-  JSON Schema Draft 2020-12 files.
+  Loads and validates Frame Protocol control documents and the Frameshift TD
+  semantic overlay against the canonical JSON Schema Draft 2020-12 files.
+
+  W3C Thing Description and Thing Model admission is owned by
+  `Frameshift.Protocol.Thing` through Wotex. The local TD schema is only the
+  Frameshift-specific capability and affordance overlay.
 
   Schemas are embedded at compile time so a release never resolves schema
   references over the network.

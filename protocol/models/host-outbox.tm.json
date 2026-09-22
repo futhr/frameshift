@@ -1,0 +1,83 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    { "frameshift": "urn:frameshift:vocabulary:0.1#" }
+  ],
+  "@type": "tm:ThingModel",
+  "id": "urn:frameshift:model:host-outbox:0.1",
+  "title": "Frameshift Host Outbox Thing Model 0.1",
+  "schemaDefinitions": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "requestId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "manifest": {
+      "type": "object",
+      "required": ["revision", "desiredDigest", "artifactProfile", "playlistRevision"],
+      "properties": {
+        "revision": { "type": "integer", "minimum": 0 },
+        "desiredDigest": {
+          "oneOf": [
+            { "tm:ref": "#/schemaDefinitions/digest" },
+            { "type": "null" }
+          ]
+        },
+        "artifactProfile": {
+          "oneOf": [
+            { "type": "string", "minLength": 1, "maxLength": 256 },
+            { "type": "null" }
+          ]
+        },
+        "playlistRevision": {
+          "oneOf": [
+            { "tm:ref": "#/schemaDefinitions/digest" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "properties": {
+    "manifest": {
+      "tm:ref": "#/schemaDefinitions/manifest",
+      "readOnly": true,
+      "observable": true
+    },
+    "artifact": {
+      "type": "string",
+      "contentEncoding": "binary",
+      "contentMediaType": "application/octet-stream",
+      "readOnly": true
+    }
+  },
+  "actions": {
+    "acknowledge": {
+      "safe": false,
+      "idempotent": true,
+      "input": {
+        "type": "object",
+        "required": ["revision", "requestId", "outcome", "currentAsset"],
+        "properties": {
+          "revision": { "type": "integer", "minimum": 0 },
+          "requestId": { "tm:ref": "#/schemaDefinitions/requestId" },
+          "outcome": { "type": "string", "enum": ["stored", "displayed", "failed"] },
+          "currentAsset": {
+            "oneOf": [
+              { "tm:ref": "#/schemaDefinitions/digest" },
+              { "type": "null" }
+            ]
+          }
+        },
+        "additionalProperties": true
+      },
+      "output": { "type": "object" }
+    }
+  },
+  "frameshift:profile": "urn:frameshift:profile:host-outbox:0.1"
+}

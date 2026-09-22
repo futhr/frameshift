@@ -10,7 +10,7 @@ electronics, packaging, security review, or certification.
 
 | Requirement | Owner | Automated evidence | Current state |
 | --- | --- | --- | --- |
-| Immutable content-addressed masters, recipe identity, recoverable removal, and protected references | Elixir core | `Frameshift.LibraryTest` | Partial product evidence; installed import/readback flow remains open |
+| Immutable content-addressed masters, recipe identity, recoverable removal, protected references, and verified readback | Elixir core | `Frameshift.LibraryTest`, `Frameshift.LocalAPITest` | Implemented for the local durable library; sandbox handoff and retention UI remain open |
 | Bounded control JSON, duplicate-key rejection, embedded schemas, and version skew rejection | Frame Protocol/core | `Frameshift.Protocol.JSONTest`, `Frameshift.Protocol.SchemaTest`, protocol fixtures | Implemented for v0.1 fixtures |
 | Bounded W3C TD/TM admission, unknown-extension preservation, required-profile rejection, and deterministic advertised Form selection | Frame Protocol/core | `Frameshift.Protocol.ThingTest`, embedded Thing Models, Frame and Host Outbox TD fixtures | Implemented for the semantic admission/selection boundary; live bindings remain open |
 | Desired/current separation, verified storage, idempotence, still-only playlists, and power-loss recovery | Simulator | `Frameshift.SimulatorTest` | Implemented in software simulation |
@@ -19,8 +19,8 @@ electronics, packaging, security review, or certification.
 | Native failure cannot terminate the BEAM; timeout or malformed response restarts a clean worker owner | Core/renderer | `Frameshift.RendererTest` | Implemented with an external Zig port |
 | A durable canonical RGBA object is read back with digest verification, renders once, reuses the artifact cache, queues, and converges in-process | Core/renderer/simulator | `Frameshift.LibraryTest`, `Frameshift.RenderPipelineTest` | Component evidence only; real decode, transport, and installed flow remain open |
 | One explicitly selected generation provider preflights, times out, caches exact repeats, and persists no provider context | Core generation | `Frameshift.GenerationTest` | Implemented with fixture providers only |
-| Production core configuration is relocatable and boots with an explicit renderer path | Elixir core | `scripts/check-core-release` | Implemented as an isolated OTP release smoke check |
-| Menu extra remains a snapshot/command client and works with no generation provider | Swift shell | `frameshift-shell-checks`, ad-hoc `.app` packaging check | Partial UI evidence using an in-memory client; no core connection |
+| Production core configuration is relocatable, boots with an explicit renderer path, and serves the versioned local protocol | Elixir core/Swift shell | `scripts/check-core-release`, `frameshift-ipc-probe` | Implemented with a real Swift-to-release round trip |
+| Menu extra remains a snapshot/command client, uses authoritative durable core state, and works with no generation provider | Swift shell/core | `Frameshift.LocalIPC.ServerTest`, `Frameshift.LocalAPITest`, `frameshift-shell-checks`, `frameshift-ipc-probe` | Implemented for import/instruction/pin/remove; pairing, render/send commands, session authentication, and bundled launch remain open |
 | Repository-owned build and checks contain no Python; shell and workflow files pass pinned linters | Repository policy | `scripts/check policy`, CI workflow | Enforced for tracked and untracked source files |
 
 ## Open evidence gates
@@ -32,8 +32,8 @@ The following remain open and must not be inferred from the automated rows:
   depth, mounting, and optical measurements;
 - pairing, mutual TLS, certificate rotation, authorization, and independent
   security review;
-- authenticated Swift–Elixir local IPC, Keychain identities, and sandbox file
-  handoff;
+- Keychain/bootstrap authentication of the local IPC peer, sandbox-safe file
+  handoff, and command replay receipts across core restarts;
 - reference HTTPS transport, ExposedThing routing, and live semantic
   interoperability over mutually authenticated TLS;
 - real AI provider preflight, provenance, cost/privacy disclosure, cancellation,

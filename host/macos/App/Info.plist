@@ -9,7 +9,7 @@
 	<key>CFBundleExecutable</key>
 	<string>Frameshift</string>
 	<key>CFBundleIdentifier</key>
-	<string>dev.frameshift.preview</string>
+	<string>io.frameshift.app</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>

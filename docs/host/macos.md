@@ -70,6 +70,17 @@ before allocation. Commands carry a unique ID and receive progress snapshots
 plus exactly one terminal response. Reconnection obtains a fresh full snapshot
 and does not replay completed UI commands blindly.
 
+The implemented v1 boundary currently uses one four-byte-big-endian-length
+prefixed JSON request and response per connection, a 64 KiB request ceiling,
+bounded JSON depth/node/string/collection admission, duplicate-member
+rejection, request correlation, a 5 second socket deadline, and explicit
+command field allowlists. The application-support directory is mode `0700`
+and the socket is mode `0600`; the server refuses to replace a non-socket path.
+The release check performs a real Swift-to-Elixir snapshot, durable command,
+and refreshed-snapshot round trip. The required Keychain/bootstrap peer
+challenge is not yet implemented, so filesystem permissions alone are partial
+security evidence rather than completion of the authenticated IPC requirement.
+
 The message schema includes no raw private key material. Large image bytes move
 through app-owned files/file descriptors rather than base64 JSON.
 

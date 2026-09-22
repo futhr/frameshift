@@ -142,6 +142,16 @@ defmodule Frameshift.Library.Migrations do
        ON CONFLICT(recipe_hash) DO NOTHING
        """,
        "CREATE INDEX generation_results_master ON generation_results(master_digest)"
+     ]},
+    {4,
+     [
+       """
+       CREATE TABLE app_settings (
+         key TEXT PRIMARY KEY,
+         value TEXT NOT NULL,
+         updated_at_ms INTEGER NOT NULL
+       ) STRICT
+       """
      ]}
   ]
 

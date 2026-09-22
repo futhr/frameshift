@@ -13,7 +13,7 @@ public final class ShellModel {
 
   public init(
     client: any CoreClient,
-    initialSnapshot: CoreSnapshot = .researchPreview
+    initialSnapshot: CoreSnapshot = .disconnected
   ) {
     self.client = client
     snapshot = initialSnapshot
@@ -37,7 +37,8 @@ public final class ShellModel {
   }
 
   public func togglePin(_ itemID: String) async {
-    await send(CoreCommand(kind: .togglePin, itemID: itemID))
+    guard let item = snapshot.items.first(where: { $0.id == itemID }) else { return }
+    await send(CoreCommand(kind: .setPinned, itemID: itemID, isPinned: !item.isPinned))
   }
 
   public func remove(_ itemID: String) async {
@@ -45,10 +46,11 @@ public final class ShellModel {
   }
 
   public func queue(_ itemID: String) async {
+    guard let selectedTargetID = snapshot.selectedTargetID else { return }
     await send(
       CoreCommand(
         kind: .queue,
-        targetID: snapshot.selectedTargetID,
+        targetID: selectedTargetID,
         itemID: itemID
       )
     )

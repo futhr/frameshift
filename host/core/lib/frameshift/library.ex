@@ -105,6 +105,14 @@ defmodule Frameshift.Library do
     GenServer.call(server, {:search, query, options})
   end
 
+  @spec get_setting(server(), String.t()) :: {:ok, String.t()} | :not_found | {:error, term()}
+  def get_setting(server \\ __MODULE__, key), do: GenServer.call(server, {:get_setting, key})
+
+  @spec put_setting(server(), String.t(), String.t()) :: :ok | {:error, term()}
+  def put_setting(server \\ __MODULE__, key, value) do
+    GenServer.call(server, {:put_setting, key, value})
+  end
+
   @spec pin(server(), digest()) :: :ok | {:error, term()}
   def pin(server \\ __MODULE__, digest), do: GenServer.call(server, {:pin, digest})
 
@@ -243,6 +251,14 @@ defmodule Frameshift.Library do
 
   def handle_call({:search, query, options}, _from, state) do
     {:reply, search_records(state, query, options), state}
+  end
+
+  def handle_call({:get_setting, key}, _from, state) do
+    {:reply, get_setting_record(state, key), state}
+  end
+
+  def handle_call({:put_setting, key, value}, _from, state) do
+    {:reply, put_setting_record(state, key, value), state}
   end
 
   def handle_call({:pin, digest}, _from, state) do
@@ -726,6 +742,30 @@ defmodule Frameshift.Library do
     |> rows_to_maps()
     |> Enum.map(&decode_master_row/1)
   end
+
+  defp get_setting_record(state, key) when is_binary(key) and byte_size(key) in 1..64 do
+    case query_one(state.connection, "SELECT value FROM app_settings WHERE key = ?", [key]) do
+      {:ok, %{"value" => value}} -> {:ok, value}
+      :not_found -> :not_found
+    end
+  end
+
+  defp get_setting_record(_state, _key), do: {:error, :invalid_setting}
+
+  defp put_setting_record(state, key, value)
+       when is_binary(key) and byte_size(key) in 1..64 and is_binary(value) and
+              byte_size(value) <= 4_096 do
+    execute(
+      state.connection,
+      """
+      INSERT INTO app_settings(key, value, updated_at_ms) VALUES (?, ?, ?)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at_ms = excluded.updated_at_ms
+      """,
+      [key, value, now_ms()]
+    )
+  end
+
+  defp put_setting_record(_state, _key, _value), do: {:error, :invalid_setting}
 
   defp restore_master_record(state, digest) do
     with {:ok, %{"storage_state" => storage_state}} <-

@@ -7,6 +7,7 @@ config :logger, :console,
 config :frameshift_core,
   start_library: true,
   start_renderer: true,
+  start_local_ipc: true,
   renderer_path:
     System.get_env("FRAMESHIFT_RENDERER_PATH") ||
       Path.expand("../../../renderer/zig-out/bin/frameshift-raster", __DIR__)

@@ -8,4 +8,12 @@ defmodule Frameshift.Paths do
       path -> Path.expand(path)
     end
   end
+
+  @spec socket_path() :: String.t()
+  def socket_path do
+    case System.get_env("FRAMESHIFT_SOCKET_PATH") do
+      nil -> Path.join(data_dir(), "core.sock")
+      path -> Path.expand(path)
+    end
+  end
 end

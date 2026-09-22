@@ -3,7 +3,7 @@ import SwiftUI
 
 @main
 struct FrameshiftMenuApp: App {
-  private let model = ShellModel(client: PreviewCoreClient())
+  private let model = ShellModel(client: LocalCoreClient())
 
   var body: some Scene {
     MenuBarExtra("Frameshift", systemImage: "photo.on.rectangle.angled") {

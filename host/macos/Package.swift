@@ -9,6 +9,7 @@ let package = Package(
     .library(name: "FrameshiftShell", targets: ["FrameshiftShell"]),
     .executable(name: "frameshift-menu", targets: ["FrameshiftMenu"]),
     .executable(name: "frameshift-shell-checks", targets: ["FrameshiftShellChecks"]),
+    .executable(name: "frameshift-ipc-probe", targets: ["FrameshiftIPCProbe"]),
   ],
   targets: [
     .target(name: "FrameshiftShell"),
@@ -18,6 +19,10 @@ let package = Package(
     ),
     .executableTarget(
       name: "FrameshiftShellChecks",
+      dependencies: ["FrameshiftShell"]
+    ),
+    .executableTarget(
+      name: "FrameshiftIPCProbe",
       dependencies: ["FrameshiftShell"]
     ),
   ],

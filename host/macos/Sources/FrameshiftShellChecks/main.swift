@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import FrameshiftShell
 
@@ -9,7 +10,7 @@ private struct CheckFailure: Error, CustomStringConvertible {
 private struct FrameshiftShellChecks {
   static func main() async throws {
     try await checkItemLifecycle()
-    try await checkExperimentalTargets()
+    try checkDisconnectedState()
     try await checkInvalidIdentities()
     try await checkShellModel()
     try await checkRedactedErrors()
@@ -17,7 +18,7 @@ private struct FrameshiftShellChecks {
   }
 
   private static func checkItemLifecycle() async throws {
-    let client = PreviewCoreClient()
+    let client = InMemoryCoreClient(snapshot: .checkFixture)
     let fixtureDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(
       "frameshift-shell-checks-\(UUID().uuidString)",
       isDirectory: true
@@ -44,7 +45,9 @@ private struct FrameshiftShellChecks {
     )
     try expect(snapshot.items.count == 1, "identical import bytes were duplicated")
 
-    snapshot = try await client.send(CoreCommand(kind: .togglePin, itemID: item.id))
+    snapshot = try await client.send(
+      CoreCommand(kind: .setPinned, itemID: item.id, isPinned: true)
+    )
     try expect(snapshot.items.first?.isPinned == true, "pin command did not update the snapshot")
 
     snapshot = try await client.send(
@@ -55,21 +58,18 @@ private struct FrameshiftShellChecks {
       )
     )
     try expect(
-      snapshot.items.first?.queuedTargetID == "preview-paper",
-      "queue command targeted the wrong preview frame"
+      snapshot.items.first?.queuedTargetID == "frame-paper",
+      "queue command targeted the wrong frame"
     )
 
     snapshot = try await client.send(CoreCommand(kind: .remove, itemID: item.id))
     try expect(snapshot.items.isEmpty, "remove command left the item active")
   }
 
-  private static func checkExperimentalTargets() async throws {
-    let snapshot = await PreviewCoreClient().snapshot()
-    try expect(snapshot.targets.count == 3, "preview must expose the three reference media")
-    try expect(
-      snapshot.targets.allSatisfy { $0.profileID.contains(":experimental:") },
-      "preview profiles must remain explicitly experimental"
-    )
+  private static func checkDisconnectedState() throws {
+    let snapshot = CoreSnapshot.disconnected
+    try expect(snapshot.targets.isEmpty, "disconnected state invented paired frames")
+    try expect(snapshot.selectedTargetID == nil, "disconnected state selected a target")
     try expect(
       snapshot.generationAvailability == .notConfigured,
       "generation must not appear available without a provider"
@@ -77,7 +77,7 @@ private struct FrameshiftShellChecks {
   }
 
   private static func checkInvalidIdentities() async throws {
-    let client = PreviewCoreClient()
+    let client = InMemoryCoreClient(snapshot: .checkFixture)
 
     do {
       _ = try await client.send(CoreCommand(kind: .selectTarget, targetID: "missing"))
@@ -87,7 +87,9 @@ private struct FrameshiftShellChecks {
     }
 
     do {
-      _ = try await client.send(CoreCommand(kind: .togglePin, itemID: "missing"))
+      _ = try await client.send(
+        CoreCommand(kind: .setPinned, itemID: "missing", isPinned: true)
+      )
       throw CheckFailure(description: "missing item was accepted")
     } catch CoreClientError.itemNotFound {
       // Expected.
@@ -135,7 +137,7 @@ private struct FrameshiftShellChecks {
 
 private actor RecordingClient: CoreClient {
   private var commands: [CoreCommand] = []
-  private var current = CoreSnapshot.researchPreview
+  private var current = CoreSnapshot.disconnected
 
   func snapshot() -> CoreSnapshot {
     current
@@ -154,6 +156,88 @@ private actor RecordingClient: CoreClient {
   }
 }
 
+private actor InMemoryCoreClient: CoreClient {
+  private let maximumImportBytes = 128 * 1024 * 1024
+  private var current: CoreSnapshot
+
+  init(snapshot: CoreSnapshot) {
+    current = snapshot
+  }
+
+  func snapshot() -> CoreSnapshot {
+    current
+  }
+
+  func send(_ command: CoreCommand) throws -> CoreSnapshot {
+    switch command.kind {
+    case .selectTarget:
+      guard let targetID = command.targetID,
+        current.targets.contains(where: { $0.id == targetID })
+      else {
+        throw CoreClientError.targetNotFound
+      }
+      current.selectedTargetID = targetID
+    case .updateInstruction:
+      guard let instruction = command.instruction else { throw CoreClientError.invalidCommand }
+      current.instruction = instruction
+    case .importFile:
+      try importFile(command.importPath)
+    case .setPinned:
+      guard let pinned = command.isPinned else { throw CoreClientError.invalidCommand }
+      try updateItem(command.itemID) { $0.isPinned = pinned }
+    case .remove:
+      guard let itemID = command.itemID,
+        current.items.contains(where: { $0.id == itemID })
+      else {
+        throw CoreClientError.itemNotFound
+      }
+      current.items.removeAll(where: { $0.id == itemID })
+    case .queue:
+      guard let targetID = command.targetID,
+        current.targets.contains(where: { $0.id == targetID })
+      else {
+        throw CoreClientError.targetNotFound
+      }
+      try updateItem(command.itemID) { $0.queuedTargetID = targetID }
+    }
+    return current
+  }
+
+  private func importFile(_ path: String?) throws {
+    guard let path else { throw CoreClientError.invalidCommand }
+    let url = URL(fileURLWithPath: path)
+    let values = try url.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey])
+    guard values.isRegularFile == true, let size = values.fileSize else {
+      throw CoreClientError.importUnreadable
+    }
+    guard size <= maximumImportBytes else { throw CoreClientError.importTooLarge }
+    let bytes = try Data(contentsOf: url)
+    let hex = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
+    let digest = "sha256:\(hex)"
+
+    if !current.items.contains(where: { $0.digest == digest }) {
+      current.items.insert(
+        LibraryItem(
+          id: digest,
+          title: url.deletingPathExtension().lastPathComponent,
+          digest: digest
+        ),
+        at: 0
+      )
+    }
+  }
+
+  private func updateItem(
+    _ itemID: String?,
+    update: (inout LibraryItem) -> Void
+  ) throws {
+    guard let itemID, let index = current.items.firstIndex(where: { $0.id == itemID }) else {
+      throw CoreClientError.itemNotFound
+    }
+    update(&current.items[index])
+  }
+}
+
 private struct FailingClient: CoreClient {
   func snapshot() async throws -> CoreSnapshot {
     throw CoreClientError.invalidCommand
@@ -163,4 +247,21 @@ private struct FailingClient: CoreClient {
     _ = command
     throw CoreClientError.invalidCommand
   }
+}
+
+extension CoreSnapshot {
+  fileprivate static let checkFixture = CoreSnapshot(
+    targets: [
+      FrameTarget(
+        id: "frame-paper",
+        name: "Paper Frame",
+        medium: .paper,
+        profileID: "urn:frameshift:test:paper",
+        state: .waitingForContact
+      )
+    ],
+    selectedTargetID: "frame-paper",
+    generationAvailability: .notConfigured,
+    statusMessage: "Test fixture"
+  )
 }

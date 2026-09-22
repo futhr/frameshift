@@ -41,13 +41,9 @@ struct FrameshiftPanel: View {
           .foregroundStyle(.secondary)
       }
       Spacer()
-      Text("RESEARCH")
-        .font(.caption2.weight(.bold))
-        .padding(.horizontal, 7)
-        .padding(.vertical, 4)
-        .background(.blue.opacity(0.12), in: Capsule())
-        .foregroundStyle(.blue)
-        .accessibilityLabel("Research preview")
+      Image(systemName: "circle.grid.cross")
+        .foregroundStyle(.secondary)
+        .accessibilityLabel("Frameshift core")
     }
   }
 
@@ -56,19 +52,24 @@ struct FrameshiftPanel: View {
       Text("Target")
         .font(.caption.weight(.medium))
         .foregroundStyle(.secondary)
-      Picker(
-        "Target frame",
-        selection: Binding(
-          get: { model.snapshot.selectedTargetID },
-          set: { targetID in Task { await model.selectTarget(targetID) } }
-        )
-      ) {
-        ForEach(model.snapshot.targets) { target in
-          Text("\(target.medium.label) — \(target.name)").tag(target.id)
+      if let selectedTargetID = model.snapshot.selectedTargetID {
+        Picker(
+          "Target frame",
+          selection: Binding(
+            get: { selectedTargetID },
+            set: { targetID in Task { await model.selectTarget(targetID) } }
+          )
+        ) {
+          ForEach(model.snapshot.targets) { target in
+            Text("\(target.medium.label) — \(target.name)").tag(target.id)
+          }
         }
+        .labelsHidden()
+        .accessibilityIdentifier("target-picker")
+      } else {
+        LabeledContent("Frame", value: "No paired frame")
+          .foregroundStyle(.secondary)
       }
-      .labelsHidden()
-      .accessibilityIdentifier("target-picker")
     }
   }
 
@@ -164,6 +165,7 @@ struct FrameshiftPanel: View {
             ResultCard(
               item: item,
               targetName: model.snapshot.selectedTarget?.name ?? "selected target",
+              canQueue: model.snapshot.selectedTarget != nil,
               queue: { Task { await model.queue(item.id) } },
               togglePin: { Task { await model.togglePin(item.id) } },
               remove: { Task { await model.remove(item.id) } }
@@ -178,6 +180,7 @@ struct FrameshiftPanel: View {
 private struct ResultCard: View {
   let item: FrameshiftShell.LibraryItem
   let targetName: String
+  let canQueue: Bool
   let queue: () -> Void
   let togglePin: () -> Void
   let remove: () -> Void
@@ -208,6 +211,7 @@ private struct ResultCard: View {
         Image(systemName: "paperplane")
       }
       .buttonStyle(.borderless)
+      .disabled(!canQueue)
       .help("Queue this still for \(targetName)")
       .accessibilityLabel("Queue \(item.title)")
 

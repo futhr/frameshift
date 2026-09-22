@@ -61,10 +61,10 @@ The drawing is structural, not a visual-style prescription.
 
 ### Target row
 
-The first row selects a paired frame or a preview profile. It shows one concise
-state: displayed, sending, refreshing, waiting for contact, needs attention, or
-unpaired. Sleeping frames show the next expected contact rather than an alarm-
-colored offline state.
+The first row selects a paired frame or an explicitly configured offline render
+profile. It shows one concise state: displayed, sending, refreshing, waiting
+for contact, needs attention, or unpaired. Sleeping frames show the next
+expected contact rather than an alarm-colored offline state.
 
 ### Instruction field
 
@@ -161,8 +161,8 @@ Settings contains:
 2. Generate locally, regenerate one variant, pin the preferred result, and
    remove the rejected variant without losing either unintentionally.
 3. Search an auto-labeled library and distinguish literal from similar results.
-4. Queue one still for each preview profile without exposing video/animation
-   controls.
+4. Queue one still for each configured frame class without exposing
+   video/animation controls.
 5. Complete every action with keyboard and VoiceOver.
 6. Understand whether bytes are queued, transferred, refreshing, or physically
    displayed from the compact status alone.

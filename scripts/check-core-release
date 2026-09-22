@@ -59,7 +59,7 @@ while [ "$attempt" -lt 50 ]; do
     exit 1
   fi
 
-  if [ -f "$runtime_root/data/metadata.sqlite" ]; then
+  if [ -f "$runtime_root/data/metadata.sqlite" ] && [ -S "$runtime_root/data/core.sock" ]; then
     break
   fi
 
@@ -67,8 +67,8 @@ while [ "$attempt" -lt 50 ]; do
   sleep 0.1
 done
 
-if [ ! -f "$runtime_root/data/metadata.sqlite" ]; then
-  echo "production release did not initialize its metadata store" >&2
+if [ ! -f "$runtime_root/data/metadata.sqlite" ] || [ ! -S "$runtime_root/data/core.sock" ]; then
+  echo "production release did not initialize its metadata store and local socket" >&2
   cat "$runtime_root/release.log" >&2
   exit 1
 fi
@@ -80,6 +80,11 @@ if ! kill -0 "$release_pid" 2>/dev/null; then
   cat "$runtime_root/release.log" >&2
   exit 1
 fi
+
+FRAMESHIFT_SOCKET_PATH="$runtime_root/data/core.sock" \
+  swift run \
+    --package-path "$repository_root/host/macos" \
+    frameshift-ipc-probe
 
 kill "$release_pid"
 wait "$release_pid"

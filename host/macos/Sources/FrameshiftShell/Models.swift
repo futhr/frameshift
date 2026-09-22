@@ -15,7 +15,6 @@ public enum FrameMedium: String, Codable, CaseIterable, Sendable {
 }
 
 public enum FrameConnectionState: String, Codable, Sendable {
-  case preview
   case waitingForContact
   case displayed
   case failed
@@ -72,7 +71,7 @@ public enum GenerationAvailability: String, Codable, Sendable {
 
 public struct CoreSnapshot: Codable, Equatable, Sendable {
   public var targets: [FrameTarget]
-  public var selectedTargetID: String
+  public var selectedTargetID: String?
   public var instruction: String
   public var items: [LibraryItem]
   public var generationAvailability: GenerationAvailability
@@ -80,7 +79,7 @@ public struct CoreSnapshot: Codable, Equatable, Sendable {
 
   public init(
     targets: [FrameTarget],
-    selectedTargetID: String,
+    selectedTargetID: String?,
     instruction: String = "",
     items: [LibraryItem] = [],
     generationAvailability: GenerationAvailability = .notConfigured,
@@ -95,8 +94,18 @@ public struct CoreSnapshot: Codable, Equatable, Sendable {
   }
 
   public var selectedTarget: FrameTarget? {
-    targets.first(where: { $0.id == selectedTargetID })
+    guard let selectedTargetID else { return nil }
+    return targets.first(where: { $0.id == selectedTargetID })
   }
+}
+
+extension CoreSnapshot {
+  public static let disconnected = CoreSnapshot(
+    targets: [],
+    selectedTargetID: nil,
+    generationAvailability: .notConfigured,
+    statusMessage: "Connecting to the Frameshift core…"
+  )
 }
 
 public struct CoreCommand: Codable, Equatable, Sendable {
@@ -104,7 +113,7 @@ public struct CoreCommand: Codable, Equatable, Sendable {
     case selectTarget
     case updateInstruction
     case importFile
-    case togglePin
+    case setPinned
     case remove
     case queue
   }
@@ -115,6 +124,12 @@ public struct CoreCommand: Codable, Equatable, Sendable {
   public let itemID: String?
   public let instruction: String?
   public let importPath: String?
+  public let isPinned: Bool?
+  public let importWidth: Int?
+  public let importHeight: Int?
+  public let importMediaType: String?
+  public let importOrientation: Int?
+  public let importColorProfile: String?
 
   public init(
     id: UUID = UUID(),
@@ -122,7 +137,13 @@ public struct CoreCommand: Codable, Equatable, Sendable {
     targetID: String? = nil,
     itemID: String? = nil,
     instruction: String? = nil,
-    importPath: String? = nil
+    importPath: String? = nil,
+    isPinned: Bool? = nil,
+    importWidth: Int? = nil,
+    importHeight: Int? = nil,
+    importMediaType: String? = nil,
+    importOrientation: Int? = nil,
+    importColorProfile: String? = nil
   ) {
     self.id = id
     self.kind = kind
@@ -130,5 +151,36 @@ public struct CoreCommand: Codable, Equatable, Sendable {
     self.itemID = itemID
     self.instruction = instruction
     self.importPath = importPath
+    self.isPinned = isPinned
+    self.importWidth = importWidth
+    self.importHeight = importHeight
+    self.importMediaType = importMediaType
+    self.importOrientation = importOrientation
+    self.importColorProfile = importColorProfile
   }
+
+  func withImportMetadata(_ metadata: ImportMetadata) -> CoreCommand {
+    CoreCommand(
+      id: id,
+      kind: kind,
+      targetID: targetID,
+      itemID: itemID,
+      instruction: instruction,
+      importPath: importPath,
+      isPinned: isPinned,
+      importWidth: metadata.width,
+      importHeight: metadata.height,
+      importMediaType: metadata.mediaType,
+      importOrientation: metadata.orientation,
+      importColorProfile: metadata.colorProfile
+    )
+  }
+}
+
+struct ImportMetadata: Sendable {
+  let width: Int
+  let height: Int
+  let mediaType: String
+  let orientation: Int
+  let colorProfile: String?
 }

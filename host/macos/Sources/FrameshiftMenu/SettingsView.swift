@@ -3,10 +3,10 @@ import SwiftUI
 struct SettingsView: View {
   var body: some View {
     Form {
-      LabeledContent("Core connection", value: "Preview only")
+      LabeledContent("Core connection", value: "Local Unix socket")
       LabeledContent("Generation provider", value: "Not configured")
       Text(
-        "Pairing, credentials, background launch, and provider adapters are not enabled in this research slice."
+        "Frame pairing and generation providers are configured independently; the local library remains available without either."
       )
       .font(.callout)
       .foregroundStyle(.secondary)

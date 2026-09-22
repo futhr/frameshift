@@ -1,0 +1,9 @@
+{
+  "stateRevision": 42,
+  "displayState": "displayed",
+  "desiredAsset": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "currentAsset": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "previousKnownGood": "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+  "pendingRequestId": null,
+  "lastError": null
+}

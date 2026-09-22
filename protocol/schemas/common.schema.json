@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.frameshift.invalid/v0.1/common.schema.json",
+  "title": "Frame Protocol v0.1 common definitions",
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "requestId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._~-]+$"
+    },
+    "profileId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/~-]*$"
+    },
+    "artifactProfile": {
+      "type": "object",
+      "required": [
+        "id",
+        "mediaType",
+        "width",
+        "height",
+        "maximumAssetBytes",
+        "rowAlignment",
+        "byteOrder",
+        "compression"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/profileId" },
+        "mediaType": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 128,
+          "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]+/[!#$%&'*+.^_`|~0-9A-Za-z-]+$"
+        },
+        "width": { "type": "integer", "minimum": 1, "maximum": 32768 },
+        "height": { "type": "integer", "minimum": 1, "maximum": 32768 },
+        "maximumAssetBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1073741824
+        },
+        "rowAlignment": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4096
+        },
+        "byteOrder": {
+          "type": "string",
+          "enum": ["not-applicable", "little-endian", "big-endian"]
+        },
+        "channelOrder": {
+          "type": "string",
+          "enum": ["rgb", "bgr", "rgba", "bgra", "palette-index"]
+        },
+        "bitDepth": { "type": "integer", "minimum": 1, "maximum": 64 },
+        "compression": {
+          "type": "string",
+          "enum": ["none", "deflate", "zstd"]
+        },
+        "colorProfileRevision": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "paletteRevision": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "additionalProperties": true
+    },
+    "lastError": {
+      "type": ["object", "null"],
+      "required": ["type", "title"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "pattern": "^urn:frameshift:problem:[a-z0-9-]+$"
+        },
+        "title": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "requestId": { "$ref": "#/$defs/requestId" }
+      },
+      "additionalProperties": true
+    }
+  }
+}

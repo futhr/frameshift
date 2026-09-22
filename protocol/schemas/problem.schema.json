@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.frameshift.invalid/v0.1/problem.schema.json",
+  "title": "Frame Protocol v0.1 problem details",
+  "type": "object",
+  "required": ["type", "title", "status"],
+  "properties": {
+    "type": { "type": "string", "pattern": "^urn:frameshift:problem:[a-z0-9-]+$" },
+    "title": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "status": { "type": "integer", "minimum": 400, "maximum": 599 },
+    "detail": { "type": "string", "maxLength": 1024 },
+    "requestId": { "$ref": "common.schema.json#/$defs/requestId" }
+  },
+  "additionalProperties": true
+}

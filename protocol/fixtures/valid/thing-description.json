@@ -1,0 +1,85 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    { "frameshift": "urn:frameshift:td:v0#" }
+  ],
+  "id": "urn:frameshift:device:sim-photo-00000001",
+  "title": "Frameshift simulated photo frame",
+  "securityDefinitions": {
+    "mtls": { "scheme": "cert" }
+  },
+  "security": ["mtls"],
+  "properties": {
+    "state": {
+      "forms": [{ "href": "https://frame.invalid/v0/state", "op": "readproperty" }]
+    }
+  },
+  "actions": {
+    "retryDisplay": {
+      "forms": [{ "href": "https://frame.invalid/v0/actions/retry-display", "op": "invokeaction" }]
+    }
+  },
+  "forms": [
+    { "href": "https://frame.invalid/.well-known/wot" }
+  ],
+  "frameshift:capabilities": {
+    "protocolMajor": 0,
+    "protocolMinor": 1,
+    "deviceId": "sim-photo-00000001",
+    "hardwareRevision": "simulated-photo-v1",
+    "firmwareVersion": "simulator-0.1.0",
+    "stillOnly": true,
+    "transferModes": ["push", "pull"],
+    "displayClass": "continuous-color-raster",
+    "geometry": {
+      "width": 1920,
+      "height": 1080,
+      "orientation": "identity",
+      "safeInset": { "top": 0, "right": 0, "bottom": 0, "left": 0 },
+      "pixelAspectRatio": { "horizontal": 1, "vertical": 1 }
+    },
+    "color": {
+      "kind": "continuous",
+      "colorSpaces": ["srgb"],
+      "transferFunction": "srgb",
+      "channelOrder": "rgb",
+      "bitDepth": 8,
+      "alphaHandling": "none",
+      "profileRevision": "sim-srgb-v1"
+    },
+    "refresh": {
+      "kind": "sample-and-hold",
+      "typicalRefreshMs": 50,
+      "maximumRefreshMs": 1000,
+      "minimumDwellMs": 1000,
+      "flashDuringRefresh": false
+    },
+    "power": {
+      "class": "continuous-emissive",
+      "source": "external",
+      "remoteWake": true
+    },
+    "storage": {
+      "maximumAssetBytes": 6220800,
+      "totalBytes": 67108864,
+      "availableBytes": 67108864,
+      "maximumAssetCount": 32,
+      "digestAlgorithms": ["sha-256"],
+      "artifactProfiles": [
+        {
+          "id": "urn:frameshift:experimental:sim-rgb24-v1",
+          "mediaType": "application/vnd.frameshift.experimental.rgb24",
+          "width": 1920,
+          "height": 1080,
+          "maximumAssetBytes": 6220800,
+          "rowAlignment": 1,
+          "byteOrder": "not-applicable",
+          "channelOrder": "rgb",
+          "bitDepth": 8,
+          "compression": "none"
+        }
+      ],
+      "maximumPlaylistLength": 32
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.frameshift.invalid/v0.1/desired.schema.json",
+  "title": "Frame Protocol v0.1 desired asset request",
+  "type": "object",
+  "required": ["assetDigest", "artifactProfile", "requestId"],
+  "properties": {
+    "assetDigest": { "$ref": "common.schema.json#/$defs/digest" },
+    "artifactProfile": { "$ref": "common.schema.json#/$defs/profileId" },
+    "requestId": { "$ref": "common.schema.json#/$defs/requestId" }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,6 @@
+{
+  "revision": 9,
+  "desiredAsset": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "artifactProfile": "urn:frameshift:experimental:sim-rgb24-v1",
+  "playlistRevision": null
+}

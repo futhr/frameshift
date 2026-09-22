@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.frameshift.invalid/v0.1/capabilities.schema.json",
+  "title": "Frame Protocol v0.1 capabilities",
+  "type": "object",
+  "required": [
+    "protocolMajor",
+    "protocolMinor",
+    "deviceId",
+    "hardwareRevision",
+    "firmwareVersion",
+    "stillOnly",
+    "transferModes",
+    "displayClass",
+    "geometry",
+    "color",
+    "refresh",
+    "power",
+    "storage"
+  ],
+  "properties": {
+    "protocolMajor": { "const": 0 },
+    "protocolMinor": { "type": "integer", "minimum": 1 },
+    "deviceId": { "type": "string", "minLength": 16, "maxLength": 128 },
+    "hardwareRevision": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "firmwareVersion": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "stillOnly": { "const": true },
+    "transferModes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 2,
+      "uniqueItems": true,
+      "items": { "enum": ["push", "pull"] }
+    },
+    "displayClass": {
+      "enum": [
+        "restricted-palette-reflective",
+        "continuous-color-raster",
+        "low-resolution-emissive-matrix"
+      ]
+    },
+    "geometry": {
+      "type": "object",
+      "required": ["width", "height", "orientation", "safeInset", "pixelAspectRatio"],
+      "properties": {
+        "width": { "type": "integer", "minimum": 1, "maximum": 32768 },
+        "height": { "type": "integer", "minimum": 1, "maximum": 32768 },
+        "activeWidthMm": { "type": "number", "exclusiveMinimum": 0, "maximum": 10000 },
+        "activeHeightMm": { "type": "number", "exclusiveMinimum": 0, "maximum": 10000 },
+        "orientation": { "enum": ["identity", "rotate-90", "rotate-180", "rotate-270"] },
+        "safeInset": {
+          "type": "object",
+          "required": ["top", "right", "bottom", "left"],
+          "properties": {
+            "top": { "type": "integer", "minimum": 0 },
+            "right": { "type": "integer", "minimum": 0 },
+            "bottom": { "type": "integer", "minimum": 0 },
+            "left": { "type": "integer", "minimum": 0 }
+          },
+          "additionalProperties": false
+        },
+        "pixelAspectRatio": {
+          "type": "object",
+          "required": ["horizontal", "vertical"],
+          "properties": {
+            "horizontal": { "type": "integer", "minimum": 1, "maximum": 10000 },
+            "vertical": { "type": "integer", "minimum": 1, "maximum": 10000 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "color": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["continuous", "restricted-palette"] },
+        "colorSpaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 64 }
+        },
+        "transferFunction": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "channelOrder": { "enum": ["rgb", "bgr", "rgba", "bgra"] },
+        "bitDepth": { "type": "integer", "minimum": 1, "maximum": 64 },
+        "alphaHandling": { "enum": ["none", "straight", "premultiplied"] },
+        "profileRevision": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "palette": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 256,
+          "items": {
+            "type": "object",
+            "required": ["wireCode", "previewSrgb"],
+            "properties": {
+              "wireCode": { "type": "integer", "minimum": 0, "maximum": 255 },
+              "previewSrgb": {
+                "type": "array",
+                "prefixItems": [
+                  { "type": "integer", "minimum": 0, "maximum": 255 },
+                  { "type": "integer", "minimum": 0, "maximum": 255 },
+                  { "type": "integer", "minimum": 0, "maximum": 255 }
+                ],
+                "items": false,
+                "minItems": 3
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "continuous" } } },
+          "then": { "required": ["colorSpaces", "transferFunction", "channelOrder", "bitDepth", "alphaHandling", "profileRevision"] }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "restricted-palette" } } },
+          "then": { "required": ["palette", "profileRevision"] }
+        }
+      ],
+      "additionalProperties": true
+    },
+    "refresh": {
+      "type": "object",
+      "required": ["kind", "typicalRefreshMs", "maximumRefreshMs", "minimumDwellMs", "flashDuringRefresh"],
+      "properties": {
+        "kind": { "enum": ["sample-and-hold", "global-bistable", "scanned-emissive"] },
+        "typicalRefreshMs": { "type": "integer", "minimum": 0, "maximum": 86400000 },
+        "maximumRefreshMs": { "type": "integer", "minimum": 1, "maximum": 86400000 },
+        "minimumDwellMs": { "type": "integer", "minimum": 1, "maximum": 31536000000 },
+        "flashDuringRefresh": { "type": "boolean" },
+        "partialRefresh": { "type": "object" }
+      },
+      "additionalProperties": true
+    },
+    "power": {
+      "type": "object",
+      "required": ["class", "source", "remoteWake"],
+      "properties": {
+        "class": { "enum": ["bistable-sleeping", "continuous-emissive", "continuous-high-current"] },
+        "source": { "enum": ["battery", "external", "unknown"] },
+        "batteryPercentage": { "type": "number", "minimum": 0, "maximum": 100 },
+        "nextScheduledWake": { "type": ["string", "null"], "format": "date-time" },
+        "remoteWake": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "storage": {
+      "type": "object",
+      "required": ["maximumAssetBytes", "totalBytes", "availableBytes", "maximumAssetCount", "digestAlgorithms", "artifactProfiles", "maximumPlaylistLength"],
+      "properties": {
+        "maximumAssetBytes": { "type": "integer", "minimum": 1, "maximum": 1073741824 },
+        "totalBytes": { "type": "integer", "minimum": 1 },
+        "availableBytes": { "type": "integer", "minimum": 0 },
+        "maximumAssetCount": { "type": "integer", "minimum": 2, "maximum": 1000000 },
+        "digestAlgorithms": {
+          "type": "array",
+          "contains": { "const": "sha-256" },
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "maxLength": 32 }
+        },
+        "artifactProfiles": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": { "$ref": "common.schema.json#/$defs/artifactProfile" }
+        },
+        "maximumPlaylistLength": { "type": "integer", "minimum": 1, "maximum": 10000 }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

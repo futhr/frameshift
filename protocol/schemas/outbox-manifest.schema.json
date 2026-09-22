@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.frameshift.invalid/v0.1/outbox-manifest.schema.json",
+  "title": "Frame Protocol v0.1 outbox manifest",
+  "type": "object",
+  "required": ["revision", "desiredAsset", "artifactProfile", "playlistRevision"],
+  "properties": {
+    "revision": { "type": "integer", "minimum": 1 },
+    "desiredAsset": { "anyOf": [{ "$ref": "common.schema.json#/$defs/digest" }, { "type": "null" }] },
+    "artifactProfile": { "anyOf": [{ "$ref": "common.schema.json#/$defs/profileId" }, { "type": "null" }] },
+    "playlistRevision": { "anyOf": [{ "$ref": "common.schema.json#/$defs/digest" }, { "type": "null" }] }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "desiredAsset": { "type": "string" } } },
+      "then": { "properties": { "artifactProfile": { "type": "string" } } }
+    }
+  ],
+  "additionalProperties": false
+}

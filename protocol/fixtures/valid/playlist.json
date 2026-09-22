@@ -1,0 +1,14 @@
+{
+  "revision": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "mode": "cycle",
+  "entries": [
+    {
+      "assetDigest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "dwellMs": 21600000
+    },
+    {
+      "assetDigest": "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+      "dwellMs": 21600000
+    }
+  ]
+}

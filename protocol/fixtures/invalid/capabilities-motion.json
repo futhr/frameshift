@@ -1,0 +1,35 @@
+{
+  "protocolMajor": 0,
+  "protocolMinor": 1,
+  "deviceId": "sim-motion-0000001",
+  "hardwareRevision": "invalid-motion-v1",
+  "firmwareVersion": "simulator-0.1.0",
+  "stillOnly": false,
+  "transferModes": ["push"],
+  "displayClass": "continuous-color-raster",
+  "geometry": {
+    "width": 1920,
+    "height": 1080,
+    "orientation": "identity",
+    "safeInset": { "top": 0, "right": 0, "bottom": 0, "left": 0 },
+    "pixelAspectRatio": { "horizontal": 1, "vertical": 1 }
+  },
+  "color": { "kind": "continuous" },
+  "refresh": {
+    "kind": "sample-and-hold",
+    "typicalRefreshMs": 10,
+    "maximumRefreshMs": 100,
+    "minimumDwellMs": 1,
+    "flashDuringRefresh": false
+  },
+  "power": { "class": "continuous-emissive", "source": "external", "remoteWake": true },
+  "storage": {
+    "maximumAssetBytes": 1,
+    "totalBytes": 2,
+    "availableBytes": 2,
+    "maximumAssetCount": 2,
+    "digestAlgorithms": ["sha-256"],
+    "artifactProfiles": [],
+    "maximumPlaylistLength": 1
+  }
+}

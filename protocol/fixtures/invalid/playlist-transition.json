@@ -1,0 +1,11 @@
+{
+  "revision": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "mode": "cycle",
+  "transition": "crossfade",
+  "entries": [
+    {
+      "assetDigest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "dwellMs": 1000
+    }
+  ]
+}

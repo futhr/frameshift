@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.frameshift.invalid/v0.1/outbox-ack.schema.json",
+  "title": "Frame Protocol v0.1 outbox acknowledgement",
+  "type": "object",
+  "required": ["manifestRevision", "storage", "refresh", "currentAsset"],
+  "properties": {
+    "manifestRevision": { "type": "integer", "minimum": 1 },
+    "storage": { "enum": ["unchanged", "verified", "failed"] },
+    "refresh": { "enum": ["not-requested", "displayed", "failed"] },
+    "currentAsset": { "anyOf": [{ "$ref": "common.schema.json#/$defs/digest" }, { "type": "null" }] },
+    "lastError": { "$ref": "common.schema.json#/$defs/lastError" }
+  },
+  "additionalProperties": false
+}

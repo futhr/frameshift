@@ -1,0 +1,6 @@
+{
+  "type": "urn:frameshift:problem:digest-mismatch",
+  "title": "The uploaded asset digest did not match",
+  "status": 422,
+  "requestId": "request-0001"
+}

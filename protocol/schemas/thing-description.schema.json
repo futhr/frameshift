@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.frameshift.invalid/v0.1/thing-description.schema.json",
+  "title": "Constrained Frame Protocol v0.1 Thing Description",
+  "type": "object",
+  "required": ["@context", "id", "title", "securityDefinitions", "security", "properties", "actions", "forms", "frameshift:capabilities"],
+  "properties": {
+    "@context": {
+      "oneOf": [
+        { "const": "https://www.w3.org/2022/wot/td/v1.1" },
+        {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "contains": { "const": "https://www.w3.org/2022/wot/td/v1.1" }
+        }
+      ]
+    },
+    "id": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "title": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "securityDefinitions": { "type": "object", "minProperties": 1 },
+    "security": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1, "maxLength": 64 }
+    },
+    "properties": { "type": "object" },
+    "actions": { "type": "object" },
+    "forms": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["href"],
+        "properties": {
+          "href": { "type": "string", "pattern": "^https://" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "frameshift:capabilities": { "$ref": "capabilities.schema.json" }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,17 @@
+{
+  "cases": [
+    { "schema": "capabilities", "document": "valid/capabilities-photo.json", "valid": true },
+    { "schema": "state", "document": "valid/state-empty.json", "valid": true },
+    { "schema": "state", "document": "valid/state-displayed.json", "valid": true },
+    { "schema": "desired", "document": "valid/desired.json", "valid": true },
+    { "schema": "playlist", "document": "valid/playlist.json", "valid": true },
+    { "schema": "problem", "document": "valid/problem.json", "valid": true },
+    { "schema": "outbox-manifest", "document": "valid/outbox-manifest.json", "valid": true },
+    { "schema": "outbox-ack", "document": "valid/outbox-ack.json", "valid": true },
+    { "schema": "thing-description", "document": "valid/thing-description.json", "valid": true },
+    { "schema": "capabilities", "document": "invalid/capabilities-motion.json", "valid": false },
+    { "schema": "desired", "document": "invalid/desired-uppercase-digest.json", "valid": false },
+    { "schema": "playlist", "document": "invalid/playlist-transition.json", "valid": false },
+    { "schema": "outbox-ack", "document": "invalid/outbox-ack-secret.json", "valid": false }
+  ]
+}

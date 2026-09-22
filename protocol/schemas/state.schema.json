@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.frameshift.invalid/v0.1/state.schema.json",
+  "title": "Frame Protocol v0.1 state",
+  "type": "object",
+  "required": ["stateRevision", "displayState", "desiredAsset", "currentAsset", "previousKnownGood", "pendingRequestId", "lastError"],
+  "properties": {
+    "stateRevision": { "type": "integer", "minimum": 0 },
+    "displayState": { "enum": ["empty", "preparing", "refreshing", "displayed", "failed", "recovering"] },
+    "desiredAsset": { "anyOf": [{ "$ref": "common.schema.json#/$defs/digest" }, { "type": "null" }] },
+    "currentAsset": { "anyOf": [{ "$ref": "common.schema.json#/$defs/digest" }, { "type": "null" }] },
+    "previousKnownGood": { "anyOf": [{ "$ref": "common.schema.json#/$defs/digest" }, { "type": "null" }] },
+    "pendingRequestId": { "anyOf": [{ "$ref": "common.schema.json#/$defs/requestId" }, { "type": "null" }] },
+    "lastError": { "$ref": "common.schema.json#/$defs/lastError" }
+  },
+  "additionalProperties": true
+}

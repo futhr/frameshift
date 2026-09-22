@@ -1,0 +1,182 @@
+# AI Image Generation Research
+
+**Research date:** 2026-09-22
+
+**Decision:** local-first, provider-neutral, still-image generation. Generated
+masters are cached permanently unless the user removes them.
+
+AI is an optional source and editing tool. The deterministic renderer remains
+responsible for fitting a result to Photo, Paper, or Pixel capabilities. No AI
+provider runs on a frame.
+
+## Provider assessment
+
+| Provider | Execution | Billing fit | Integration maturity | Decision |
+| --- | --- | --- | --- | --- |
+| Draw Things / MediaGenerationKit | Local Apple Silicon | Free local compute | Public Swift package; local, gRPC, and cloud backends | **Primary dependable local candidate** |
+| Ollama image generation | Local macOS | Free local compute | Experimental; current releases have disabled/broken image paths | **Adapter and preflight only** |
+| Draw Things+ | Managed cloud | Subscription includes a monthly task allowance, then metered | Existing account can request an API key | **Preferred subscription-backed fallback** |
+| Gemini Nano Banana | Google API | Metered API | Strong generation/editing REST API | **Optional paid fallback** |
+| Consumer ChatGPT/Gemini UI | Hosted app | Subscription | No supported Frameshift automation entitlement | **Manual import only** |
+
+### Draw Things
+
+MediaGenerationKit is the clearest fit for a native Mac app. Its public API can
+run a model locally, against a local gRPC server, or against Draw Things Cloud.
+The announcement says an existing Draw Things+ account can request an API key;
+the free key includes up to 20 generation tasks per month and Draw Things+ up to
+200 before pay-as-you-go. The public package is LGPL-3.0 and currently asks
+clients to pin a revision because it pins its own dependency by revision.
+
+Sources: [MediaGenerationKit announcement](https://releases.drawthings.ai/p/introducing-mediagenerationkit-hybrid),
+[public repository and license](https://github.com/drawthingsai/media-generation-kit),
+and [Draw Things pricing](https://drawthings.ai/pricing/).
+
+Before shipping, legal review must record dynamic-linking/relinking obligations,
+notices, source-offer requirements, the pinned commit, and every selected
+model's independent license. The Draw Things community application is GPL-3.0;
+Frameshift must not copy or bundle its application internals merely because the
+public SDK has a different license.
+
+### Ollama
+
+Ollama announced experimental macOS image generation in January 2026 with
+Z-Image Turbo and FLUX.2 Klein. The 4B FLUX.2 Klein weights are Apache-2.0;
+the 9B variant is non-commercial. Official model pages recommend 1024×1024 and
+show materially larger storage for higher-precision variants.
+
+The integration cannot currently be a product dependency. As of this research
+date, issue reports show image generation temporarily removed in newer releases
+while model listings can still claim image capability. Earlier releases also
+show runner and packaging failures. Therefore the adapter must probe an actual
+tiny generation, not merely `/api/tags`, and expose “unavailable” without asking
+the user to downgrade silently.
+
+Sources: [Ollama image announcement](https://ollama.com/blog/image-generation),
+[FLUX.2 Klein model page](https://ollama.com/x/flux2-klein), and the current
+[capability/endpoint regression report](https://github.com/ollama/ollama/issues/17893).
+
+### Nano Banana
+
+Google's current native image family includes Gemini 3.1 Flash Lite Image,
+Gemini 3.1 Flash Image (Nano Banana 2), and Gemini 3 Pro Image. The API supports
+text-to-image, image editing, multiple references, and explicit aspect ratio and
+resolution. It is technically a strong fallback, particularly for steering an
+existing result, but API use is metered. A consumer Gemini subscription is not
+an API contract and Frameshift must not automate its web UI.
+
+The provider stores the exact model identifier because model aliases and
+deprecation dates change. Generated images contain SynthID according to the
+official guide. Source: [Gemini image generation documentation](https://ai.google.dev/gemini-api/docs/image-generation).
+
+The same rule applies to OpenAI: ChatGPT subscriptions and API billing are
+separate. Source: [OpenAI billing guidance](https://help.openai.com/en/articles/9039756).
+
+## Provider contract
+
+Every provider implements the same conceptual operations:
+
+```text
+preflight(configuration) -> availability + capabilities + disclosures
+generate(recipe, destination) -> generation result
+edit(parent, recipe, destination) -> generation result
+cancel(job_id) -> acknowledged | too_late
+```
+
+`preflight` reports exact provider/model revision, local/cloud destination,
+model availability, required download bytes, license identifier, supported
+input count, output sizes, seed support, and cost class. It must not download a
+model or send user content.
+
+Before the first model download, Frameshift shows the model name, source,
+license, storage requirement, and destination. Before every newly selected
+cloud provider, it shows what source images and prompt text will leave the Mac
+and whether the request consumes an allowance or metered balance.
+
+No adapter may silently fail over from local to cloud. The user chooses a
+fallback policy in Settings. The default is “ask before cloud use.”
+
+## Generation recipe and cache key
+
+Generation is immutable. The cache key is SHA-256 over a canonical recipe that
+contains at least:
+
+- source master digests in stable order;
+- target display profile identifier and revision;
+- hidden Frameshift base instruction revision;
+- user instruction and negative instruction;
+- provider and exact model identifier/revision;
+- generation mode, seed, sampler, steps, guidance, dimensions, and safety
+  settings when the provider exposes them;
+- application and provider-adapter versions.
+
+The cache stores the provider's original output before Frameshift resizing or
+palette conversion. Display artifacts have separate renderer cache keys.
+“Regenerate” creates a sibling recipe with a new seed or provider job identity;
+it never overwrites the parent. “Steer” creates a child whose parent digest and
+new instruction are recorded.
+
+Provider responses that cannot reproduce a seed still cache correctly; the
+recipe marks reproducibility as `best_effort` and stores the service request ID.
+
+## Display base instructions
+
+Base instructions are versioned product data, not hidden magic strings in UI
+code. They describe medium constraints without overriding the user's subject:
+
+- **Photo:** preserve natural detail and composition; avoid tiny text and edge
+  content hidden by the mat; produce a clean still artwork master.
+- **Paper:** prefer broad color regions, deliberate contrast, and detail that
+  survives the advertised pigment palette and slow global refresh.
+- **Pixel:** simplify into strong silhouette, readable clusters, limited local
+  detail, and composition that survives the exact low-resolution grid.
+
+The user sees a concise summary and can disable or replace the base instruction
+in advanced settings. The full effective prompt is stored with the recipe and
+available in provenance details.
+
+AI should generate a useful master, not final HUB75 or e-paper bytes. The Zig
+renderer performs the final deterministic downsample, palette map, and dither.
+
+## Auto-labeling and search
+
+Labeling is local by default:
+
+1. retain user labels, filename terms, and safe embedded metadata;
+2. run Apple's Vision `ClassifyImageRequest` and store identifier, confidence,
+   framework revision, and locale-independent identifier;
+3. generate a Vision feature print for similarity search;
+4. optionally ask a configured local vision-language model for captions;
+5. use a cloud labeler only through a separate explicit opt-in.
+
+Vision produces classification observations and supports image feature prints
+for similarity. Sources: [ClassifyImageRequest](https://developer.apple.com/documentation/vision/classifyimagerequest)
+and [Vision image comparison APIs](https://developer.apple.com/documentation/vision/vngenerateimagefeatureprintrequest).
+
+Machine labels never replace user labels. Low-confidence labels remain hidden
+from the compact popover but can aid search. Search results must state when a
+match came from semantic similarity rather than literal text.
+
+## Failure behavior
+
+- A generation timeout leaves no library item unless a valid result was fully
+  written and hashed.
+- Provider refusal and safety errors are shown as provider results, not retried
+  against another provider automatically.
+- Authentication failure disables only that provider.
+- Quota exhaustion offers configured alternatives without changing providers
+  on the user's behalf.
+- Removing a generation moves its unreferenced host files to a recoverable
+  trash area. Pinned or displayed derivatives remain until explicitly unpinned
+  and no frame references them.
+
+## Acceptance tests
+
+1. Repeating an identical deterministic recipe returns the cached master
+   without a provider call.
+2. Regenerate produces a separate variant and preserves the original.
+3. A local-only policy produces zero outbound provider traffic.
+4. A cloud transition always requires the configured confirmation.
+5. Secrets remain in Keychain and never enter recipes, logs, or frame payloads.
+6. The library can export an image and its full provenance without access to
+   the original provider.

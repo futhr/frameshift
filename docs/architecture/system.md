@@ -1,43 +1,128 @@
 # System Architecture
 
+**Status:** draft implementation architecture
+**Scope:** still images only
+
 ## Goal
 
-FrameShift provides one content/control system for radically different physical display technologies.
+Frameshift turns a source or generated master into persistent physical artwork
+on displays with radically different color, power, and refresh behavior. The
+Mac performs expensive work. A frame performs only secure transfer, validation,
+retention, scheduling, and its exact display update.
+
+## Topology
 
 ```text
-source artwork
-     |
-macOS library / scheduler
-     |
-transformations / optional AI
-     |
-target renderer
-     |
-Frame Protocol
-     |
-frame agent -> display adapter -> panel
+User
+  |
+  v
+SwiftUI MenuBarExtra ─── Apple Vision / Core Image / Keychain
+  | local authenticated IPC
+  v
+Elixir/OTP Core ─────── content-addressed library + metadata database
+  |        |
+  |        +── AI provider adapters (local first; explicit cloud)
+  |
+  +── supervised Zig raster worker
+  |       crop / scale / quantize / dither / pack
+  |
+  +── Frame Protocol client + sleeping-frame outbox
+             |
+       local authenticated network
+        _________|__________
+       /         |          \
+  Paper MCU   Photo MCU   Pixel MCU
+  pull/wake   push/pull   push/pull + timed DMA
+       \_________|__________/
+          immutable asset slots
+          desired/current state
 ```
 
-The host owns expensive computation. The frame owns persistence, capability reporting, safe display updates, and enough scheduling to remain autonomous.
+## Component ownership
 
-## FrameShift Host
+### Swift shell
 
-The macOS application handles artwork, discovery/pairing, schedules, target rendering, optional AI transformations, scaling, palette mapping, dithering, synchronization and status.
+Owns presentation and Apple-only APIs: the menu-bar icon/popover, drag/drop,
+file import, Vision labels and similarity features, Keychain identity, native
+notifications, and MediaGenerationKit. It does not own durable domain state.
 
-Elixir is the preferred core runtime where practical. Native macOS integration may use a small Swift shell/helper.
+### Elixir core
 
-## Frame Agent
+Owns the library, generation recipes, render jobs, provider selection, frame
+registry, schedules, outboxes, synchronization, retries that are explicitly
+safe, and the audit trail. Its state survives the UI process.
 
-Candidate runtimes include AtomVM on ESP32-class hardware, Nerves when a Linux-class board is genuinely justified, or native firmware/driver layers where display timing requires them. The architecture does not require one embedded runtime for every display.
+### Zig raster worker
 
-## Display Adapter
+Owns deterministic project-specific image transforms. It is a supervised
+executable, not an in-process NIF. One malformed image or native failure can
+fail a job without taking down the Elixir runtime.
 
-Initial adapter classes are eDP/LVDS matte IPS, reflective e-paper, and HUB75 RGB matrix.
+### Frame agent
 
-## Offline behavior
+Owns device identity, bounded protocol parsing, two-phase asset storage,
+desired/current display state, still-image playlist timing, adapter sequencing,
+health, and recoverable signed firmware updates. It is MCU-class reference
+hardware; Frameshift reference builds contain no Raspberry Pi hardware.
 
-Loss of the Mac/network must not blank a frame. A frame SHOULD retain its last successfully committed asset. Frames capable of local playlists MAY retain multiple assets and schedules.
+### Display adapter
+
+Owns exact electrical and temporal behavior for one qualified panel revision.
+It accepts only an artifact profile it advertised. It reports completion after
+the physical update finishes, not when bytes merely entered a queue.
+
+## Power classes and connectivity
+
+### Sleeping bistable frame
+
+Paper can turn the radio and controller off between update windows and retain
+the image without power. Because it cannot receive a push while asleep, the
+host keeps an outbox keyed by frame ID. On timer/button wake the frame
+authenticates, asks for the desired digest, downloads only if changed,
+refreshes, acknowledges, and sleeps.
+
+### Continuously powered frame
+
+Photo and Pixel require power while visible. They may advertise on the LAN and
+accept host pushes, but also support pull so desired-state behavior is the same
+across transports. Loss of the host or network never blanks current artwork.
+
+## Core invariants
+
+1. Every source master, AI result, and display artifact is immutable and
+   content-addressed.
+2. A frame never displays unverified or partially transferred bytes.
+3. `desiredAsset` and `currentAsset` are different states.
+4. `currentAsset` advances only after the display adapter reports success.
+5. The last current and previous-known-good assets cannot be garbage-collected.
+6. Provider credentials never leave the Mac.
+7. A frame never fetches an arbitrary artwork URL supplied by another LAN peer.
+8. No hidden redirect, retry, model download, provider switch, or cloud upload.
+9. Still-image playlists switch discretely; there is no motion pipeline.
+10. Mechanical depth and energy class constrain hardware selection.
+
+## Failure model
+
+| Failure | Required outcome |
+| --- | --- |
+| Mac sleeps or quits | Frame continues showing current artwork. |
+| Network disappears | Current artwork remains; pending work waits. |
+| Upload interrupted | Inactive temporary bytes are discarded or resumed; current is untouched. |
+| Digest mismatch | Candidate is rejected and never becomes desired/current. |
+| Display refresh fails | Desired remains pending/failed; current remains last confirmed asset. |
+| Power loss during refresh | On reboot, adapter-specific recovery runs; metadata never claims unconfirmed success. |
+| Firmware update fails | Previous bootable firmware and current artwork remain recoverable. |
+| AI provider fails | Existing masters/results remain; no automatic provider switch. |
+
+## Security boundary
+
+The Mac is trusted to create artwork for paired frames. The LAN is untrusted.
+Discovery reveals minimal metadata; exploration and all mutations require a
+paired identity. The frame verifies content size, type, digest, dimensions,
+profile, and authorization before storage or activation.
 
 ## Non-goals
 
-FrameShift is not initially a cloud photo service, commercial signage system, social network, vendor-specific application, continuous desktop streaming system, or a requirement for one universal electronics board.
+Frameshift is not a cloud photo service, smart display dashboard, signage
+platform, social network, remote desktop, live canvas, video player, animation
+system, audio device, or universal electronics board.

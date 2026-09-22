@@ -1,62 +1,81 @@
-# FrameShift
+# Frameshift
 
 ![Status: Research](https://img.shields.io/badge/status-research-blue)
 ![Maturity: Experimental](https://img.shields.io/badge/maturity-experimental-orange)
 ![Stage: Prototype](https://img.shields.io/badge/stage-prototype-red)
 
 > [!WARNING]
-> **FrameShift is an experimental open-source research project and prototype.** It is not a finished product, production-ready appliance, or certified hardware design. Hardware selections, protocols, dimensions, power requirements, and software architecture are expected to change as physical prototypes are built and measured.
+> **Frameshift is an experimental open-source research project.** It is not a
+> finished product, certified electrical design, or purchase guide. Hardware,
+> protocols, dimensions, power, and software will change after physical tests.
 
-FrameShift explores thin, frameable digital art displays that behave more like passive artwork than computers.
+Frameshift explores thin digital art frames that behave as much like framed
+artwork as their display technology permits. A minimal macOS menu-bar app
+imports or generates a still image, renders exact artifacts for a frame, and
+then gets out of the way.
 
-The project separates **content and control** from **display technology**. One macOS application prepares and sends artwork to different frame classes, while each frame advertises capabilities instead of binding the host to a vendor product.
+## Reference media
 
-## Initial reference frames
-
-| Target | Display | Purpose |
+| Target | Display | Power truth |
 | --- | --- | --- |
-| **Photo Frame** | large matte IPS / eDP | inexpensive photographic A2-class prototype |
-| **Paper Frame** | reflective e-paper | paper-like premium/reference path |
-| **Pixel Frame** | HUB75 RGB matrix | intentionally abstract, processed pixel artwork |
+| **Paper Frame** | reflective full-color e-paper | Can be cable-free and passive between updates |
+| **Photo Frame** | large matte IPS/LVDS/eDP | Needs continuous power while visible |
+| **Pixel Frame** | low-resolution HUB75 RGB matrix | Needs continuous, potentially high-current power |
 
-These are reference targets, not product SKUs.
+These are reference media, not product SKUs. Thinness is mandatory. Zero
+visible cable is a priority during hardware and mounting research, not a hard
+requirement. For emissive frames it requires a powered mount, concealed supply,
+or carefully routed cable; it does not mean the display uses no power.
 
 ## Architecture
 
 ```text
-                       FrameShift for macOS
+                   Frameshift for macOS
+          SwiftUI shell + Elixir core + Zig renderer
                               |
-                   render / transform / schedule
-                              |
-                       Frame Protocol
-                 ___________|___________
-                /           |           \
-          Photo Frame   Paper Frame   Pixel Frame
-             IPS          e-paper        HUB75
+                still-image Frame Protocol
+                  _________|_________
+                 /         |         \
+             Paper       Photo      Pixel
+           sleeping MCU  thin MCU   timed-DMA MCU
 ```
 
-The Mac is the control plane, not the frame's life support. Frames cache committed content and remain useful when the Mac sleeps or is offline.
+The Mac retains source masters, AI recipes, and rendered derivatives. Frames
+retain verified still assets and their last known-good image. A sleeping frame
+can wake and pull pending work; powered frames can also receive pushes.
 
-AI-assisted processing is optional. It can create display-specific interpretations such as palette reduction and dithering for e-paper or graphical/pixelated transformations for RGB matrices.
+There is no video, animation, motion, audio, or streaming path. A slideshow is
+only a timed sequence of cached still images.
+
+## Stack direction
+
+- Elixir/OTP for the macOS orchestration core.
+- Swift/SwiftUI only for the native menu-bar shell and Apple frameworks.
+- Zig for project-owned native transforms and embedded firmware.
+- Nerves only for an optional external bridge, simulator, or evidence-backed
+  powered prototype—not as default hardware inside a frame.
+- Local-first image generation with explicit provider and cloud disclosure.
+- No Python in application code, firmware, tooling, tests, examples, or project
+  workflows.
+- No Raspberry Pi hardware in Frameshift reference builds.
 
 ## Principles
 
-- Thin enough for a conventional wooden picture frame.
+- A recommended tactic is to prototype the chosen frame class's risky
+  assumptions cheaply before premium hardware or a finished enclosure; it is
+  not a required sequence.
+- The complete installed object must remain picture-frame thin.
 - No mandatory vendor cloud, account, subscription, or proprietary app.
-- Display-agnostic protocol.
-- Replaceable display/controller layers.
-- Local-first and offline-tolerant.
-- Capability negotiation rather than vendor/model coupling.
-- Expensive image processing belongs primarily on the host.
-- Wood, mat board/passe-partout and physical presentation are part of the design.
-- Prototype cheaply before committing to premium large-format panels.
+- Still-image-only, capability-driven protocol.
+- Source masters and generated results are immutable and cached.
+- Interrupted transfers never replace valid artwork.
+- Cloud AI never happens as a silent fallback.
+- Power, thermals, cable bends, controller boards, battery, and mounting count
+  as part of the frame—not as details to solve later.
 
-See [docs/README.md](docs/README.md) for the specification and research index.
-
-## Project status
-
-Exact components remain **research candidates until physically validated**. Prices are observations, not specifications, and must be rechecked before purchasing hardware.
+See [docs/README.md](docs/README.md) for specifications, evidence, and open
+validation gates.
 
 ## License
 
-License selection is intentionally left open until the first implementation lands.
+License selection is intentionally open until the first implementation lands.

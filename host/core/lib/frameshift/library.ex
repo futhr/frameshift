@@ -704,7 +704,7 @@ defmodule Frameshift.Library do
            """
            SELECT m.digest, m.title, m.source_kind, m.width, m.height,
                   m.color_profile, m.orientation, m.provenance_json, m.parent_digest,
-                  m.generation_recipe_hash, m.removed_at_ms, o.storage_state,
+                  m.generation_recipe_hash, m.removed_at_ms, o.media_type, o.storage_state,
                   (p.object_digest IS NOT NULL) AS pinned
            FROM masters m
            JOIN objects o ON o.digest = m.digest

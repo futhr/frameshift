@@ -16,6 +16,8 @@ The current research-preview slice provides:
   acknowledgement checks, and current/previous-known-good reference rotation;
 - a supervised, single-job Zig renderer port with bounded framing, typed worker
   failures, explicit deadlines, diagnostic redaction, and restart-on-failure;
+- a canonical RGBA8 research pipeline that binds source digests to composition
+  recipes, cached artifacts, outboxes, and simulator convergence;
 - a persistent frame simulator with bounded storage, desired/current state,
   sleeping pull convergence, still playlists, redundant metadata records, and
   injected contact, transfer, display, storage, timing, and power-loss failures.

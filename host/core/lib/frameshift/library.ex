@@ -2032,10 +2032,17 @@ defmodule Frameshift.Library do
              digest,
              outcome
            ) do
-        :commit -> finish_matching_direct_delivery(state, delivery, :displayed, attempt_id)
-        :already -> :ok
-        :pending -> {:ok, :pending}
-        {:error, reason} -> {:error, reason}
+        :commit ->
+          commit_confirmed_attempt(state, delivery, request_id, attempt_id)
+
+        :already ->
+          :ok
+
+        :pending ->
+          {:ok, :pending}
+
+        {:error, reason} ->
+          {:error, reason}
       end
     else
       :not_found -> {:error, :direct_delivery_missing}
@@ -2052,6 +2059,17 @@ defmodule Frameshift.Library do
          _
        ),
        do: {:error, :invalid_direct_delivery}
+
+  defp require_confirmation_attempt(_, _, nil), do: :ok
+
+  defp require_confirmation_attempt(connection, request_id, attempt_id),
+    do: require_started_attempt(connection, request_id, attempt_id, :displayed)
+
+  defp commit_confirmed_attempt(state, delivery, request_id, attempt_id) do
+    with :ok <- require_confirmation_attempt(state.connection, request_id, attempt_id) do
+      finish_matching_direct_delivery(state, delivery, :displayed, attempt_id)
+    end
+  end
 
   defp finish_matching_direct_delivery(state, delivery, :displayed, attempt_id) do
     frame_id = delivery["frame_id"]

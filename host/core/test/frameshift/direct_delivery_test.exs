@@ -106,6 +106,20 @@ defmodule Frameshift.DirectDeliveryTest do
                "push-1"
              )
 
+    assert {:error, :unknown_direct_attempt} =
+             Library.finish_direct_delivery(
+               context.library,
+               @frame_id,
+               1,
+               "push-1",
+               first,
+               :displayed,
+               String.duplicate("b", 32)
+             )
+
+    assert {:ok, %{"status" => "pending"}} =
+             Library.direct_delivery(context.library, @frame_id)
+
     assert {:ok, :pending} =
              Library.finish_direct_delivery(
                context.library,

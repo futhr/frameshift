@@ -144,7 +144,7 @@ private actor BundledCore {
   private var logBridge: CoreLogBridge?
 
   func ensureRunning(socketPath: String, force: Bool = false) async throws {
-    if !force, FileManager.default.fileExists(atPath: socketPath) {
+    if !force, UnixSocket.isAccepting(path: socketPath) {
       if process?.isRunning == true { return }
       if process == nil, try loadExternalTokenIfAvailable() { return }
     }
@@ -162,7 +162,7 @@ private actor BundledCore {
     }
 
     for _ in 0..<100 {
-      if FileManager.default.fileExists(atPath: socketPath) { return }
+      if UnixSocket.isAccepting(path: socketPath) { return }
       if process?.isRunning == false { throw CoreClientError.coreUnavailable }
       try await Task.sleep(for: .milliseconds(50))
     }
@@ -359,6 +359,13 @@ private struct WireError: Decodable, Sendable {
 enum UnixSocket {
   // Rendering and a bounded direct frame exchange may outlast the handshake timeout.
   private static let timeoutSeconds = 30
+
+  static func isAccepting(path: String) -> Bool {
+    let descriptor = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
+    guard descriptor >= 0 else { return false }
+    defer { Darwin.close(descriptor) }
+    return (try? connect(descriptor, path: path)) != nil
+  }
 
   static func exchange(path: String, payload: Data, maximumResponseBytes: Int) throws -> Data {
     let descriptor = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)

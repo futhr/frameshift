@@ -1,9 +1,11 @@
 import Foundation
+import OSLog
 import Observation
 
 @MainActor
 @Observable
 public final class ShellModel {
+  private static let logger = Logger(subsystem: "io.frameshift.app", category: "shell")
   public private(set) var snapshot: CoreSnapshot
   public private(set) var isBusy = false
   public private(set) var errorMessage: String?
@@ -99,6 +101,9 @@ public final class ShellModel {
     } catch CoreClientError.deliveryPending {
       errorMessage =
         "This frame already has a pending direct delivery. Confirm its display before sending another image."
+    } catch let error as CoreClientError {
+      Self.logger.error("core command failed: \(String(describing: error), privacy: .public)")
+      errorMessage = "The core command could not be completed."
     } catch {
       errorMessage = "The core command could not be completed."
     }
@@ -112,6 +117,9 @@ public final class ShellModel {
     do {
       apply(try await operation())
       errorMessage = nil
+    } catch let error as CoreClientError {
+      Self.logger.error("core refresh failed: \(String(describing: error), privacy: .public)")
+      errorMessage = "The core command could not be completed."
     } catch {
       errorMessage = "The core command could not be completed."
     }

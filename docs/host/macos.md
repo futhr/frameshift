@@ -67,9 +67,11 @@ crash fails one render job without terminating the library or UI.
 ## Local IPC
 
 The shell and core communicate over a per-user Unix domain socket in an app-
-owned directory. The socket has user-only permissions. Each launch exchanges a
-random session challenge stored in Keychain or inherited through a protected
-bootstrap channel; connecting to the path alone is insufficient.
+owned directory. The socket has user-only permissions. Each launch delivers a
+random session token through a one-use protected bootstrap file; connecting to
+the path alone is insufficient. The shell checks that the socket accepts a
+connection before sending its first request, so a leftover socket file does
+not masquerade as a ready core after a restart.
 
 Messages are length-prefixed and versioned. Maximum message size is fixed
 before allocation. Commands carry a unique ID and receive progress snapshots

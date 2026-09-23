@@ -11,7 +11,9 @@ logo is selected.
 
 `LocalCoreClient` communicates with the versioned bounded Unix-domain-socket
 protocol using a fresh 256-bit per-launch token delivered through a one-use
-user-only bootstrap file. Imports use Image I/O to admit one still image, apply
+user-only bootstrap file. Startup checks whether the socket accepts connections
+before sending the first request, including when a stale socket file remains.
+Imports use Image I/O to admit one still image, apply
 its orientation, convert into canonical sRGB RGBA8, and write a user-only
 temporary handoff. The core verifies the handoff digest and persists an
 immutable master containing the exact original bytes and normalized pixels. The

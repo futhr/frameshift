@@ -89,10 +89,14 @@ already power-limited.
 | `typicalRefreshMs` | Observed/declared time to a confirmed still update |
 | `maximumRefreshMs` | Host deadline basis |
 | `minimumDwellMs` | Shortest accepted still-image dwell |
+| `recommendedDwellMs` | Optional profile suggestion for a new cycle; at least the minimum |
+| `recommendationBasis` | Required with a suggestion: `measured-energy` or `provisional-profile` |
 | `partialRefresh` | Supported modes and region alignment, or absent |
 | `flashDuringRefresh` | Whether visible global flashing is expected |
 
 No v0.1 field advertises video or animation support.
+The suggestion is not a scan frequency or proof of battery life. See
+[display timing](display-timing.md) for evidence and override rules.
 
 ### Power
 

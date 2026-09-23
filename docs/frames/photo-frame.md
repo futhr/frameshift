@@ -72,6 +72,12 @@ operation. Prototype with the certified external supply. Later options include
 a cable routed behind the frame, a low-voltage wall plate, or a powered mounting
 contact, subject to safety and local installation rules.
 
+Art rotation is a local framebuffer swap on a user-selected interval. A longer
+artwork dwell has no demonstrated power saving while the backlight stays on;
+brightness and scheduled off periods carry the energy policy. The candidate
+advertises no energy-based dwell suggestion. See
+[display timing](../architecture/display-timing.md).
+
 Do not place exposed mains conversion in a wooden frame. Provide brightness and
 scheduled-off settings, but maintain the current still and restore it after
 power returns.

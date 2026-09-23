@@ -122,8 +122,11 @@ complete independently verifiable still. At the boundary, the frame swaps from
 one cached still to another; it does not interpolate, crossfade, scroll, or
 decode motion.
 
-The host clamps dwell to the frame's `minimumDwellMs`. Paper defaults should be
-measured in hours, not seconds, to respect wake energy and visible refresh.
+The host clamps dwell to the frame's `minimumDwellMs` and may prefill a new
+cycle from its qualified or explicitly provisional `recommendedDwellMs`.
+The frame, not the host, advances cached artwork at a confirmed-display-based
+deadline. [Display timing](display-timing.md) defines the pinned-artwork loop,
+energy evidence, and failure behavior.
 
 ## Cache behavior
 

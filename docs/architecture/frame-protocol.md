@@ -363,6 +363,10 @@ All referenced assets MUST already exist. Every dwell MUST meet the capability
 minimum. The frame either accepts the whole playlist or none of it. Mode `hold`
 shows one selected entry; `cycle` swaps complete cached stills. Crossfades,
 scrolling, interpolation, animated formats, and motion transitions are invalid.
+The frame owns the relative timer, starts each dwell after confirmed display,
+and persists enough cursor/deadline state to recover without skipping or
+claiming an unconfirmed image. The optional profile suggestion and explicit
+per-frame pinned loop intent are defined in [display timing](display-timing.md).
 
 Wall-clock schedules are optional and require an advertised trustworthy-clock
 capability. Relative dwell playlists do not.
@@ -379,6 +383,7 @@ HTTPS Forms use the paths shown, but a frame consumes the advertised Forms.
 | --- | --- |
 | `GET /v0/outbox/manifest` | Return desired digest/profile/playlist revision or `204` |
 | `GET /v0/outbox/assets/sha256/{digest}` | Stream exact artifact with `Content-Digest` |
+| `GET /v0/outbox/playlists/sha256/{digest}` | Fetch the complete canonical playlist whose digest is in the manifest |
 | `POST /v0/outbox/ack` | Report verified storage, refresh outcome, and current digest |
 
 The frame first compares the manifest digest with local desired/current state.

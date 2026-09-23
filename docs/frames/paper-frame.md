@@ -25,6 +25,13 @@ Those are vendor conditions, not measured Frameshift results. The glass and FPC
 are fragile. The 65×30.5 mm development driver board is a bench tool; a final
 thin frame needs a verified low-profile driver layout and connector strategy.
 
+The vendor advises at least 180 seconds between refreshes, a refresh at least
+every 24 hours while in use, and sleep or removal of panel power after each
+refresh. The first cycling profile uses a provisional six-hour artwork dwell;
+this is a product starting point, not a measured battery optimum. The frame
+must wake locally for cached playlist changes while the Mac is offline.
+See [display timing](../architecture/display-timing.md).
+
 ## Physical requirements
 
 - Rigid, flat support with no point load or twisted glass.

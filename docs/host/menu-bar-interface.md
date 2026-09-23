@@ -137,6 +137,13 @@ dwell. It never exposes transition effects because there are none. A frame's
 minimum dwell is enforced. More complex schedule editing belongs in a separate
 window opened from Settings/Manage Frames.
 
+An explicit per-frame “Loop pinned artwork” action snapshots the ordered pins.
+Its interval starts from the profile suggestion when one exists, labels a
+provisional suggestion as such, and accepts a per-frame override above the
+minimum. Photo and Pixel present interval as a viewing preference, without an
+energy-saving claim. The UI separates prepared, pending, and frame-confirmed
+active states. See [display timing](../architecture/display-timing.md).
+
 ## Progress and failure
 
 Use one line of plain status:

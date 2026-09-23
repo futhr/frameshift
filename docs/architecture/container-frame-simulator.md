@@ -17,6 +17,14 @@ temperature, retained optical image, or a production credential store. Its
 artifacts remain explicitly named software surrogates until exact panel wire
 profiles and controller revisions pass bench qualification.
 
+The receiver must also execute the complete cached still playlist on its own
+clock, including across host disconnection and receiver restart. Paper
+scenarios enforce the candidate's 180-second minimum and model a provisional
+six-hour suggested dwell without claiming measured battery life. Photo and
+Pixel scenarios test discrete framebuffer swaps and do not infer energy saving
+from longer dwell. The [display timing contract](display-timing.md) defines
+deadline, acknowledgement, and failure behavior.
+
 ## Default manufacturer baselines
 
 These are the **default candidate fixtures** for simulator and first prototype

@@ -64,6 +64,13 @@ before controller and conversion losses. Indoor static art should run far below
 full-white maximum, but the electrical system must survive a corrupt/all-white
 frame at the enforced hardware ceiling.
 
+The receiver keeps scanning a static buffer and swaps complete stills on a
+user-selected local interval. A longer interval has no demonstrated power
+benefit while the LEDs remain lit; brightness, current ceiling, and scheduled
+off periods are the meaningful controls. The candidate advertises no
+energy-based dwell suggestion. See
+[display timing](../architecture/display-timing.md).
+
 Required protections include:
 
 - current-limited certified supply;

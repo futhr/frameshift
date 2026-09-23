@@ -56,7 +56,8 @@ artwork digests, provider inputs, and network addresses are forbidden labels.
 
 The implemented pull outbox exchange metrics count completed HTTP requests and
 measure their server-side duration. They classify only `manifest`, `asset`,
-`ack`, or `invalid` routes and bounded response outcomes. Partial requests do
+`playlist`, `ack`, or `invalid` routes and bounded response outcomes. Partial
+requests do
 not emit a completed-exchange sample. These measurements do not imply that a
 frame displayed an image; only authoritative acknowledgement advances display
 state. Frame IDs, request paths, and asset digests never become metric labels.

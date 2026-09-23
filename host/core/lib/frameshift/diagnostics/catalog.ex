@@ -76,7 +76,7 @@ defmodule Frameshift.Diagnostics.Catalog do
       kind: :sum,
       unit: :count,
       dimensions: %{
-        route: ~w(manifest asset ack invalid other),
+        route: ~w(manifest asset playlist ack invalid other),
         outcome: ~w(succeeded empty conflict unavailable rejected other)
       },
       buckets: []
@@ -88,7 +88,7 @@ defmodule Frameshift.Diagnostics.Catalog do
       kind: :distribution,
       unit: :millisecond,
       dimensions: %{
-        route: ~w(manifest asset ack invalid other),
+        route: ~w(manifest asset playlist ack invalid other),
         outcome: ~w(succeeded empty conflict unavailable rejected other)
       },
       buckets: @duration_buckets

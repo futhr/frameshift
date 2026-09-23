@@ -77,6 +77,16 @@ defmodule Frameshift.Diagnostics.CatalogTest do
     assert Enum.all?([count, duration], fn sample ->
              map_size(sample.dimensions) == 2
            end)
+
+    assert [playlist_count, playlist_duration] =
+             Catalog.samples(
+               [:frameshift, :outbox, :exchange],
+               %{count: 1, duration_ms: 9},
+               %{route: :playlist, outcome: :succeeded, frame_id: "private-frame"}
+             )
+
+    assert playlist_count.dimensions == %{"route" => "playlist", "outcome" => "succeeded"}
+    assert playlist_duration.dimensions == playlist_count.dimensions
   end
 
   test "only catalog rollups with bounded dimensions and aligned buckets are valid" do

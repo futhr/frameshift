@@ -43,6 +43,7 @@ defmodule Frameshift.LocalIPC.DiagnosticsServerTest do
     assert %{"ok" => true, "diagnostics" => health} = request(context.path, "health")
     assert health["store"]["pendingPush"] == 0
     assert health["store"]["metricPageBudgetBytes"] == 32 * 1024 * 1024
+    assert health["store"]["metricPageMeasurementAvailable"]
     assert health["store"]["metricAllocatedBytes"] <= health["store"]["metricPageBudgetBytes"]
     assert health["collector"]["available"]
 

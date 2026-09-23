@@ -294,7 +294,10 @@ defmodule Frameshift.LocalIPC.DiagnosticsServer do
       |> Map.put("resetAtMs", status["startedAtMs"])
       |> Map.put(
         "lossFreeSinceMs",
-        if(status["droppedEvents"] == 0, do: status["startedAtMs"], else: nil)
+        if(status["droppedEvents"] == 0 and status["flushFailures"] == 0,
+          do: status["startedAtMs"],
+          else: nil
+        )
       )
     catch
       :exit, _ ->

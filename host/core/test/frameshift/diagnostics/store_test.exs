@@ -83,10 +83,11 @@ defmodule Frameshift.Diagnostics.StoreTest do
     assert %Exqlite.Result{rows: [[20_000, 1]]} =
              Exqlite.query!(connection, "SELECT count(*), min(bucket_ms) FROM metric_rollups")
 
-    initial_bytes = Store.metric_allocated_bytes(connection)
+    assert {:ok, initial_bytes} = Store.metric_allocated_bytes(connection)
     assert initial_bytes > 32_768
     assert :ok = Store.enforce_metric_page_budget(connection, div(initial_bytes, 2))
-    assert Store.metric_allocated_bytes(connection) <= div(initial_bytes, 2)
+    assert {:ok, remaining_bytes} = Store.metric_allocated_bytes(connection)
+    assert remaining_bytes <= div(initial_bytes, 2)
 
     assert %Exqlite.Result{rows: [[remaining, oldest]]} =
              Exqlite.query!(connection, "SELECT count(*), min(bucket_ms) FROM metric_rollups")
@@ -97,6 +98,19 @@ defmodule Frameshift.Diagnostics.StoreTest do
     assert {:error, :metric_page_budget_unenforceable} =
              Exqlite.transaction(connection, fn writer ->
                Store.enforce_metric_page_budget(writer, 1)
+             end)
+
+    assert %Exqlite.Result{rows: [[^remaining]]} =
+             Exqlite.query!(connection, "SELECT count(*) FROM metric_rollups")
+
+    Exqlite.query!(connection, "CREATE TEMP TABLE dbstat(name TEXT)")
+
+    assert {:error, :metric_page_measurement_unavailable} =
+             Store.metric_allocated_bytes(connection)
+
+    assert {:error, :metric_page_measurement_unavailable} =
+             Exqlite.transaction(connection, fn writer ->
+               Store.enforce_metric_page_budget(writer, 32 * 1024 * 1024)
              end)
 
     assert %Exqlite.Result{rows: [[^remaining]]} =

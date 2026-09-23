@@ -198,6 +198,7 @@ defmodule Frameshift.Diagnostics.Store do
       ).rows
 
     [[outboxes, direct_pending, command_pending, audit_count, metric_count]] = counts
+    page_measurement = metric_allocated_bytes(connection)
 
     %{
       "pendingPull" => outboxes,
@@ -205,7 +206,12 @@ defmodule Frameshift.Diagnostics.Store do
       "unknownCommands" => command_pending,
       "auditEntries" => audit_count,
       "metricRollups" => metric_count,
-      "metricAllocatedBytes" => metric_allocated_bytes(connection),
+      "metricAllocatedBytes" =>
+        case page_measurement do
+          {:ok, bytes} -> bytes
+          {:error, _} -> nil
+        end,
+      "metricPageMeasurementAvailable" => match?({:ok, _}, page_measurement),
       "metricPageBudgetBytes" => @metric_page_budget_bytes
     }
   end
@@ -240,17 +246,21 @@ defmodule Frameshift.Diagnostics.Store do
   end
 
   @doc "Measures allocated SQLite pages for the metric table and all its indexes."
-  @spec metric_allocated_bytes(pid()) :: non_neg_integer()
+  @spec metric_allocated_bytes(pid()) ::
+          {:ok, non_neg_integer()} | {:error, :metric_page_measurement_unavailable}
   def metric_allocated_bytes(connection) do
-    connection
-    |> Exqlite.query!("""
-    SELECT COALESCE(SUM(pgsize), 0)
-    FROM dbstat
-    WHERE name = 'metric_rollups'
-       OR name IN (SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'metric_rollups')
-    """)
-    |> Map.fetch!(:rows)
-    |> then(fn [[bytes]] -> bytes end)
+    case Exqlite.query(connection, """
+         SELECT COALESCE(SUM(pgsize), 0)
+         FROM dbstat
+         WHERE name = 'metric_rollups'
+            OR name IN (SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'metric_rollups')
+         """) do
+      {:ok, %Exqlite.Result{rows: [[bytes]]}} when is_integer(bytes) and bytes >= 0 ->
+        {:ok, bytes}
+
+      _ ->
+        {:error, :metric_page_measurement_unavailable}
+    end
   end
 
   @doc "Prunes oldest metric rows until their active SQLite pages fit the byte budget."
@@ -261,18 +271,23 @@ defmodule Frameshift.Diagnostics.Store do
   end
 
   defp trim_metric_pages(connection, budget_bytes) do
-    if metric_allocated_bytes(connection) > budget_bytes do
-      Exqlite.query!(
-        connection,
-        "DELETE FROM metric_rollups WHERE rowid IN (SELECT rowid FROM metric_rollups ORDER BY bucket_ms ASC, rowid ASC LIMIT 1000)"
-      )
+    case metric_allocated_bytes(connection) do
+      {:ok, bytes} when bytes > budget_bytes ->
+        Exqlite.query!(
+          connection,
+          "DELETE FROM metric_rollups WHERE rowid IN (SELECT rowid FROM metric_rollups ORDER BY bucket_ms ASC, rowid ASC LIMIT 1000)"
+        )
 
-      case Exqlite.query!(connection, "SELECT changes()").rows do
-        [[0]] -> Exqlite.rollback(connection, :metric_page_budget_unenforceable)
-        [[_]] -> trim_metric_pages(connection, budget_bytes)
-      end
-    else
-      :ok
+        case Exqlite.query!(connection, "SELECT changes()").rows do
+          [[0]] -> Exqlite.rollback(connection, :metric_page_budget_unenforceable)
+          [[_]] -> trim_metric_pages(connection, budget_bytes)
+        end
+
+      {:ok, _} ->
+        :ok
+
+      {:error, reason} ->
+        Exqlite.rollback(connection, reason)
     end
   end
 

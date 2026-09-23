@@ -84,6 +84,9 @@ size and long-running resource ceilings still require platform measurement.
 The collector runs one maintenance pass after restart, even if no new samples
 arrive, so an older oversized store converges to the current limits.
 The health read reports active metric page bytes and the enforced page budget.
+If the SQLite build cannot measure metric pages, health reports that gap and
+metric writes fail without changing delivery state; coverage cannot claim a
+loss-free interval after a failed flush.
 Each query includes a coverage interval and reset marker so missing
 observations cannot be represented as zero.
 

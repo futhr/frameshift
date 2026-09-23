@@ -23,6 +23,7 @@ defmodule Frameshift.Diagnostics.Metrics do
             handler_id: String.t(),
             library: GenServer.server(),
             dropped: reference(),
+            queued: reference(),
             pending: map(),
             started_at_ms: integer(),
             last_dropped: non_neg_integer(),
@@ -31,11 +32,12 @@ defmodule Frameshift.Diagnostics.Metrics do
             flush_failures: non_neg_integer()
           }
 
-    @enforce_keys [:handler_id, :library, :dropped]
+    @enforce_keys [:handler_id, :library, :dropped, :queued]
     defstruct [
       :handler_id,
       :library,
       :dropped,
+      :queued,
       pending: %{},
       started_at_ms: nil,
       last_dropped: 0,
@@ -67,13 +69,14 @@ defmodule Frameshift.Diagnostics.Metrics do
     library = Keyword.get(options, :library, Library)
     handler_id = "frameshift-local-metrics-#{System.unique_integer([:positive, :monotonic])}"
     dropped = :atomics.new(1, signed: false)
+    queued = :atomics.new(1, signed: false)
 
     :ok =
       :telemetry.attach_many(
         handler_id,
         Catalog.events(),
         &__MODULE__.handle_event/4,
-        %{target: self(), dropped: dropped}
+        %{target: self(), dropped: dropped, queued: queued, queue_limit: @queue_limit}
       )
 
     Process.send_after(self(), :flush, @flush_interval_ms)
@@ -84,27 +87,45 @@ defmodule Frameshift.Diagnostics.Metrics do
        handler_id: handler_id,
        library: library,
        dropped: dropped,
+       queued: queued,
        started_at_ms: System.os_time(:millisecond)
      }}
   end
 
   @doc "Telemetry callback: sends bounded work to the supervised reporter."
   @spec handle_event(list(atom()), map(), map(), map()) :: :ok
-  def handle_event(event, measurements, metadata, %{target: target, dropped: dropped}) do
+  def handle_event(event, measurements, metadata, context) do
     case Catalog.samples(event, measurements, metadata) do
       [] ->
         :ok
 
       samples ->
-        case Process.info(target, :message_queue_len) do
-          {:message_queue_len, length} when length < @queue_limit ->
-            send(target, {:samples, samples})
-            :ok
+        enqueue_samples(samples, context)
+    end
+  end
 
-          _ ->
-            :atomics.add(dropped, 1, 1)
-            :ok
-        end
+  defp enqueue_samples(samples, %{
+         target: target,
+         dropped: dropped,
+         queued: queued,
+         queue_limit: limit
+       }) do
+    if reserve_slot(queued, limit) do
+      send(target, {:samples, samples})
+    else
+      :atomics.add(dropped, 1, 1)
+    end
+
+    :ok
+  end
+
+  defp reserve_slot(queued, limit) do
+    current = :atomics.get(queued, 1)
+
+    cond do
+      current >= limit -> false
+      :atomics.compare_exchange(queued, 1, current, current + 1) == :ok -> true
+      true -> reserve_slot(queued, limit)
     end
   end
 
@@ -116,6 +137,7 @@ defmodule Frameshift.Diagnostics.Metrics do
        "lastEventAtMs" => state.last_event_at_ms,
        "lastFlushedAtMs" => state.last_flushed_at_ms,
        "flushFailures" => state.flush_failures,
+       "queuedEvents" => :atomics.get(state.queued, 1),
        "pendingSeries" => map_size(state.pending),
        "droppedEvents" => :atomics.get(state.dropped, 1)
      }, state}
@@ -128,6 +150,7 @@ defmodule Frameshift.Diagnostics.Metrics do
 
   @impl true
   def handle_info({:samples, samples}, state) do
+    :atomics.add_get(state.queued, 1, -1)
     now_ms = System.os_time(:millisecond)
 
     next =

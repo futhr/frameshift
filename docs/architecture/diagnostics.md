@@ -78,6 +78,10 @@ metadata never enters its mailbox; the handler performs no SQL, network, or
 log formatting in the caller. The collector
 maintains fixed-size histograms and bounded enum dimensions, batches rollups
 through the existing single writer, and reports its own dropped-event count.
+Concurrent emitters reserve one of 10,000 queue slots atomically before
+sending, and release it when the collector dequeues that event. A full queue
+records a drop immediately. A pre-send mailbox-length observation is not a
+capacity bound because multiple emitters can observe the same free slot.
 The versioned diagnostic read exposes metric units, histogram upper bounds,
 allowed dimensions, and collector reset time alongside each metric page.
 `lossFreeSinceMs` is null after a known drop or while the collector is down;

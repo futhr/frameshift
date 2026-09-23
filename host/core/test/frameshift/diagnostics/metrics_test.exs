@@ -8,6 +8,7 @@ defmodule Frameshift.Diagnostics.MetricsTest do
 
   test "telemetry handler queues only bounded catalog samples" do
     dropped = :atomics.new(1, signed: false)
+    queued = :atomics.new(1, signed: false)
     private_value = String.duplicate("private", 10_000)
 
     assert :ok =
@@ -15,7 +16,7 @@ defmodule Frameshift.Diagnostics.MetricsTest do
                [:frameshift, :command, :completed],
                %{count: 1, duration_ms: 42, payload: private_value},
                %{outcome: private_value, command_id: private_value},
-               %{target: self(), dropped: dropped}
+               %{target: self(), dropped: dropped, queued: queued, queue_limit: 10_000}
              )
 
     assert_receive {:samples, samples}
@@ -23,30 +24,49 @@ defmodule Frameshift.Diagnostics.MetricsTest do
     assert Enum.all?(samples, &(&1.dimensions == %{"outcome" => "other"}))
     refute inspect(samples) =~ "private"
     assert :atomics.get(dropped, 1) == 0
+    assert :atomics.get(queued, 1) == 1
   end
 
-  test "telemetry handler reports loss when its mailbox is full" do
-    receiver =
-      spawn(fn ->
-        receive do
-          :halt -> :ok
-        end
-      end)
-
-    on_exit(fn -> Process.exit(receiver, :kill) end)
+  test "telemetry handler reports loss when all queue slots are reserved" do
     dropped = :atomics.new(1, signed: false)
-
-    for _ <- 1..10_000, do: send(receiver, :queued)
+    queued = :atomics.new(1, signed: false)
+    :atomics.put(queued, 1, 8)
 
     assert :ok =
              Metrics.handle_event(
                [:frameshift, :delivery, :attempt],
                %{count: 1},
                %{mode: :push, outcome: :failed},
-               %{target: receiver, dropped: dropped}
+               %{target: self(), dropped: dropped, queued: queued, queue_limit: 8}
              )
 
     assert :atomics.get(dropped, 1) == 1
+    assert :atomics.get(queued, 1) == 8
+    refute_receive {:samples, _}
+  end
+
+  test "concurrent emitters cannot reserve more than the queue limit" do
+    dropped = :atomics.new(1, signed: false)
+    queued = :atomics.new(1, signed: false)
+    context = %{target: self(), dropped: dropped, queued: queued, queue_limit: 8}
+
+    1..256
+    |> Task.async_stream(
+      fn _ ->
+        Metrics.handle_event(
+          [:frameshift, :delivery, :attempt],
+          %{count: 1},
+          %{mode: :push, outcome: :failed},
+          context
+        )
+      end,
+      max_concurrency: 32
+    )
+    |> Enum.each(fn {:ok, :ok} -> :ok end)
+
+    assert :atomics.get(queued, 1) == 8
+    assert :atomics.get(dropped, 1) == 248
+    assert length(Process.info(self(), :messages) |> elem(1)) == 8
   end
 
   test "retains a metric batch across a SQLite owner restart" do

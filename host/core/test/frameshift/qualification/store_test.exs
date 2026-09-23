@@ -199,6 +199,40 @@ defmodule Frameshift.Qualification.StoreTest do
     assert %{"entries" => audit} = Library.audit_page(library)
     assert Enum.count(audit, &(&1["operation"] == "qualification.activated")) == 4
 
+    {:ok, injector} =
+      Exqlite.start_link(database: Path.join(data_dir, "metadata.sqlite"), foreign_keys: :on)
+
+    Exqlite.query!(
+      injector,
+      """
+      CREATE TRIGGER fail_second_cohort_activation BEFORE UPDATE ON active_qualifications
+      WHEN NEW.frame_id = 'sim-photo-00000002'
+      BEGIN SELECT RAISE(ABORT, 'injected cohort failure'); END
+      """
+    )
+
+    assert {:error, {:database, "injected cohort failure"}} =
+             Library.activate_qualification_cohort(library, [
+               {first_id, first_old},
+               {second_id, second_old}
+             ])
+
+    assert Process.alive?(library)
+    assert {:ok, %{"digest" => ^first_new}} = Library.active_qualification(library, first_id)
+    assert {:ok, %{"digest" => ^second_new}} = Library.active_qualification(library, second_id)
+    assert %{"entries" => ^audit} = Library.audit_page(library)
+
+    Exqlite.query!(injector, "DROP TRIGGER fail_second_cohort_activation")
+    GenServer.stop(injector)
+
+    assert :ok =
+             Library.activate_qualification_cohort(library, [
+               {first_id, first_old},
+               {second_id, second_old}
+             ])
+
+    assert :ok = Library.activate_qualification_cohort(library, selections)
+
     GenServer.stop(library)
     {:ok, restarted} = Library.start_link(data_dir: data_dir, name: nil)
     assert {:ok, %{"digest" => ^first_new}} = Library.active_qualification(restarted, first_id)

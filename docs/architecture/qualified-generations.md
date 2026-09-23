@@ -70,7 +70,9 @@ pointer per frame selects *new* work. A candidate cannot activate itself. A
 cohort promotion selects admitted bindings for up to 64 distinct paired frames
 in one local SQLite transaction. Every binding must still match its frame's
 current capability and transfer contract. A refusal leaves all active pointers
-and activation audit records unchanged; repeating a successful selection is
+and activation audit records unchanged, including when a database write fails
+after an earlier frame in the cohort was updated. The Library must stay alive
+and report that storage failure. Repeating a successful selection is
 idempotent. The single writer serializes validation and promotion, so another
 local command cannot change a frame between those steps. New work also
 validates its master and recipe before claiming a work digest. Product queue

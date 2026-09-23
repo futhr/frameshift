@@ -309,7 +309,14 @@ defmodule Frameshift.Qualification.Store do
 
   defp transact(connection, function) do
     started = System.monotonic_time(:millisecond)
-    result = Exqlite.transaction(connection, function, mode: :immediate)
+
+    result =
+      try do
+        Exqlite.transaction(connection, function, mode: :immediate)
+      rescue
+        error in Exqlite.Error -> {:error, error}
+      end
+
     outcome = if match?({:ok, _}, result), do: :succeeded, else: :failed
 
     :telemetry.execute(

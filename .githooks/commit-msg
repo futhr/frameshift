@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+
+subject=$(sed -n '1p' "$1")
+if ! printf '%s\n' "$subject" |
+  grep -Eq '^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([a-z0-9][a-z0-9-]*\))?!?: [^[:space:]].*'; then
+  printf 'Commit subject must follow Conventional Commits: type(scope): description\n' >&2
+  exit 1
+fi

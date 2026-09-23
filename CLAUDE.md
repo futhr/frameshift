@@ -35,6 +35,10 @@ design record; implementation status does not reduce their scope.
    observations. Recheck them before a purchase or prototype decision.
 9. Do not commit or push unless asked. Never add AI-tool attribution or a
    co-author trailer.
+   Once commits are authorized, use Conventional Commit subjects in the form
+   `type(scope): imperative description`; Git Ops uses their type to classify
+   changes. Enable `.githooks/commit-msg` through
+   `git config core.hooksPath .githooks` before committing.
 10. Never change repository visibility. Visibility changes are manual,
     user-only actions on every hosting provider.
 11. Python is forbidden in the repository's application stack, firmware,

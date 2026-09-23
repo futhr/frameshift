@@ -2,8 +2,9 @@
 
 **Status:** interaction specification
 
-**Reference:** the supplied macOS menu-bar screenshot, especially its small
-monochrome four-point sparkle
+**Reference:** the selected white perspective-frame mark on a navy field.
+[FrameshiftMark.svg](../../host/macos/App/Icons/FrameshiftMark.svg) is its
+canonical vector source.
 
 ## Product posture
 
@@ -13,10 +14,10 @@ Frameshift is a quiet menu-bar utility, not a dashboard. The primary flow is:
 open -> choose frame -> describe or choose image -> generate/render -> send
 ```
 
-The macOS app also has a Dock presence while the temporary Futhr mark is in
-use. Opening it from the Dock presents the same authoritative artwork and
-frame controls as the menu-bar entry. The Dock artwork is separate from the
-small monochrome menu-bar template symbol.
+The macOS app has a Dock presence. Opening it from the Dock presents the same
+authoritative artwork and frame controls as the menu-bar entry. The navy and
+white mark appears in the Dock and its unboxed silhouette appears in the menu
+bar.
 
 Advanced provider, model, storage, pairing, and hardware details live in
 Settings. The popover shows only information needed to choose artwork and know
@@ -24,9 +25,9 @@ whether it reached the selected frame.
 
 ## Menu-bar item
 
-- Use one monochrome template symbol shaped like a four-point sparkle.
-- Test `sparkles` or a custom optical correction at 16, 18, and 20 point menu-
-  bar rendering; do not ship a colored or boxed icon.
+- Use the supplied mark's silhouette as a monochrome template at 18 points
+  with 1×, 2×, and 3× representations. Test its optical weight at 16, 18, and
+  20 points; keep the menu-bar rendering unboxed.
 - Accessibility label: “Frameshift.”
 - Primary click toggles the window-style popover.
 - No animated menu-bar icon. Busy state uses a subtle static badge/dot or text
@@ -106,7 +107,7 @@ The card exposes exactly three compact actions:
 | Symbol | Action | Behavior |
 | --- | --- | --- |
 | `arrow.clockwise` | Regenerate | Creates a new sibling/child variant; preserves this result |
-| `pin` / `pin.fill` | Pin | Protects the item and makes it easy to retrieve |
+| `bookmark` / `bookmark.fill` | Pin | Protects the item and makes it easy to retrieve |
 | `trash` or `xmark` | Remove | Removes from the active library and moves unreferenced data to recoverable trash |
 
 Actions appear on hover/focus but pinned state remains visible. Every symbol

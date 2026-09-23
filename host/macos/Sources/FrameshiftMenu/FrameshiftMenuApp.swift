@@ -12,14 +12,63 @@ struct FrameshiftMenuApp: App {
   @NSApplicationDelegateAdaptor(FrameshiftAppDelegate.self) private var appDelegate
 
   var body: some Scene {
-    MenuBarExtra("Frameshift", systemImage: "photo.on.rectangle.angled") {
+    MenuBarExtra {
       FrameshiftPanel(model: ShellSession.model)
+        .modifier(DockIconAppearance())
+    } label: {
+      Image(nsImage: MenuBarIcon.image)
+        .accessibilityLabel("Frameshift")
     }
     .menuBarExtraStyle(.window)
 
     Settings {
       SettingsView()
     }
+  }
+}
+
+@MainActor
+private enum MenuBarIcon {
+  static let image: NSImage = {
+    let image = NSImage(size: NSSize(width: 18, height: 18))
+
+    for suffix in ["", "@2x", "@3x"] {
+      guard let url = Bundle.main.url(forResource: "FrameshiftMenu\(suffix)", withExtension: "png"),
+        let data = try? Data(contentsOf: url),
+        let representation = NSBitmapImageRep(data: data)
+      else { continue }
+      representation.size = NSSize(width: 18, height: 18)
+      image.addRepresentation(representation)
+    }
+
+    if image.representations.isEmpty {
+      return NSImage(
+        systemSymbolName: "photo.on.rectangle.angled", accessibilityDescription: "Frameshift")!
+    }
+
+    image.isTemplate = true
+    return image
+  }()
+}
+
+private struct DockIconAppearance: ViewModifier {
+  @Environment(\.colorScheme) private var colorScheme
+
+  func body(content: Content) -> some View {
+    content
+      .onAppear { DockIcon.apply(colorScheme) }
+      .onChange(of: colorScheme) { _, appearance in DockIcon.apply(appearance) }
+  }
+}
+
+@MainActor
+private enum DockIcon {
+  static func apply(_ appearance: ColorScheme) {
+    let name = appearance == .dark ? "FrameshiftDark" : "FrameshiftLight"
+    guard let url = Bundle.main.url(forResource: name, withExtension: "icns"),
+      let image = NSImage(contentsOf: url)
+    else { return }
+    NSApplication.shared.applicationIconImage = image
   }
 }
 
@@ -54,6 +103,7 @@ private final class FrameshiftAppDelegate: NSObject, NSApplicationDelegate {
       window.isReleasedWhenClosed = false
       window.contentView = NSHostingView(
         rootView: FrameshiftPanel(model: ShellSession.model)
+          .modifier(DockIconAppearance())
       )
       window.center()
       mainWindow = window

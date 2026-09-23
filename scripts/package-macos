@@ -53,6 +53,9 @@ mkdir -p "$stage/Contents/MacOS" "$stage/Contents/Resources"
 install -m 755 "$binary_directory/frameshift-menu" "$stage/Contents/MacOS/Frameshift"
 install -m 755 "$binary_directory/frameshiftctl" "$stage/Contents/MacOS/frameshiftctl"
 install -m 644 "$package_root/App/Info.plist" "$stage/Contents/Info.plist"
+
+"$repository_root/scripts/build-macos-icons" "$stage/Contents/Resources"
+
 mkdir -p "$stage/Contents/Resources/bin"
 install -m 755 "$renderer_path" "$stage/Contents/Resources/bin/frameshift-raster"
 install -m 755 \
@@ -69,7 +72,7 @@ if [ -e "$app_bundle" ]; then
 fi
 
 mv "$stage" "$app_bundle"
-rmdir "$staging_root"
+rm -rf "$staging_root"
 staging_root=''
 
 printf '%s\n' "$app_bundle"

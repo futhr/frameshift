@@ -8,6 +8,8 @@
 	<string>Frameshift</string>
 	<key>CFBundleExecutable</key>
 	<string>Frameshift</string>
+	<key>CFBundleIconFile</key>
+	<string>FrameshiftLight.icns</string>
 	<key>CFBundleIdentifier</key>
 	<string>io.frameshift.app</string>
 	<key>CFBundleInfoDictionaryVersion</key>

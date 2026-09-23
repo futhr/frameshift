@@ -6,8 +6,10 @@ application lifecycle. Durable library, recipe, outbox, render, and frame state
 remain owned by the bundled Elixir core.
 
 The packaged app has a Dock window with the same `ShellModel` and controls as
-the menu-bar panel. The menu-bar entry uses a system symbol until a product
-logo is selected.
+the menu-bar panel. The packaged app uses the selected white perspective-frame
+mark on navy in Dock/Finder and its monochrome silhouette in the menu bar.
+`scripts/build-macos-icons` generates the packaged `.icns` and menu-bar PNG
+resources from the committed SVG sources.
 
 `LocalCoreClient` communicates with the versioned bounded Unix-domain-socket
 protocol using a fresh 256-bit per-launch token delivered through a one-use

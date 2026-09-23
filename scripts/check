@@ -16,6 +16,8 @@ check_policy() {
   fi
 
   mise exec -- shellcheck \
+    "$repository_root/.githooks/commit-msg" \
+    "$repository_root/scripts/build-macos-icons" \
     "$repository_root/scripts/check" \
     "$repository_root/scripts/check-elixir-docs" \
     "$repository_root/scripts/check-core-release" \
@@ -76,9 +78,15 @@ check_macos() {
   test -x "$app_bundle/Contents/Resources/bin/frameshift-raster"
   test -x "$app_bundle/Contents/Resources/bin/launch-bundled-core"
   test -x "$app_bundle/Contents/Resources/core/bin/frameshift_core"
+  test -s "$app_bundle/Contents/Resources/FrameshiftLight.icns"
+  test -s "$app_bundle/Contents/Resources/FrameshiftDark.icns"
+  test -s "$app_bundle/Contents/Resources/FrameshiftMenu.png"
+  test -s "$app_bundle/Contents/Resources/FrameshiftMenu@2x.png"
+  test -s "$app_bundle/Contents/Resources/FrameshiftMenu@3x.png"
   plutil -lint "$app_bundle/Contents/Info.plist" >/dev/null
   codesign --verify --deep --strict "$app_bundle"
   test "$(plutil -extract CFBundlePackageType raw "$app_bundle/Contents/Info.plist")" = "APPL"
+  test "$(plutil -extract CFBundleIconFile raw "$app_bundle/Contents/Info.plist")" = "FrameshiftLight.icns"
   test "$(plutil -extract LSUIElement raw "$app_bundle/Contents/Info.plist")" = "false"
 
   "$repository_root/scripts/check-packaged-app" "$app_bundle"

@@ -1,0 +1,49 @@
+#!/bin/sh
+set -eu
+
+repository_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+icon_root="$repository_root/host/macos/App/Icons"
+destination=${1:-$icon_root}
+mkdir -p "$destination"
+
+mark_path=$(sed -n 's/.* d="\([^"]*\)"\/>/\1/p' "$icon_root/FrameshiftMark.svg")
+test -n "$mark_path"
+for source in "$icon_root/Frameshift-Frame-Light.svg" \
+  "$icon_root/Frameshift-Frame-Dark.svg" "$icon_root/FrameshiftMenu.svg"; do
+  if ! grep -Fq "$mark_path" "$source"; then
+    printf 'Icon source has diverged from FrameshiftMark.svg: %s\n' "$source" >&2
+    exit 1
+  fi
+done
+
+work=$(mktemp -d "${TMPDIR:-/tmp}/frameshift-icons.XXXXXX")
+trap 'rm -rf "$work"' EXIT HUP INT TERM
+
+for appearance in Light Dark; do
+  source="$icon_root/Frameshift-Frame-$appearance.svg"
+  sips -s format png "$source" --out "$work/base.png" >/dev/null
+  iconset="$work/Frameshift$appearance.iconset"
+  mkdir "$iconset"
+
+  for points in 16 32 128 256 512; do
+    sips -z "$points" "$points" "$work/base.png" \
+      --out "$iconset/icon_${points}x${points}.png" >/dev/null
+    doubled=$((points * 2))
+    sips -z "$doubled" "$doubled" "$work/base.png" \
+      --out "$iconset/icon_${points}x${points}@2x.png" >/dev/null
+  done
+
+  iconutil -c icns "$iconset" -o "$destination/Frameshift$appearance.icns"
+done
+
+for scale in 1 2 3; do
+  pixels=$((18 * scale))
+  case "$scale" in
+    1) suffix='' ;;
+    *) suffix="@$scale"x ;;
+  esac
+  sed "s/width=\"18\" height=\"18\"/width=\"$pixels\" height=\"$pixels\"/" \
+    "$icon_root/FrameshiftMenu.svg" > "$work/menu-$scale.svg"
+  sips -s format png "$work/menu-$scale.svg" \
+    --out "$destination/FrameshiftMenu$suffix.png" >/dev/null
+done

@@ -37,9 +37,9 @@ The native shell owns `MenuBarExtra`, app lifecycle, accessibility, file and
 photo selection, drag/drop, Keychain, Vision, Core Image/Image I/O, Bonjour,
 notifications, and MediaGenerationKit. It presents snapshots received from the
 core and sends commands; it does not create a second source of truth.
-The packaged app uses the supplied Futhr monochrome light and dark SVG marks
-as temporary appearance-aware Dock/Finder artwork until Frameshift has its own
-identity. Its Dock entry opens the same shell controls; it adds no second
+The packaged app uses the selected white perspective-frame mark on a navy
+Dock/Finder tile in both system appearances and its monochrome silhouette in
+the menu bar. Its Dock entry opens the same shell controls; it adds no second
 durable application state.
 
 ### Elixir core

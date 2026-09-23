@@ -12,6 +12,7 @@ defmodule Frameshift.Diagnostics.LogFormatterTest do
         frameshift_outcome: :succeeded,
         request_id: "safe-request_1",
         command_id: "bad\ncommand",
+        attempt_id: String.duplicate("b", 32),
         duration_ms: 17,
         path: "/private/artwork.png"
       )
@@ -26,10 +27,12 @@ defmodule Frameshift.Diagnostics.LogFormatterTest do
              "event" => "command_completed",
              "outcome" => "succeeded",
              "correlationId" => correlation_id,
+             "attemptId" => attempt_id,
              "durationMs" => 17
            } = decode(line)
 
     assert correlation_id == Frameshift.Digest.sha256("bad\ncommand")
+    assert attempt_id == String.duplicate("b", 32)
   end
 
   test "reduces arbitrary runtime errors to safe level and time" do
@@ -45,6 +48,19 @@ defmodule Frameshift.Diagnostics.LogFormatterTest do
     refute String.contains?(line, "secret")
     refute String.contains?(line, "/Users/")
     assert :ok = LogFormatter.check_config(%{})
+  end
+
+  test "rejects untrusted attempt IDs from public log fields" do
+    line =
+      LogFormatter.format(:info, "private", nil,
+        frameshift_event: :delivery_attempt,
+        frameshift_outcome: :pending,
+        attempt_id: "secret-attempt-id"
+      )
+      |> IO.iodata_to_binary()
+
+    assert %{"event" => "delivery_attempt", "outcome" => "pending"} = decode(line)
+    refute String.contains?(line, "secret-attempt-id")
   end
 
   defp decode("FSLOG|" <> json), do: Jason.decode!(json)

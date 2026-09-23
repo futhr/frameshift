@@ -29,8 +29,13 @@ defmodule Frameshift.OutboxTest do
       Simulator.start_link(data_dir: simulator_dir, capabilities: capabilities(), name: nil)
 
     on_exit(fn ->
-      if Process.alive?(library), do: GenServer.stop(library)
-      if Process.alive?(simulator), do: GenServer.stop(simulator)
+      for process <- [library, simulator], Process.alive?(process) do
+        try do
+          GenServer.stop(process)
+        catch
+          :exit, _ -> :ok
+        end
+      end
     end)
 
     %{library: library, library_dir: library_dir, simulator: simulator}

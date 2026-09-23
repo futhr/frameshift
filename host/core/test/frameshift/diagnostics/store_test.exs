@@ -28,7 +28,7 @@ defmodule Frameshift.Diagnostics.StoreTest do
         "frameId" => "private-frame",
         "secret" => "private-token",
         "kind" => "succeeded",
-        "attemptId" => "random-attempt"
+        "attemptId" => String.duplicate("a", 32)
       })
 
     assert %Exqlite.Result{rows: [[details_json, correlation_id, attempt_id]]} =
@@ -39,6 +39,21 @@ defmodule Frameshift.Diagnostics.StoreTest do
 
     assert Jason.decode!(details_json) == %{"kind" => "succeeded"}
     assert correlation_id == Digest.sha256("private-command")
-    assert attempt_id == "random-attempt"
+    assert attempt_id == String.duplicate("a", 32)
+
+    :ok =
+      Store.record_audit(connection, "command.completed", nil, %{
+        "kind" => "token=private",
+        "outcome" => "token=private",
+        "sourceKind" => "token=private",
+        "revision" => "token=private",
+        "attemptId" => "token=private"
+      })
+
+    assert %Exqlite.Result{rows: [["{}", nil]]} =
+             Exqlite.query!(
+               connection,
+               "SELECT detail_json, attempt_id FROM audit_entries ORDER BY id DESC LIMIT 1"
+             )
   end
 end

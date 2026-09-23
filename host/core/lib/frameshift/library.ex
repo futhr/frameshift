@@ -277,6 +277,22 @@ defmodule Frameshift.Library do
     GenServer.call(server, {:direct_delivery, frame_id})
   end
 
+  @doc "Records a correlated push or reconciliation attempt through the single writer."
+  @spec record_direct_attempt(
+          server(),
+          String.t(),
+          String.t(),
+          String.t(),
+          :push | :reconcile,
+          :started | :displayed | :pending | :failed
+        ) :: :ok | {:error, term()}
+  def record_direct_attempt(server, frame_id, request_id, attempt_id, mode, phase) do
+    GenServer.call(
+      server,
+      {:record_direct_attempt, frame_id, request_id, attempt_id, mode, phase}
+    )
+  end
+
   @doc "Commits a confirmed display or preserves a pending push intent for reconciliation."
   @spec finish_direct_delivery(
           server(),
@@ -295,10 +311,28 @@ defmodule Frameshift.Library do
         digest,
         outcome
       ) do
-    GenServer.call(
-      server,
-      {:finish_direct_delivery, frame_id, revision, request_id, digest, outcome}
-    )
+    finish_direct_delivery(server, frame_id, revision, request_id, digest, outcome, nil)
+  end
+
+  @doc "Commits display confirmation with its specific network attempt ID."
+  @spec finish_direct_delivery(
+          server(),
+          String.t(),
+          pos_integer(),
+          String.t(),
+          digest(),
+          :displayed | :pending,
+          String.t() | nil
+        ) :: :ok | {:ok, :pending} | {:error, term()}
+  def finish_direct_delivery(server, frame_id, revision, request_id, digest, outcome, attempt_id) do
+    if valid_attempt_id?(attempt_id) do
+      GenServer.call(
+        server,
+        {:finish_direct_delivery, frame_id, revision, request_id, digest, outcome, attempt_id}
+      )
+    else
+      {:error, :invalid_direct_delivery}
+    end
   end
 
   @doc "Reads one descending redacted audit page from the authoritative store."
@@ -584,12 +618,31 @@ defmodule Frameshift.Library do
   end
 
   def handle_call(
-        {:finish_direct_delivery, frame_id, revision, request_id, digest, outcome},
+        {:record_direct_attempt, frame_id, request_id, attempt_id, mode, phase},
+        _,
+        state
+      ) do
+    result = record_direct_attempt_record(state, frame_id, request_id, attempt_id, mode, phase)
+    {:reply, result, state}
+  end
+
+  def handle_call(
+        {:finish_direct_delivery, frame_id, revision, request_id, digest, outcome, attempt_id},
         _,
         state
       ) do
     previous = direct_delivery_record(state, frame_id)
-    result = finish_direct_delivery_record(state, frame_id, revision, request_id, digest, outcome)
+
+    result =
+      finish_direct_delivery_record(
+        state,
+        frame_id,
+        revision,
+        request_id,
+        digest,
+        outcome,
+        attempt_id
+      )
 
     if result == :ok and
          match?({:ok, %{"status" => "pending", "request_id" => ^request_id}}, previous) do
@@ -1881,8 +1934,96 @@ defmodule Frameshift.Library do
 
   defp direct_delivery_record(_, _), do: :not_found
 
-  defp finish_direct_delivery_record(state, frame_id, revision, request_id, digest, outcome)
-       when outcome in [:displayed, :pending] do
+  defp record_direct_attempt_record(state, frame_id, request_id, attempt_id, mode, phase)
+       when mode in [:push, :reconcile] and
+              phase in [:started, :displayed, :pending, :failed] and
+              is_binary(request_id) and byte_size(request_id) in 1..64 and
+              is_binary(attempt_id) and byte_size(attempt_id) == 32 do
+    if valid_attempt_id?(attempt_id) do
+      persist_direct_attempt(state, frame_id, request_id, attempt_id, mode, phase)
+    else
+      {:error, :invalid_direct_attempt}
+    end
+  end
+
+  defp record_direct_attempt_record(_, _, _, _, _, _), do: {:error, :invalid_direct_attempt}
+
+  defp valid_attempt_id?(nil), do: true
+
+  defp valid_attempt_id?(value) when is_binary(value) and byte_size(value) == 32,
+    do: String.match?(value, ~r/\A[0-9a-f]{32}\z/)
+
+  defp valid_attempt_id?(_), do: false
+
+  defp persist_direct_attempt(state, frame_id, request_id, attempt_id, mode, phase) do
+    with {:ok, %{"request_id" => ^request_id}} <- direct_delivery_record(state, frame_id),
+         :ok <- require_pending_attempt(state, frame_id, phase),
+         :ok <- require_started_attempt(state.connection, request_id, attempt_id, phase) do
+      persist_direct_attempt_audit(state.connection, request_id, attempt_id, mode, phase)
+    else
+      :not_found -> {:error, :direct_delivery_missing}
+      {:ok, _} -> {:error, :direct_delivery_conflict}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp persist_direct_attempt_audit(connection, request_id, attempt_id, mode, phase) do
+    operation =
+      if phase == :started, do: "direct.attempt.started", else: "direct.attempt.completed"
+
+    result =
+      transaction(connection, fn writer ->
+        DiagnosticsStore.record_audit(writer, operation, nil, %{
+          "requestId" => request_id,
+          "attemptId" => attempt_id,
+          "kind" => Atom.to_string(mode),
+          "outcome" => Atom.to_string(phase)
+        })
+      end)
+
+    case result do
+      {:ok, :ok} -> :ok
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp require_pending_attempt(state, frame_id, :started) do
+    case direct_delivery_record(state, frame_id) do
+      {:ok, %{"status" => "pending"}} -> :ok
+      _ -> {:error, :direct_delivery_conflict}
+    end
+  end
+
+  defp require_pending_attempt(_, _, _), do: :ok
+
+  defp require_started_attempt(_, _, _, :started), do: :ok
+
+  defp require_started_attempt(connection, request_id, attempt_id, _) do
+    case query_one(
+           connection,
+           """
+           SELECT id FROM audit_entries
+           WHERE operation = 'direct.attempt.started' AND correlation_id = ? AND attempt_id = ?
+           LIMIT 1
+           """,
+           [Digest.sha256(request_id), attempt_id]
+         ) do
+      {:ok, _} -> :ok
+      :not_found -> {:error, :unknown_direct_attempt}
+    end
+  end
+
+  defp finish_direct_delivery_record(
+         state,
+         frame_id,
+         revision,
+         request_id,
+         digest,
+         outcome,
+         attempt_id
+       )
+       when outcome in [:displayed, :pending] and
+              (is_nil(attempt_id) or (is_binary(attempt_id) and byte_size(attempt_id) == 32)) do
     with {:ok, delivery} <- direct_delivery_record(state, frame_id) do
       case Transition.direct_confirmation(
              to_direct_intent(delivery),
@@ -1891,7 +2032,7 @@ defmodule Frameshift.Library do
              digest,
              outcome
            ) do
-        :commit -> finish_matching_direct_delivery(state, delivery, :displayed)
+        :commit -> finish_matching_direct_delivery(state, delivery, :displayed, attempt_id)
         :already -> :ok
         :pending -> {:ok, :pending}
         {:error, reason} -> {:error, reason}
@@ -1907,11 +2048,12 @@ defmodule Frameshift.Library do
          _,
          _,
          _,
+         _,
          _
        ),
        do: {:error, :invalid_direct_delivery}
 
-  defp finish_matching_direct_delivery(state, delivery, :displayed) do
+  defp finish_matching_direct_delivery(state, delivery, :displayed, attempt_id) do
     frame_id = delivery["frame_id"]
     digest = delivery["desired_digest"]
 
@@ -1959,7 +2101,8 @@ defmodule Frameshift.Library do
 
         DiagnosticsStore.record_audit(connection, "direct.displayed", digest, %{
           "frameId" => frame_id,
-          "requestId" => delivery["request_id"]
+          "requestId" => delivery["request_id"],
+          "attemptId" => attempt_id
         })
 
         :ok

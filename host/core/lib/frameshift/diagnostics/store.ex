@@ -6,7 +6,10 @@ defmodule Frameshift.Diagnostics.Store do
   a connection or expose it to IPC clients.
   """
 
-  @audit_detail_keys ~w(kind revision sourceKind)
+  @audit_detail_keys ~w(kind outcome revision sourceKind)
+  @audit_kinds ~w(composition generation succeeded failed push reconcile)
+  @audit_outcomes ~w(started displayed pending failed)
+  @audit_sources ~w(import generated)
   @maximum_page 100
   @maximum_rows 20_000
 
@@ -18,7 +21,7 @@ defmodule Frameshift.Diagnostics.Store do
   def record_audit(connection, operation, subject_digest, details) do
     correlation_id =
       case Map.get(details, "commandId") || Map.get(details, "requestId") do
-        value when is_binary(value) -> Digest.sha256(value)
+        value when is_binary(value) and byte_size(value) in 1..64 -> Digest.sha256(value)
         _ -> nil
       end
 
@@ -32,15 +35,34 @@ defmodule Frameshift.Diagnostics.Store do
       [
         operation,
         subject_digest,
-        details |> Map.take(@audit_detail_keys) |> RFC8785.encode!(),
+        details |> safe_audit_details() |> RFC8785.encode!(),
         System.os_time(:millisecond),
         correlation_id,
-        Map.get(details, "attemptId")
+        safe_attempt_id(Map.get(details, "attemptId"))
       ]
     )
 
     :ok
   end
+
+  defp safe_audit_details(details) do
+    details
+    |> Map.take(@audit_detail_keys)
+    |> Enum.reduce(%{}, fn {key, value}, safe ->
+      if allowed_detail?(key, value), do: Map.put(safe, key, value), else: safe
+    end)
+  end
+
+  defp allowed_detail?("kind", value), do: value in @audit_kinds
+  defp allowed_detail?("outcome", value), do: value in @audit_outcomes
+  defp allowed_detail?("sourceKind", value), do: value in @audit_sources
+  defp allowed_detail?("revision", value), do: is_integer(value) and value in 1..1_000_000_000
+
+  defp safe_attempt_id(value) when is_binary(value) and byte_size(value) == 32 do
+    if String.match?(value, ~r/\A[0-9a-f]{32}\z/), do: value, else: nil
+  end
+
+  defp safe_attempt_id(_), do: nil
 
   @doc "Rejects malformed or unbounded metric batches before opening a write transaction."
   @spec validate_rollups(term()) :: :ok | {:error, :invalid_metric_batch}

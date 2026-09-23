@@ -19,6 +19,7 @@ final class CoreLogBridge: @unchecked Sendable {
     let level: String
     let outcome: String
     let correlationID: String
+    let attemptID: String
   }
 
   init(output: Pipe, error: Pipe) {
@@ -105,19 +106,19 @@ final class CoreLogBridge: @unchecked Sendable {
     switch fields.level {
     case "error", "critical", "alert", "emergency":
       Self.logger.error(
-        "\(fields.event, privacy: .public) outcome=\(fields.outcome, privacy: .public) correlation=\(fields.correlationID, privacy: .public)"
+        "\(fields.event, privacy: .public) outcome=\(fields.outcome, privacy: .public) correlation=\(fields.correlationID, privacy: .public) attempt=\(fields.attemptID, privacy: .public)"
       )
     case "warning":
       Self.logger.warning(
-        "\(fields.event, privacy: .public) outcome=\(fields.outcome, privacy: .public) correlation=\(fields.correlationID, privacy: .public)"
+        "\(fields.event, privacy: .public) outcome=\(fields.outcome, privacy: .public) correlation=\(fields.correlationID, privacy: .public) attempt=\(fields.attemptID, privacy: .public)"
       )
     case "info", "notice":
       Self.logger.info(
-        "\(fields.event, privacy: .public) outcome=\(fields.outcome, privacy: .public) correlation=\(fields.correlationID, privacy: .public)"
+        "\(fields.event, privacy: .public) outcome=\(fields.outcome, privacy: .public) correlation=\(fields.correlationID, privacy: .public) attempt=\(fields.attemptID, privacy: .public)"
       )
     default:
       Self.logger.debug(
-        "\(fields.event, privacy: .public) outcome=\(fields.outcome, privacy: .public) correlation=\(fields.correlationID, privacy: .public)"
+        "\(fields.event, privacy: .public) outcome=\(fields.outcome, privacy: .public) correlation=\(fields.correlationID, privacy: .public) attempt=\(fields.attemptID, privacy: .public)"
       )
     }
 
@@ -130,7 +131,7 @@ final class CoreLogBridge: @unchecked Sendable {
       let parsed = try? JSONSerialization.jsonObject(with: record.dropFirst(prefix.count)),
       let fields = parsed as? [String: Any],
       let event = fields["event"] as? String,
-      ["command_completed", "ipc_failure", "runtime"].contains(event),
+      ["command_completed", "delivery_attempt", "ipc_failure", "runtime"].contains(event),
       let level = fields["level"] as? String,
       ["debug", "info", "notice", "warning", "error", "critical", "alert", "emergency"].contains(
         level)
@@ -138,16 +139,29 @@ final class CoreLogBridge: @unchecked Sendable {
 
     let outcome = fields["outcome"] as? String ?? ""
     let correlationID = fields["correlationId"] as? String ?? ""
-    guard ["", "succeeded", "failed", "replay", "unknown", "other"].contains(outcome),
-      correlationID.isEmpty || validCorrelationID(correlationID)
+    let attemptID = fields["attemptId"] as? String ?? ""
+    guard
+      ["", "succeeded", "failed", "replay", "unknown", "displayed", "pending", "other"].contains(
+        outcome),
+      correlationID.isEmpty || validCorrelationID(correlationID),
+      attemptID.isEmpty || validAttemptID(attemptID)
     else { return nil }
 
-    return Record(event: event, level: level, outcome: outcome, correlationID: correlationID)
+    return Record(
+      event: event, level: level, outcome: outcome, correlationID: correlationID,
+      attemptID: attemptID)
   }
 
   private static func validCorrelationID(_ value: String) -> Bool {
     guard value.utf8.count == 71, value.hasPrefix("sha256:") else { return false }
     return value.dropFirst(7).utf8.allSatisfy { byte in
+      (48...57).contains(byte) || (97...102).contains(byte)
+    }
+  }
+
+  private static func validAttemptID(_ value: String) -> Bool {
+    guard value.utf8.count == 32 else { return false }
+    return value.utf8.allSatisfy { byte in
       (48...57).contains(byte) || (97...102).contains(byte)
     }
   }

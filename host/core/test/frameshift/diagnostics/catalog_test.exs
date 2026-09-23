@@ -7,7 +7,7 @@ defmodule Frameshift.Diagnostics.CatalogTest do
 
   test "definitions and samples use bounded semantic dimensions" do
     definitions = Catalog.metrics()
-    assert length(definitions) == 7
+    assert length(definitions) == 8
     assert Enum.all?(definitions, &(&1.event_name in Catalog.events()))
 
     samples =
@@ -31,6 +31,15 @@ defmodule Frameshift.Diagnostics.CatalogTest do
 
     assert [%{dimensions: %{"outcome" => "other"}}] =
              Catalog.samples(event, %{duration_ms: 2}, %{outcome: %{unsafe: "value"}})
+  end
+
+  test "attempt metrics keep only bounded mode and outcome labels" do
+    assert [%{dimensions: %{"mode" => "reconcile", "outcome" => "failed"}}] =
+             Catalog.samples(
+               [:frameshift, :delivery, :attempt],
+               %{count: 1},
+               %{mode: :reconcile, outcome: :failed, attempt_id: String.duplicate("a", 32)}
+             )
   end
 
   test "only catalog rollups with bounded dimensions and aligned buckets are valid" do

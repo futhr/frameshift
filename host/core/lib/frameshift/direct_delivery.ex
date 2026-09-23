@@ -9,6 +9,8 @@ defmodule Frameshift.DirectDelivery do
   advances current and previous-known-good references.
   """
 
+  require Logger
+
   alias Frameshift.DirectSync
   alias Frameshift.DirectSync.Artifact
   alias Frameshift.Library
@@ -49,7 +51,20 @@ defmodule Frameshift.DirectDelivery do
              artifact.profile_id,
              request_id
            ) do
-      synchronize(library, frame, intent, td, artifact, credential, config, context, options)
+      run_attempt(library, frame["frame_id"], request_id, :push, fn attempt_id ->
+        synchronize(
+          library,
+          frame,
+          intent,
+          td,
+          artifact,
+          credential,
+          config,
+          context,
+          options,
+          attempt_id
+        )
+      end)
     end
   end
 
@@ -72,7 +87,19 @@ defmodule Frameshift.DirectDelivery do
            ),
          {:ok, config} <- binding_config(options),
          {:ok, context} <- sync_context(intent["request_id"]) do
-      observe_intent(library, frame_id, intent, td, credential, config, context, options)
+      run_attempt(library, frame_id, intent["request_id"], :reconcile, fn attempt_id ->
+        observe_intent(
+          library,
+          frame_id,
+          intent,
+          td,
+          credential,
+          config,
+          context,
+          options,
+          attempt_id
+        )
+      end)
     end
   end
 
@@ -93,7 +120,17 @@ defmodule Frameshift.DirectDelivery do
     end
   end
 
-  defp observe_intent(library, frame_id, intent, td, credential, config, context, options) do
+  defp observe_intent(
+         library,
+         frame_id,
+         intent,
+         td,
+         credential,
+         config,
+         context,
+         options,
+         attempt_id
+       ) do
     synchronizer = Keyword.get(options, :synchronizer, DirectSync)
 
     case synchronizer.observe(
@@ -111,7 +148,8 @@ defmodule Frameshift.DirectDelivery do
                intent["revision"],
                intent["request_id"],
                intent["desired_digest"],
-               :displayed
+               :displayed,
+               attempt_id
              ) do
           :ok -> {:ok, :displayed}
           {:error, reason} -> {:error, reason}
@@ -201,12 +239,23 @@ defmodule Frameshift.DirectDelivery do
 
   defp sync_context(_), do: {:error, :invalid_request_id}
 
-  defp synchronize(library, frame, intent, td, artifact, credential, config, context, options) do
+  defp synchronize(
+         library,
+         frame,
+         intent,
+         td,
+         artifact,
+         credential,
+         config,
+         context,
+         options,
+         attempt_id
+       ) do
     synchronizer = Keyword.get(options, :synchronizer, DirectSync)
 
     case synchronizer.sync(td, artifact, credential, config, context) do
       {:ok, %{outcome: outcome}} when outcome in [:displayed, :pending] ->
-        finish(library, frame, intent, artifact, context, outcome)
+        finish(library, frame, intent, artifact, context, outcome, attempt_id)
 
       {:error, reason} ->
         {:error, reason}
@@ -220,18 +269,76 @@ defmodule Frameshift.DirectDelivery do
     _, _ -> {:error, :direct_sync_failure}
   end
 
-  defp finish(library, frame, intent, artifact, context, outcome) do
+  defp finish(library, frame, intent, artifact, context, outcome, attempt_id) do
     case Library.finish_direct_delivery(
            library,
            frame["frame_id"],
            intent["revision"],
            context.request_id,
            artifact.digest,
-           outcome
+           outcome,
+           attempt_id
          ) do
       :ok -> {:ok, :displayed}
       {:ok, :pending} -> {:ok, :pending}
       {:error, reason} -> {:error, reason}
     end
+  end
+
+  defp run_attempt(library, frame_id, request_id, mode, action) do
+    attempt_id = Base.encode16(:crypto.strong_rand_bytes(16), case: :lower)
+
+    with :ok <-
+           Library.record_direct_attempt(
+             library,
+             frame_id,
+             request_id,
+             attempt_id,
+             mode,
+             :started
+           ) do
+      result = safe_attempt_action(action, attempt_id)
+      outcome = attempt_outcome(result)
+      record_attempt_result(library, frame_id, request_id, attempt_id, mode, outcome)
+
+      :telemetry.execute(
+        [:frameshift, :delivery, :attempt],
+        %{count: 1},
+        %{mode: mode, outcome: outcome}
+      )
+
+      Logger.info("direct delivery attempt completed",
+        frameshift_event: :delivery_attempt,
+        frameshift_outcome: outcome,
+        request_id: request_id,
+        attempt_id: attempt_id
+      )
+
+      result
+    end
+  end
+
+  defp safe_attempt_action(action, attempt_id) do
+    action.(attempt_id)
+  rescue
+    _ -> {:error, :direct_sync_failure}
+  catch
+    _, _ -> {:error, :direct_sync_failure}
+  end
+
+  defp attempt_outcome({:ok, :displayed}), do: :displayed
+  defp attempt_outcome({:ok, :pending}), do: :pending
+  defp attempt_outcome(_), do: :failed
+
+  defp record_attempt_result(library, frame_id, request_id, attempt_id, mode, outcome) do
+    case Library.record_direct_attempt(library, frame_id, request_id, attempt_id, mode, outcome) do
+      :ok ->
+        :ok
+
+      {:error, _} ->
+        Logger.warning("direct attempt audit unavailable", frameshift_event: :runtime)
+    end
+  catch
+    :exit, _ -> Logger.warning("direct attempt audit unavailable", frameshift_event: :runtime)
   end
 end

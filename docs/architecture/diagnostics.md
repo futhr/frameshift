@@ -17,6 +17,14 @@ audit/state rows; carry them in logs, never as metric labels. Record UTC event
 time and monotonic process duration separately. End-to-end delivery duration
 across sleep or restart uses persisted timestamps and records clock uncertainty.
 
+For direct push and read-only reconciliation, the core records a random
+128-bit attempt ID and hashed command correlation in an audit fact before
+network I/O. It records the terminal attempt outcome afterward; a crash can
+leave only the started fact and a pending intent. A confirmed display fact
+carries the exact attempt ID that observed it. Native logs carry the same
+allowlisted attempt ID, while the attempt-count metric uses only mode and
+outcome dimensions. Sleeping pull attempts still need this trace.
+
 Default diagnostic fields are enum outcome, stable operation name, safe error
 code, revision, duration, byte count, and random correlation ID. No tokens,
 private keys, artwork bytes, prompt text, raw source paths, full URLs, or raw

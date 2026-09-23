@@ -37,6 +37,18 @@ defmodule Frameshift.Diagnostics.Catalog do
       buckets: []
     },
     %{
+      name: "frameshift.delivery.attempt.count",
+      event: [:frameshift, :delivery, :attempt],
+      measure: :count,
+      kind: :sum,
+      unit: :count,
+      dimensions: %{
+        mode: ~w(push reconcile other),
+        outcome: ~w(displayed pending failed other)
+      },
+      buckets: []
+    },
+    %{
       name: "frameshift.delivery.confirmed.duration.ms",
       event: [:frameshift, :delivery, :confirmed],
       measure: :duration_ms,

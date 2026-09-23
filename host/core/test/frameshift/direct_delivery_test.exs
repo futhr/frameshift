@@ -270,6 +270,13 @@ defmodule Frameshift.DirectDeliveryTest do
 
     assert {:ok, %{"status" => "displayed"}} =
              Library.direct_delivery(context.library, @frame_id)
+
+    assert %{"entries" => audit} = Library.audit_page(context.library)
+    displayed = Enum.find(audit, &(&1["operation"] == "direct.displayed"))
+    attempts = Enum.filter(audit, &(&1["operation"] == "direct.attempt.started"))
+    assert length(attempts) == 2
+    assert hd(attempts)["attemptId"] != List.last(attempts)["attemptId"]
+    assert displayed["attemptId"] == hd(attempts)["attemptId"]
   end
 
   test "a transport timeout leaves a durable desired asset for later reconciliation", context do
@@ -290,6 +297,35 @@ defmodule Frameshift.DirectDeliveryTest do
 
     assert {:ok, %{"request_id" => "timed-out-push", "status" => "pending"}} =
              Library.direct_delivery(context.library, @frame_id)
+
+    assert %{"entries" => audit} = Library.audit_page(context.library)
+    started = Enum.find(audit, &(&1["operation"] == "direct.attempt.started"))
+    completed = Enum.find(audit, &(&1["operation"] == "direct.attempt.completed"))
+    desired = Enum.find(audit, &(&1["operation"] == "direct.desired"))
+    assert started["attemptId"] =~ ~r/\A[0-9a-f]{32}\z/
+    assert completed["attemptId"] == started["attemptId"]
+    assert completed["detail"] == %{"kind" => "push", "outcome" => "failed"}
+    assert started["correlationId"] == desired["correlationId"]
+
+    assert {:error, :invalid_direct_attempt} =
+             Library.record_direct_attempt(
+               context.library,
+               @frame_id,
+               "timed-out-push",
+               "raw-id",
+               :push,
+               :started
+             )
+
+    assert {:error, :unknown_direct_attempt} =
+             Library.record_direct_attempt(
+               context.library,
+               @frame_id,
+               "timed-out-push",
+               String.duplicate("c", 32),
+               :push,
+               :failed
+             )
 
     assert [{"desired", ^digest}] = references(context.data_dir)
   end

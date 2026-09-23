@@ -8,8 +8,8 @@ defmodule Frameshift.Diagnostics.LogFormatter do
 
   alias Frameshift.Digest
 
-  @allowed_events ~w(command_completed ipc_failure runtime)
-  @allowed_outcomes ~w(succeeded failed replay unknown other)
+  @allowed_events ~w(command_completed delivery_attempt ipc_failure runtime)
+  @allowed_outcomes ~w(succeeded failed replay unknown displayed pending other)
 
   @doc "Formats one Elixir Logger console record for the macOS native bridge."
   @spec format(atom(), term(), term(), keyword()) :: iodata()
@@ -49,6 +49,7 @@ defmodule Frameshift.Diagnostics.LogFormatter do
       safe_id(Map.get(metadata, :command_id)) || safe_id(Map.get(metadata, :request_id))
 
     fields = put_if(fields, "correlationId", correlation_id)
+    fields = put_if(fields, "attemptId", safe_attempt_id(Map.get(metadata, :attempt_id)))
     fields = put_if(fields, "durationMs", safe_duration(Map.get(metadata, :duration_ms)))
 
     ["FSLOG|", Jason.encode!(fields), "\n"]
@@ -69,6 +70,12 @@ defmodule Frameshift.Diagnostics.LogFormatter do
     do: Digest.sha256(value)
 
   defp safe_id(_), do: nil
+
+  defp safe_attempt_id(value) when is_binary(value) and byte_size(value) == 32 do
+    if String.match?(value, ~r/\A[0-9a-f]{32}\z/), do: value, else: nil
+  end
+
+  defp safe_attempt_id(_), do: nil
 
   defp safe_duration(value) when is_integer(value) and value in 0..3_600_000, do: value
   defp safe_duration(_), do: nil

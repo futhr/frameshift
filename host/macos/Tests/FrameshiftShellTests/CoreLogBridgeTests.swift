@@ -17,7 +17,7 @@ struct CoreLogBridgeTests {
       CoreLogBridge.parse(record)
         == CoreLogBridge.Record(
           event: "command_completed", level: "info", outcome: "succeeded",
-          correlationID: digest
+          correlationID: digest, attemptID: ""
         )
     )
   }
@@ -29,11 +29,23 @@ struct CoreLogBridgeTests {
       "FSLOG|{\"event\":\"runtime\",\"level\":\"secret\"}",
       "FSLOG|{\"event\":\"runtime\",\"level\":\"info\",\"outcome\":\"token=secret\"}",
       "FSLOG|{\"event\":\"runtime\",\"level\":\"info\",\"correlationId\":\"raw-id\"}",
+      "FSLOG|{\"event\":\"delivery_attempt\",\"level\":\"info\",\"attemptId\":\"raw-id\"}",
       "private exception text",
     ]
 
     for record in invalid {
       #expect(CoreLogBridge.parse(Data(record.utf8)) == nil)
     }
+  }
+
+  @Test("accepts a random attempt ID for a delivery event")
+  func deliveryAttempt() {
+    let attemptID = String(repeating: "b", count: 32)
+    let record = Data(
+      "FSLOG|{\"event\":\"delivery_attempt\",\"level\":\"info\",\"outcome\":\"pending\",\"attemptId\":\"\(attemptID)\"}"
+        .utf8
+    )
+
+    #expect(CoreLogBridge.parse(record)?.attemptID == attemptID)
   }
 }

@@ -60,8 +60,39 @@ defmodule Frameshift.LocalIPC.DiagnosticsServerTest do
 
     assert :ok = Metrics.flush(context.metrics)
 
-    assert %{"ok" => true, "diagnostics" => %{"entries" => entries}} =
+    assert %{
+             "ok" => true,
+             "diagnostics" => %{
+               "entries" => entries,
+               "catalog" => %{"version" => 1, "metrics" => catalog},
+               "coverage" => coverage
+             }
+           } =
              request(context.path, "metrics")
+
+    assert coverage["available"]
+    assert coverage["resetAtMs"] == coverage["lossFreeSinceMs"]
+    assert coverage["observedAtMs"] >= coverage["resetAtMs"]
+
+    assert Enum.any?(catalog, fn definition ->
+             definition["name"] == "frameshift.command.duration.ms" and
+               definition["unit"] == "millisecond" and
+               definition["aggregation"] == "distribution" and
+               definition["upperBounds"] == [
+                 5,
+                 10,
+                 25,
+                 50,
+                 100,
+                 250,
+                 500,
+                 1_000,
+                 2_500,
+                 5_000,
+                 10_000,
+                 30_000
+               ]
+           end)
 
     assert Enum.any?(entries, &(&1["metric"] == "frameshift.command.duration.ms"))
 

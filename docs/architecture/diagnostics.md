@@ -53,6 +53,13 @@ constant and nonblocking: enqueue a bounded message to a supervised collector,
 never perform SQL, network, or log formatting in the caller. The collector
 maintains fixed-size histograms and bounded enum dimensions, batches rollups
 through the existing single writer, and reports its own dropped-event count.
+The versioned diagnostic read exposes metric units, histogram upper bounds,
+allowed dimensions, and collector reset time alongside each metric page.
+`lossFreeSinceMs` is null after a known drop or while the collector is down;
+`lastFlushedAtMs` identifies the most recent committed batch. A collector
+restart resets in-memory loss accounting, so queries must not infer historical
+completeness across that boundary.
+
 The proposed retention budget is minute buckets for 24 hours and hour buckets
 for 30 days, with a 32 MiB local metric ceiling; implementation must measure
 and enforce this bound. Each query includes a coverage interval and reset

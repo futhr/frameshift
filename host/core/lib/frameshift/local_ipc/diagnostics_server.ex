@@ -8,7 +8,7 @@ defmodule Frameshift.LocalIPC.DiagnosticsServer do
 
   use GenServer
 
-  alias Frameshift.Diagnostics.Metrics
+  alias Frameshift.Diagnostics.{Catalog, Metrics}
   alias Frameshift.Library
   alias Frameshift.LocalIPC.PeerIdentity
 
@@ -272,7 +272,10 @@ defmodule Frameshift.LocalIPC.DiagnosticsServer do
       page ->
         diagnostics =
           if operation == "metrics",
-            do: Map.put(page, "coverage", collector_status(metrics)),
+            do:
+              page
+              |> Map.put("coverage", collector_status(metrics))
+              |> Map.put("catalog", Catalog.describe()),
             else: page
 
         success_response(request_id, diagnostics)
@@ -280,10 +283,27 @@ defmodule Frameshift.LocalIPC.DiagnosticsServer do
   end
 
   defp collector_status(metrics) do
+    observed_at_ms = System.os_time(:millisecond)
+
     try do
-      Map.put(Metrics.status(metrics), "available", true)
+      status = Metrics.status(metrics)
+
+      status
+      |> Map.put("available", true)
+      |> Map.put("observedAtMs", observed_at_ms)
+      |> Map.put("resetAtMs", status["startedAtMs"])
+      |> Map.put(
+        "lossFreeSinceMs",
+        if(status["droppedEvents"] == 0, do: status["startedAtMs"], else: nil)
+      )
     catch
-      :exit, _ -> %{"available" => false}
+      :exit, _ ->
+        %{
+          "available" => false,
+          "observedAtMs" => observed_at_ms,
+          "resetAtMs" => nil,
+          "lossFreeSinceMs" => nil
+        }
     end
   end
 

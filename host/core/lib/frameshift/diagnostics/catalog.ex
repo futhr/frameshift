@@ -78,6 +78,29 @@ defmodule Frameshift.Diagnostics.Catalog do
   @spec events() :: [list(atom())]
   def events, do: @specs |> Enum.map(& &1.event) |> Enum.uniq()
 
+  @doc "Returns the versioned, machine-readable meaning of persisted rollups."
+  @spec describe() :: map()
+  def describe do
+    %{
+      "version" => 1,
+      "retentionMs" => %{"minute" => 86_400_000, "hour" => 2_592_000_000},
+      "metrics" =>
+        Enum.map(@specs, fn spec ->
+          %{
+            "name" => spec.name,
+            "owner" => spec.event |> Enum.at(1) |> Atom.to_string(),
+            "event" => Enum.join(spec.event, "."),
+            "measurement" => Atom.to_string(spec.measure),
+            "aggregation" => Atom.to_string(spec.kind),
+            "unit" => Atom.to_string(spec.unit),
+            "dimensions" =>
+              Map.new(spec.dimensions, fn {key, allowed} -> {Atom.to_string(key), allowed} end),
+            "upperBounds" => spec.buckets
+          }
+        end)
+    }
+  end
+
   @doc "Returns the Telemetry.Metrics definitions used by the local reporter."
   @spec metrics() :: [Telemetry.Metrics.t()]
   def metrics do

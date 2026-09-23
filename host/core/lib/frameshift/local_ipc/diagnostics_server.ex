@@ -15,6 +15,7 @@ defmodule Frameshift.LocalIPC.DiagnosticsServer do
   @maximum_request_bytes 8_192
   @maximum_response_bytes 256 * 1024
   @request_timeout_ms 5_000
+  @maximum_clients 16
 
   defmodule State do
     @moduledoc "Owns the listener and its supervised acceptor."
@@ -49,7 +50,7 @@ defmodule Frameshift.LocalIPC.DiagnosticsServer do
          {:ok, directory} <- File.lstat(Path.dirname(path)),
          {:ok, acceptor} <-
            Task.Supervisor.start_child(task_supervisor, fn ->
-             accept_loop(listener, directory.uid, library, metrics)
+             accept_loop(listener, directory.uid, library, metrics, task_supervisor, [])
            end) do
       Process.monitor(acceptor)
       {:ok, %State{listener: listener, path: path, acceptor: acceptor}}
@@ -60,14 +61,14 @@ defmodule Frameshift.LocalIPC.DiagnosticsServer do
 
   @impl true
   def handle_info(
-        {:DOWN, _reference, :process, acceptor, reason},
+        {:DOWN, _, :process, acceptor, reason},
         %State{acceptor: acceptor} = state
       ) do
     {:stop, {:acceptor_stopped, reason}, state}
   end
 
   @impl true
-  def terminate(_reason, %State{listener: listener, path: path}) do
+  def terminate(_, %State{listener: listener, path: path}) do
     :socket.close(listener)
     File.rm(path)
     :ok
@@ -80,12 +81,13 @@ defmodule Frameshift.LocalIPC.DiagnosticsServer do
       parent = Path.dirname(path)
 
       with :ok <- File.mkdir_p(parent),
+           {:ok, %File.Stat{type: :directory}} <- File.lstat(parent),
            :ok <- File.chmod(parent, 0o700),
            {:ok, %File.Stat{type: :directory, mode: mode}} <- File.lstat(parent),
            true <- Bitwise.band(mode, 0o077) == 0 do
         remove_stale_socket(path)
       else
-        _unsafe -> {:error, :unsafe_diagnostics_directory}
+        _ -> {:error, :unsafe_diagnostics_directory}
       end
     end
   end
@@ -100,7 +102,7 @@ defmodule Frameshift.LocalIPC.DiagnosticsServer do
           check_stale_socket(socket, path)
         end
 
-      _other ->
+      _ ->
         {:error, :unsafe_socket_path}
     end
   end
@@ -112,21 +114,42 @@ defmodule Frameshift.LocalIPC.DiagnosticsServer do
     case result do
       :ok -> {:error, :socket_already_active}
       {:error, :econnrefused} -> File.rm(path)
-      _other -> {:error, :socket_path_busy}
+      _ -> {:error, :socket_path_busy}
     end
   end
 
-  defp accept_loop(listener, owner_uid, library, metrics) do
+  defp accept_loop(listener, owner_uid, library, metrics, task_supervisor, workers) do
     case :socket.accept(listener) do
       {:ok, socket} ->
-        serve(socket, owner_uid, library, metrics)
-        accept_loop(listener, owner_uid, library, metrics)
+        live_workers = Enum.filter(workers, &Process.alive?/1)
+
+        next_workers =
+          dispatch_client(socket, owner_uid, library, metrics, task_supervisor, live_workers)
+
+        accept_loop(listener, owner_uid, library, metrics, task_supervisor, next_workers)
 
       {:error, :closed} ->
         :ok
 
       {:error, reason} ->
         exit({:diagnostics_accept_failed, reason})
+    end
+  end
+
+  defp dispatch_client(socket, _, _, _, _, workers)
+       when length(workers) >= @maximum_clients do
+    :socket.close(socket)
+    workers
+  end
+
+  defp dispatch_client(socket, owner_uid, library, metrics, tasks, workers) do
+    case Task.Supervisor.start_child(tasks, fn -> serve(socket, owner_uid, library, metrics) end) do
+      {:ok, worker} ->
+        [worker | workers]
+
+      {:error, _} ->
+        :socket.close(socket)
+        workers
     end
   end
 
@@ -137,8 +160,8 @@ defmodule Frameshift.LocalIPC.DiagnosticsServer do
            {:ok, request} <- decode_request(payload) do
         dispatch(request, library, metrics)
       else
-        {:ok, _different_uid} -> error_response(nil, :authentication_required)
-        {:error, _reason} -> error_response(nil, :invalid_request)
+        {:ok, _} -> error_response(nil, :authentication_required)
+        {:error, _} -> error_response(nil, :invalid_request)
       end
 
     encoded = RFC8785.encode!(response)
@@ -149,7 +172,7 @@ defmodule Frameshift.LocalIPC.DiagnosticsServer do
 
     :socket.close(socket)
   catch
-    _kind, _reason ->
+    _, _ ->
       :socket.close(socket)
   end
 
@@ -161,11 +184,11 @@ defmodule Frameshift.LocalIPC.DiagnosticsServer do
          {:ok, payload} <- read_exact(socket, length, deadline, []) do
       {:ok, payload}
     else
-      _invalid -> {:error, :invalid_request}
+      _ -> {:error, :invalid_request}
     end
   end
 
-  defp read_exact(_socket, 0, _deadline, parts),
+  defp read_exact(_, 0, _, parts),
     do: {:ok, parts |> Enum.reverse() |> IO.iodata_to_binary()}
 
   defp read_exact(socket, count, deadline, parts) do
@@ -181,7 +204,7 @@ defmodule Frameshift.LocalIPC.DiagnosticsServer do
         {:error, reason} ->
           {:error, reason}
 
-        _empty ->
+        _ ->
           {:error, :closed}
       end
     end
@@ -204,7 +227,7 @@ defmodule Frameshift.LocalIPC.DiagnosticsServer do
          true <- valid_page(request) do
       {:ok, request}
     else
-      _invalid -> {:error, :invalid_request}
+      _ -> {:error, :invalid_request}
     end
   end
 
@@ -221,16 +244,9 @@ defmodule Frameshift.LocalIPC.DiagnosticsServer do
   end
 
   defp dispatch(%{"requestId" => request_id, "operation" => "health"}, library, metrics) do
-    collector =
-      try do
-        Map.put(Metrics.status(metrics), "available", true)
-      catch
-        :exit, _reason -> %{"available" => false}
-      end
-
     success_response(request_id, %{
       "store" => Library.diagnostics_health(library),
-      "collector" => collector,
+      "collector" => collector_status(metrics),
       "observedAtMs" => System.os_time(:millisecond)
     })
   end
@@ -256,10 +272,18 @@ defmodule Frameshift.LocalIPC.DiagnosticsServer do
       page ->
         diagnostics =
           if operation == "metrics",
-            do: Map.put(page, "coverage", Metrics.status(metrics)),
+            do: Map.put(page, "coverage", collector_status(metrics)),
             else: page
 
         success_response(request_id, diagnostics)
+    end
+  end
+
+  defp collector_status(metrics) do
+    try do
+      Map.put(Metrics.status(metrics), "available", true)
+    catch
+      :exit, _ -> %{"available" => false}
     end
   end
 

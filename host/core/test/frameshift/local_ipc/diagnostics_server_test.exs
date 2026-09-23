@@ -29,7 +29,7 @@ defmodule Frameshift.LocalIPC.DiagnosticsServerTest do
         try do
           GenServer.stop(process)
         catch
-          :exit, _reason -> :ok
+          :exit, _ -> :ok
         end
       end
 
@@ -119,6 +119,59 @@ defmodule Frameshift.LocalIPC.DiagnosticsServerTest do
 
     assert %File.Stat{mode: mode} = File.lstat!(context.path)
     assert Bitwise.band(mode, 0o777) == 0o600
+  end
+
+  test "metric reads remain available while the collector restarts", context do
+    GenServer.stop(context.metrics)
+
+    assert %{"ok" => true, "diagnostics" => %{"coverage" => %{"available" => false}}} =
+             request(context.path, "metrics")
+
+    assert %{"ok" => true, "diagnostics" => %{"collector" => %{"available" => false}}} =
+             request(context.path, "health")
+  end
+
+  test "malformed rollups cannot crash the SQLite owner", context do
+    assert {:error, :invalid_metric_batch} = Library.write_metric_rollups(context.library, [%{}])
+
+    assert {:error, :invalid_metric_batch} =
+             Library.write_metric_rollups(context.library, :invalid)
+
+    assert Process.alive?(context.library)
+    assert %{"ok" => true} = request(context.path, "health")
+  end
+
+  test "a stalled diagnostic client does not block another read", context do
+    {:ok, stalled} = :gen_tcp.connect({:local, context.path}, 0, [:binary, active: false])
+    :ok = :gen_tcp.send(stalled, <<64::unsigned-big-32>>)
+
+    assert %{"ok" => true} = request(context.path, "health")
+    :gen_tcp.close(stalled)
+  end
+
+  test "a symlinked diagnostics directory is rejected without changing its target", context do
+    parent = Path.dirname(context.path)
+    target = Path.join(parent, "target")
+    link = Path.join(parent, "linked")
+    File.mkdir_p!(target)
+    File.chmod!(target, 0o755)
+    :ok = File.ln_s(target, link)
+
+    result =
+      Task.async(fn ->
+        Process.flag(:trap_exit, true)
+
+        DiagnosticsServer.start_link(
+          path: Path.join(link, "other.sock"),
+          library: context.library,
+          metrics: context.metrics,
+          name: nil
+        )
+      end)
+
+    assert {:error, :unsafe_diagnostics_directory} = Task.await(result)
+
+    assert Bitwise.band(File.stat!(target).mode, 0o777) == 0o755
   end
 
   defp request(path, operation, extra \\ %{}) do

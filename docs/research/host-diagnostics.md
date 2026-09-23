@@ -5,12 +5,12 @@
 
 ## Existing implementation
 
-The installed shell currently directs its bundled core's stdout and stderr to
-the null device. The core configures console logging and contains almost no
-operational instrumentation. SQLite has an `audit_entries` table but no
-complete paginated read/export path or command correlation field. The local
-mutation IPC uses a per-launch token held by the Swift shell; a standalone CLI
-cannot reuse it. These are code observations, not release evidence.
+At the research baseline, the installed shell directed its bundled core's
+stdout and stderr to the null device. The core configured console logging and
+contained almost no operational instrumentation. SQLite had an `audit_entries`
+table but no paginated read or command correlation field. The local mutation
+IPC used a per-launch token held by the Swift shell; a standalone CLI could
+not reuse it. These historical code observations are not release evidence.
 
 ## Platform and library findings
 
@@ -45,9 +45,10 @@ cannot reuse it. These are code observations, not release evidence.
 
 A shell-owned Swift pipe bridge now translates allowlisted structured core
 records to Apple unified logging while the core remains portable. A packaged
-ad-hoc-signed app has shown command records through `/usr/bin/log`; malformed
-record, backpressure, signed distribution, and quiet idle behavior still need
-qualification. Apple does not promise fixed unified-log retention, so audit
+ad-hoc-signed app has shown command records through `/usr/bin/log`; unit checks
+now reject unsafe public fields and the bridge bounds partial lines and record
+batches. Process death, backpressure, signed distribution, and quiet idle
+behavior still need qualification. Apple does not promise fixed unified-log retention, so audit
 remains in the application store. The implemented local reporter bounds its
 dimensions and row count; physical disk and idle costs still need measurement.
 The installed Mac CLI uses a separate peer-authenticated socket because the

@@ -104,7 +104,67 @@ defmodule Frameshift.Diagnostics.Catalog do
     |> Enum.flat_map(&sample_for(&1, measurements, metadata))
   end
 
-  def samples(_event, _measurements, _metadata), do: []
+  def samples(_, _, _), do: []
+
+  @doc "Checks a completed rollup against the versioned catalog before persistence."
+  @spec valid_rollup?(term()) :: boolean()
+  def valid_rollup?(%{metric: metric} = row) do
+    case Enum.find(@specs, &(&1.name == metric)) do
+      nil -> false
+      spec -> valid_rollup_for_spec?(row, spec)
+    end
+  end
+
+  def valid_rollup?(_), do: false
+
+  defp valid_rollup_for_spec?(row, spec) do
+    valid_bucket?(Map.get(row, :bucket_ms), Map.get(row, :granularity)) and
+      valid_dimensions?(Map.get(row, :dimensions), spec.dimensions) and
+      valid_measurement?(row) and
+      valid_histogram?(Map.get(row, :histogram), spec.buckets, Map.get(row, :count))
+  end
+
+  defp valid_measurement?(%{count: count, sum: sum, min: min, max: max}) do
+    is_integer(count) and count in 1..1_000_000_000 and
+      finite_number?(sum) and finite_number?(min) and finite_number?(max) and
+      min <= max and sum <= 1.0e21
+  end
+
+  defp valid_measurement?(_), do: false
+
+  defp valid_bucket?(bucket_ms, granularity) when is_integer(bucket_ms) do
+    width =
+      case granularity do
+        "minute" -> 60_000
+        "hour" -> 3_600_000
+        _ -> nil
+      end
+
+    not is_nil(width) and bucket_ms >= 0 and bucket_ms <= 1_000_000_000_000_000 and
+      rem(bucket_ms, width) == 0
+  end
+
+  defp valid_bucket?(_, _), do: false
+
+  defp valid_dimensions?(dimensions, expected) when is_map(dimensions) do
+    map_size(dimensions) == map_size(expected) and
+      Enum.all?(expected, fn {key, allowed} ->
+        Map.get(dimensions, Atom.to_string(key)) in allowed
+      end)
+  end
+
+  defp valid_dimensions?(_, _), do: false
+
+  defp valid_histogram?(histogram, buckets, count) when is_list(histogram) do
+    length(histogram) == length(buckets) + 1 and
+      Enum.all?(histogram, &(is_integer(&1) and &1 >= 0)) and Enum.sum(histogram) == count
+  end
+
+  defp valid_histogram?(_, _, _), do: false
+
+  defp finite_number?(value) when is_integer(value), do: value >= 0 and value <= 1.0e21
+  defp finite_number?(value) when is_float(value), do: value >= 0 and value <= 1.0e21
+  defp finite_number?(_), do: false
 
   defp sample_for(spec, measurements, metadata) do
     value = Map.get(measurements, spec.measure)
@@ -126,7 +186,13 @@ defmodule Frameshift.Diagnostics.Catalog do
   end
 
   defp dimension({key, allowed}, metadata) do
-    candidate = metadata |> Map.get(key, :other) |> to_string()
+    candidate =
+      case Map.get(metadata, key) do
+        value when is_atom(value) -> Atom.to_string(value)
+        value when is_binary(value) and byte_size(value) <= 64 -> value
+        _ -> "other"
+      end
+
     {Atom.to_string(key), if(candidate in allowed, do: candidate, else: "other")}
   end
 
@@ -136,5 +202,5 @@ defmodule Frameshift.Diagnostics.Catalog do
     value >= 0 and value <= 1_000_000_000_000
   end
 
-  defp valid_value?(_value), do: false
+  defp valid_value?(_), do: false
 end

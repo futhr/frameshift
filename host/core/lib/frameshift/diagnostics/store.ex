@@ -10,6 +10,18 @@ defmodule Frameshift.Diagnostics.Store do
   @maximum_page 100
   @maximum_rows 20_000
 
+  alias Frameshift.Diagnostics.Catalog
+
+  @doc "Rejects malformed or unbounded metric batches before opening a write transaction."
+  @spec validate_rollups(term()) :: :ok | {:error, :invalid_metric_batch}
+  def validate_rollups(rows) when is_list(rows) do
+    if length(rows) <= 2_000 and Enum.all?(rows, &Catalog.valid_rollup?/1),
+      do: :ok,
+      else: {:error, :invalid_metric_batch}
+  end
+
+  def validate_rollups(_), do: {:error, :invalid_metric_batch}
+
   @doc "Returns a descending, stable audit page with private fields removed."
   @spec audit_page(pid(), non_neg_integer() | nil, pos_integer()) ::
           map() | {:error, :invalid_diagnostics_query}
@@ -56,7 +68,7 @@ defmodule Frameshift.Diagnostics.Store do
     }
   end
 
-  def audit_page(_connection, _cursor, _limit), do: {:error, :invalid_diagnostics_query}
+  def audit_page(_, _, _), do: {:error, :invalid_diagnostics_query}
 
   @doc "Returns a bounded recent metric page from committed rollups."
   @spec metric_page(pid(), non_neg_integer() | nil, pos_integer()) :: map() | {:error, atom()}
@@ -114,7 +126,7 @@ defmodule Frameshift.Diagnostics.Store do
     }
   end
 
-  def metric_page(_connection, _cursor, _limit), do: {:error, :invalid_diagnostics_query}
+  def metric_page(_, _, _), do: {:error, :invalid_diagnostics_query}
 
   @doc "Returns small, identifier-free gauges from authoritative state."
   @spec health(pid()) :: map()

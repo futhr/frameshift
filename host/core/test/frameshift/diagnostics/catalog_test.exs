@@ -28,5 +28,29 @@ defmodule Frameshift.Diagnostics.CatalogTest do
     assert Catalog.samples(event, %{duration_ms: 1_000_000_000_001}, %{}) == []
     assert Catalog.samples(event, %{duration_ms: "private"}, %{}) == []
     assert Catalog.samples([:unknown], %{count: 1}, %{}) == []
+
+    assert [%{dimensions: %{"outcome" => "other"}}] =
+             Catalog.samples(event, %{duration_ms: 2}, %{outcome: %{unsafe: "value"}})
+  end
+
+  test "only catalog rollups with bounded dimensions and aligned buckets are valid" do
+    rollup = %{
+      metric: "frameshift.command.duration.ms",
+      bucket_ms: 60_000,
+      granularity: "minute",
+      dimensions: %{"outcome" => "succeeded"},
+      count: 2,
+      sum: 100.0,
+      min: 37.0,
+      max: 63.0,
+      histogram: List.replace_at(List.duplicate(0, 13), 3, 2)
+    }
+
+    assert Catalog.valid_rollup?(rollup)
+    refute Catalog.valid_rollup?(%{rollup | bucket_ms: 61_000})
+    refute Catalog.valid_rollup?(%{rollup | dimensions: %{"frameId" => "secret"}})
+    refute Catalog.valid_rollup?(%{rollup | histogram: [2]})
+    refute Catalog.valid_rollup?(%{rollup | count: -1})
+    refute Catalog.valid_rollup?(Map.put(rollup, :metric, "invented"))
   end
 end

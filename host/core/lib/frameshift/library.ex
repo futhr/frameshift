@@ -348,43 +348,43 @@ defmodule Frameshift.Library do
   end
 
   @impl true
-  def terminate(_reason, %State{connection: connection}) do
+  def terminate(_, %State{connection: connection}) do
     if Process.alive?(connection), do: GenServer.stop(connection)
     :ok
   end
 
   @impl true
-  def handle_call({:import_master, bytes, attributes}, _from, state) do
+  def handle_call({:import_master, bytes, attributes}, _, state) do
     {:reply, import_master_record(state, bytes, attributes, nil, nil), state}
   end
 
   def handle_call(
         {:add_generated_variant, bytes, attributes, parent_digest, recipe_hash},
-        _from,
+        _,
         state
       ) do
     attributes = Map.put(attributes, :source_kind, :generated)
     {:reply, import_master_record(state, bytes, attributes, parent_digest, recipe_hash), state}
   end
 
-  def handle_call({:add_generated_master, bytes, attributes, recipe_hash}, _from, state) do
+  def handle_call({:add_generated_master, bytes, attributes, recipe_hash}, _, state) do
     attributes = Map.put(attributes, :source_kind, :generated)
     {:reply, import_master_record(state, bytes, attributes, nil, recipe_hash), state}
   end
 
-  def handle_call({:cached_generation, recipe_hash}, _from, state) do
+  def handle_call({:cached_generation, recipe_hash}, _, state) do
     {:reply, cached_generation_record(state, recipe_hash), state}
   end
 
-  def handle_call({:register_recipe, kind, parameters, source_digests}, _from, state) do
+  def handle_call({:register_recipe, kind, parameters, source_digests}, _, state) do
     {:reply, do_register_recipe(state, kind, parameters, source_digests), state}
   end
 
-  def handle_call({:register_artifact, bytes, attributes}, _from, state) do
+  def handle_call({:register_artifact, bytes, attributes}, _, state) do
     {:reply, do_register_artifact(state, bytes, attributes), state}
   end
 
-  def handle_call({:cached_artifact, recipe_hash, profile_id, renderer_revision}, _from, state) do
+  def handle_call({:cached_artifact, recipe_hash, profile_id, renderer_revision}, _, state) do
     result =
       query_one(
         state.connection,
@@ -401,34 +401,34 @@ defmodule Frameshift.Library do
     {:reply, result, state}
   end
 
-  def handle_call({:add_label, digest, label, provenance, confidence, revision}, _from, state) do
+  def handle_call({:add_label, digest, label, provenance, confidence, revision}, _, state) do
     result = add_label_record(state, digest, label, provenance, confidence, revision)
     {:reply, result, state}
   end
 
-  def handle_call({:search, query, options}, _from, state) do
+  def handle_call({:search, query, options}, _, state) do
     {:reply, search_records(state, query, options), state}
   end
 
-  def handle_call({:get_setting, key}, _from, state) do
+  def handle_call({:get_setting, key}, _, state) do
     {:reply, get_setting_record(state, key), state}
   end
 
-  def handle_call({:put_setting, key, value}, _from, state) do
+  def handle_call({:put_setting, key, value}, _, state) do
     {:reply, put_setting_record(state, key, value), state}
   end
 
-  def handle_call({:claim_command, command_id, command_hash}, _from, state) do
+  def handle_call({:claim_command, command_id, command_hash}, _, state) do
     {:reply, claim_command_record(state, command_id, command_hash), state}
   end
 
-  def handle_call({:complete_command, command_id, command_hash, outcome}, _from, state) do
+  def handle_call({:complete_command, command_id, command_hash, outcome}, _, state) do
     {:reply, complete_command_record(state, command_id, command_hash, outcome), state}
   end
 
   def handle_call(
         {:register_paired_frame, td_source, credential_ref, server_spki_fingerprint},
-        _from,
+        _,
         state
       ) do
     result =
@@ -440,23 +440,23 @@ defmodule Frameshift.Library do
     {:reply, result, state}
   end
 
-  def handle_call(:list_paired_frames, _from, state) do
+  def handle_call(:list_paired_frames, _, state) do
     {:reply, list_paired_frame_records(state), state}
   end
 
-  def handle_call({:get_paired_frame, frame_id}, _from, state) do
+  def handle_call({:get_paired_frame, frame_id}, _, state) do
     {:reply, get_paired_frame_record(state, frame_id), state}
   end
 
-  def handle_call({:get_paired_frame_by_spki, fingerprint}, _from, state) do
+  def handle_call({:get_paired_frame_by_spki, fingerprint}, _, state) do
     {:reply, get_paired_frame_by_spki_record(state, fingerprint), state}
   end
 
-  def handle_call({:forget_paired_frame, frame_id}, _from, state) do
+  def handle_call({:forget_paired_frame, frame_id}, _, state) do
     {:reply, forget_paired_frame_record(state, frame_id), state}
   end
 
-  def handle_call({:pin, digest}, _from, state) do
+  def handle_call({:pin, digest}, _, state) do
     result =
       write_existing_object(state, digest, fn ->
         execute(
@@ -469,12 +469,12 @@ defmodule Frameshift.Library do
     {:reply, result, state}
   end
 
-  def handle_call({:unpin, digest}, _from, state) do
+  def handle_call({:unpin, digest}, _, state) do
     execute(state.connection, "DELETE FROM pins WHERE object_digest = ?", [digest])
     {:reply, :ok, state}
   end
 
-  def handle_call({:remove_master, digest}, _from, state) do
+  def handle_call({:remove_master, digest}, _, state) do
     result =
       write_existing_master(state, digest, fn ->
         execute(state.connection, "UPDATE masters SET removed_at_ms = ? WHERE digest = ?", [
@@ -486,17 +486,17 @@ defmodule Frameshift.Library do
     {:reply, result, state}
   end
 
-  def handle_call({:restore_master, digest}, _from, state) do
+  def handle_call({:restore_master, digest}, _, state) do
     result = restore_master_record(state, digest)
     {:reply, result, state}
   end
 
-  def handle_call({:protect_frame_asset, frame_id, role, digest}, _from, state) do
+  def handle_call({:protect_frame_asset, frame_id, role, digest}, _, state) do
     result = protect_frame_asset_record(state, frame_id, role, digest)
     {:reply, result, state}
   end
 
-  def handle_call({:release_frame_asset, frame_id, role, digest}, _from, state) do
+  def handle_call({:release_frame_asset, frame_id, role, digest}, _, state) do
     execute(
       state.connection,
       "DELETE FROM frame_asset_refs WHERE frame_id = ? AND role = ? AND object_digest = ?",
@@ -506,21 +506,21 @@ defmodule Frameshift.Library do
     {:reply, :ok, state}
   end
 
-  def handle_call(:collect_removed, _from, state) do
+  def handle_call(:collect_removed, _, state) do
     {:reply, collect_removed_records(state), state}
   end
 
-  def handle_call({:get_master, digest}, _from, state) do
+  def handle_call({:get_master, digest}, _, state) do
     {:reply, get_master_record(state, digest), state}
   end
 
-  def handle_call({:read_object, digest, maximum_bytes}, _from, state) do
+  def handle_call({:read_object, digest, maximum_bytes}, _, state) do
     {:reply, read_object_record(state, digest, maximum_bytes), state}
   end
 
   def handle_call(
         {:queue_outbox, frame_id, digest, profile_id, playlist_revision, command_id},
-        _from,
+        _,
         state
       ) do
     result =
@@ -537,11 +537,11 @@ defmodule Frameshift.Library do
     {:reply, result, state}
   end
 
-  def handle_call({:outbox_manifest, frame_id}, _from, state) do
+  def handle_call({:outbox_manifest, frame_id}, _, state) do
     {:reply, outbox_manifest_record(state, frame_id), state}
   end
 
-  def handle_call({:acknowledge_outbox, frame_id, acknowledgement}, _from, state) do
+  def handle_call({:acknowledge_outbox, frame_id, acknowledgement}, _, state) do
     queued_at_ms =
       case query_one(
              state.connection,
@@ -561,7 +561,7 @@ defmodule Frameshift.Library do
 
   def handle_call(
         {:begin_direct_delivery, frame_id, digest, profile_id, request_id},
-        _from,
+        _,
         state
       ) do
     previous = direct_delivery_record(state, frame_id)
@@ -579,13 +579,13 @@ defmodule Frameshift.Library do
     {:reply, result, state}
   end
 
-  def handle_call({:direct_delivery, frame_id}, _from, state) do
+  def handle_call({:direct_delivery, frame_id}, _, state) do
     {:reply, direct_delivery_record(state, frame_id), state}
   end
 
   def handle_call(
         {:finish_direct_delivery, frame_id, revision, request_id, digest, outcome},
-        _from,
+        _,
         state
       ) do
     previous = direct_delivery_record(state, frame_id)
@@ -600,33 +600,36 @@ defmodule Frameshift.Library do
     {:reply, result, state}
   end
 
-  def handle_call({:audit_page, cursor, limit}, _from, state) do
+  def handle_call({:audit_page, cursor, limit}, _, state) do
     {:reply, DiagnosticsStore.audit_page(state.connection, cursor, limit), state}
   end
 
-  def handle_call({:metric_page, cursor, limit}, _from, state) do
+  def handle_call({:metric_page, cursor, limit}, _, state) do
     {:reply, DiagnosticsStore.metric_page(state.connection, cursor, limit), state}
   end
 
-  def handle_call(:diagnostics_health, _from, state) do
+  def handle_call(:diagnostics_health, _, state) do
     {:reply, DiagnosticsStore.health(state.connection), state}
   end
 
-  def handle_call({:write_metric_rollups, rows}, _from, state) do
-    result =
-      Exqlite.transaction(
-        state.connection,
-        fn connection -> DiagnosticsStore.merge_rollups(connection, rows, now_ms()) end,
-        mode: :immediate
-      )
-
+  def handle_call({:write_metric_rollups, rows}, _, state) do
     reply =
-      case result do
-        {:ok, :ok} -> :ok
-        {:error, reason} -> {:error, reason}
+      with :ok <- DiagnosticsStore.validate_rollups(rows) do
+        persist_metric_rollups(state.connection, rows)
       end
 
     {:reply, reply, state}
+  end
+
+  defp persist_metric_rollups(connection, rows) do
+    case Exqlite.transaction(
+           connection,
+           fn owner -> DiagnosticsStore.merge_rollups(owner, rows, now_ms()) end,
+           mode: :immediate
+         ) do
+      {:ok, :ok} -> :ok
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   defp import_master_record(state, bytes, attributes, parent_digest, recipe_hash) do
@@ -644,7 +647,7 @@ defmodule Frameshift.Library do
     error in Exqlite.Error -> {:error, {:database, error.message}}
   end
 
-  defp existing_generation(_state, nil), do: :not_found
+  defp existing_generation(_, nil), do: :not_found
 
   defp existing_generation(state, recipe_hash) do
     case cached_generation_record(state, recipe_hash) do
@@ -661,15 +664,15 @@ defmodule Frameshift.Library do
       else: {:error, {:missing_fields, missing}}
   end
 
-  defp validate_master_attributes(_attributes), do: {:error, :invalid_attributes}
+  defp validate_master_attributes(_), do: {:error, :invalid_attributes}
 
   defp validate_master_relationship(%{source_kind: :import}, nil, nil), do: :ok
 
-  defp validate_master_relationship(%{source_kind: :generated}, _parent, recipe_hash)
+  defp validate_master_relationship(%{source_kind: :generated}, _, recipe_hash)
        when is_binary(recipe_hash),
        do: :ok
 
-  defp validate_master_relationship(_attributes, _parent, _recipe_hash),
+  defp validate_master_relationship(_, _, _),
     do: {:error, :invalid_master_relationship}
 
   defp validate_master_values(attributes) do
@@ -681,13 +684,13 @@ defmodule Frameshift.Library do
       {is_binary(attributes.media_type), :invalid_media_type}
     ]
 
-    case Enum.find(validations, fn {valid?, _error} -> not valid? end) do
+    case Enum.find(validations, fn {valid?, _} -> not valid? end) do
       nil -> :ok
-      {_valid?, error} -> {:error, error}
+      {_, error} -> {:error, error}
     end
   end
 
-  defp validate_parent_recipe(_state, nil, nil), do: :ok
+  defp validate_parent_recipe(_, nil, nil), do: :ok
 
   defp validate_parent_recipe(state, nil, recipe_hash) do
     with true <- Digest.valid_sha256?(recipe_hash),
@@ -697,21 +700,21 @@ defmodule Frameshift.Library do
     else
       false -> {:error, :invalid_digest}
       :not_found -> {:error, :parent_or_recipe_missing}
-      {:ok, _wrong_kind} -> {:error, :not_generation_recipe}
+      {:ok, _} -> {:error, :not_generation_recipe}
     end
   end
 
   defp validate_parent_recipe(state, parent_digest, recipe_hash) do
     with true <- Digest.valid_sha256?(parent_digest),
          true <- Digest.valid_sha256?(recipe_hash),
-         {:ok, _master} <- get_master_record(state, parent_digest),
+         {:ok, _} <- get_master_record(state, parent_digest),
          {:ok, %{"kind" => "generation"}} <-
            query_one(state.connection, "SELECT kind FROM recipes WHERE hash = ?", [recipe_hash]) do
       :ok
     else
       false -> {:error, :invalid_digest}
       :not_found -> {:error, :parent_or_recipe_missing}
-      {:ok, _wrong_kind} -> {:error, :not_generation_recipe}
+      {:ok, _} -> {:error, :not_generation_recipe}
     end
   end
 
@@ -802,7 +805,7 @@ defmodule Frameshift.Library do
          do: {:ok, Map.put(master, :placement, placement)}
   end
 
-  defp inserted_master_record(state, _digest, recipe_hash, placement) do
+  defp inserted_master_record(state, _, recipe_hash, placement) do
     with {:ok, master} <- cached_generation_record(state, recipe_hash),
          do: {:ok, Map.put(master, :placement, placement)}
   end
@@ -837,7 +840,7 @@ defmodule Frameshift.Library do
     end
   end
 
-  defp do_register_recipe(_state, _kind, _parameters, _source_digests),
+  defp do_register_recipe(_, _, _, _),
     do: {:error, :invalid_recipe}
 
   defp insert_recipe_transaction(state, hash, kind, canonical_json, source_digests) do
@@ -882,7 +885,7 @@ defmodule Frameshift.Library do
       else: {:error, {:missing_fields, missing}}
   end
 
-  defp do_register_artifact(_state, _bytes, _attributes), do: {:error, :invalid_attributes}
+  defp do_register_artifact(_, _, _), do: {:error, :invalid_attributes}
 
   defp fetch_or_insert_artifact(state, bytes, attributes) do
     case cached_artifact_record(
@@ -899,11 +902,11 @@ defmodule Frameshift.Library do
   defp cached_artifact_result(%{"master_digest" => master_digest} = artifact, master_digest),
     do: {:ok, Map.put(artifact, :cache, :hit)}
 
-  defp cached_artifact_result(_artifact, _master_digest), do: {:error, :cache_identity_conflict}
+  defp cached_artifact_result(_, _), do: {:error, :cache_identity_conflict}
 
   defp insert_artifact(state, bytes, attributes) do
-    with {:ok, _master} <- get_master_record(state, attributes.master_digest),
-         {:ok, _recipe} <-
+    with {:ok, _} <- get_master_record(state, attributes.master_digest),
+         {:ok, _} <-
            query_one(state.connection, "SELECT hash FROM recipes WHERE hash = ?", [
              attributes.recipe_hash
            ]),
@@ -1005,7 +1008,7 @@ defmodule Frameshift.Library do
     end
   end
 
-  defp add_label_record(_state, _digest, _label, _provenance, _confidence, _revision),
+  defp add_label_record(_, _, _, _, _, _),
     do: {:error, :invalid_label}
 
   defp search_records(state, query, options) do
@@ -1051,7 +1054,7 @@ defmodule Frameshift.Library do
     end
   end
 
-  defp get_setting_record(_state, _key), do: {:error, :invalid_setting}
+  defp get_setting_record(_, _), do: {:error, :invalid_setting}
 
   defp put_setting_record(state, key, value)
        when is_binary(key) and byte_size(key) in 1..64 and is_binary(value) and
@@ -1066,7 +1069,7 @@ defmodule Frameshift.Library do
     )
   end
 
-  defp put_setting_record(_state, _key, _value), do: {:error, :invalid_setting}
+  defp put_setting_record(_, _, _), do: {:error, :invalid_setting}
 
   defp claim_command_record(state, command_id, command_hash)
        when is_binary(command_id) and byte_size(command_id) in 1..64 and
@@ -1087,7 +1090,7 @@ defmodule Frameshift.Library do
     error in Exqlite.Error -> {:error, {:database, error.message}}
   end
 
-  defp claim_command_record(_state, _command_id, _command_hash),
+  defp claim_command_record(_, _, _),
     do: {:error, :invalid_command_receipt}
 
   defp insert_command_claim(connection, command_id, command_hash) do
@@ -1135,7 +1138,7 @@ defmodule Frameshift.Library do
       when is_binary(error_code) ->
         {:ok, {:replay, {:error, error_code}}}
 
-      {:ok, _different} ->
+      {:ok, _} ->
         {:error, :command_id_conflict}
 
       :not_found ->
@@ -1172,7 +1175,7 @@ defmodule Frameshift.Library do
     error in Exqlite.Error -> {:error, {:database, error.message}}
   end
 
-  defp complete_command_record(_state, _command_id, _command_hash, _outcome),
+  defp complete_command_record(_, _, _, _),
     do: {:error, :invalid_command_receipt}
 
   defp complete_pending_receipt(connection, command_id, command_hash, status, error_code) do
@@ -1212,7 +1215,7 @@ defmodule Frameshift.Library do
       else: {:error, :invalid_command_outcome}
   end
 
-  defp encode_command_outcome(_outcome), do: {:error, :invalid_command_outcome}
+  defp encode_command_outcome(_), do: {:error, :invalid_command_outcome}
 
   defp validate_completed_receipt(state, command_id, command_hash, status, error_code) do
     case query_one(
@@ -1235,7 +1238,7 @@ defmodule Frameshift.Library do
       {:ok, %{"command_hash" => ^command_hash, "status" => "pending"}} ->
         {:error, :command_completion_failed}
 
-      {:ok, _different} ->
+      {:ok, _} ->
         {:error, :command_id_conflict}
 
       :not_found ->
@@ -1324,7 +1327,7 @@ defmodule Frameshift.Library do
     end
   end
 
-  defp get_paired_frame_record(_state, _frame_id), do: :not_found
+  defp get_paired_frame_record(_, _), do: :not_found
 
   defp get_paired_frame_by_spki_record(state, "sha256:" <> hex = fingerprint)
        when byte_size(hex) == 64 do
@@ -1340,24 +1343,24 @@ defmodule Frameshift.Library do
       case rows do
         [%{"frame_id" => frame_id}] -> get_paired_frame_record(state, frame_id)
         [] -> :not_found
-        [_first, _second] -> {:error, :ambiguous_frame_identity}
+        [_, _] -> {:error, :ambiguous_frame_identity}
       end
     else
       :not_found
     end
   end
 
-  defp get_paired_frame_by_spki_record(_state, _fingerprint), do: :not_found
+  defp get_paired_frame_by_spki_record(_, _), do: :not_found
 
   defp forget_paired_frame_record(state, frame_id)
        when is_binary(frame_id) and byte_size(frame_id) in 1..128 do
     case get_paired_frame_record(state, frame_id) do
-      {:ok, _frame} -> forget_existing_frame(state, frame_id)
+      {:ok, _} -> forget_existing_frame(state, frame_id)
       :not_found -> {:error, :not_found}
     end
   end
 
-  defp forget_paired_frame_record(_state, _frame_id), do: {:error, :invalid_frame}
+  defp forget_paired_frame_record(_, _), do: {:error, :invalid_frame}
 
   defp forget_existing_frame(state, frame_id) do
     result =
@@ -1418,7 +1421,7 @@ defmodule Frameshift.Library do
     end
   end
 
-  defp maybe_restore_file(_state, _digest, "active"), do: :ok
+  defp maybe_restore_file(_, _, "active"), do: :ok
 
   defp maybe_restore_file(state, digest, "trash"),
     do: ContentStore.restore(state.data_dir, digest)
@@ -1434,7 +1437,7 @@ defmodule Frameshift.Library do
     end)
   end
 
-  defp protect_frame_asset_record(_state, _frame_id, _role, _digest),
+  defp protect_frame_asset_record(_, _, _, _),
     do: {:error, :invalid_frame_reference}
 
   defp collect_removed_records(state) do
@@ -1468,7 +1471,7 @@ defmodule Frameshift.Library do
 
             [digest | moved]
 
-          {:error, _reason} ->
+          {:error, _} ->
             moved
         end
       end)
@@ -1513,7 +1516,7 @@ defmodule Frameshift.Library do
       {:ok, %{"storage_state" => "active"}} ->
         {:error, :object_too_large}
 
-      {:ok, _trashed} ->
+      {:ok, _} ->
         {:error, :object_in_trash}
 
       :not_found ->
@@ -1521,7 +1524,7 @@ defmodule Frameshift.Library do
     end
   end
 
-  defp read_object_record(_state, _digest, _maximum_bytes), do: {:error, :invalid_read}
+  defp read_object_record(_, _, _), do: {:error, :invalid_read}
 
   defp cached_generation_record(state, recipe_hash) do
     case query_one(
@@ -1622,7 +1625,7 @@ defmodule Frameshift.Library do
         end)
 
       case result do
-        {:ok, _revision} -> outbox_manifest_record(state, frame_id)
+        {:ok, _} -> outbox_manifest_record(state, frame_id)
         {:error, %Exqlite.Error{message: message}} -> {:error, {:database, message}}
         {:error, reason} -> {:error, reason}
       end
@@ -1630,17 +1633,17 @@ defmodule Frameshift.Library do
       false -> {:error, :invalid_digest}
       {:error, %JSV.ValidationError{}} -> {:error, :invalid_outbox}
       :not_found -> {:error, :artifact_missing}
-      {:ok, _different_profile} -> {:error, :unsupported_profile}
+      {:ok, _} -> {:error, :unsupported_profile}
     end
   end
 
   defp queue_outbox_record(
-         _state,
-         _frame_id,
-         _digest,
-         _profile_id,
-         _playlist_revision,
-         _command_id
+         _,
+         _,
+         _,
+         _,
+         _,
+         _
        ),
        do: {:error, :invalid_outbox}
 
@@ -1698,7 +1701,7 @@ defmodule Frameshift.Library do
     end
   end
 
-  defp acknowledge_outbox_record(_state, _frame_id, _acknowledgement),
+  defp acknowledge_outbox_record(_, _, _),
     do: {:error, :invalid_acknowledgement}
 
   defp commit_outbox_acknowledgement(state, frame_id, manifest) do
@@ -1790,7 +1793,7 @@ defmodule Frameshift.Library do
   defp require_artifact_profile(state, digest, profile_id) do
     case query_one(state.connection, "SELECT profile_id FROM artifacts WHERE digest = ?", [digest]) do
       {:ok, %{"profile_id" => ^profile_id}} -> :ok
-      {:ok, _other} -> {:error, :unsupported_profile}
+      {:ok, _} -> {:error, :unsupported_profile}
       :not_found -> {:error, :artifact_missing}
     end
   end
@@ -1799,7 +1802,7 @@ defmodule Frameshift.Library do
     case direct_delivery_record(state, frame_id) do
       {:ok, delivery} ->
         case Transition.direct_request(to_direct_intent(delivery), digest, profile_id, request_id) do
-          {:reuse, _intent} -> {:ok, delivery}
+          {:reuse, _} -> {:ok, delivery}
           :insert -> insert_direct_delivery(state, frame_id, digest, profile_id, request_id)
           {:error, reason} -> {:error, reason}
         end
@@ -1867,7 +1870,7 @@ defmodule Frameshift.Library do
     )
   end
 
-  defp direct_delivery_record(_state, _frame_id), do: :not_found
+  defp direct_delivery_record(_, _), do: :not_found
 
   defp finish_direct_delivery_record(state, frame_id, revision, request_id, digest, outcome)
        when outcome in [:displayed, :pending] do
@@ -1890,12 +1893,12 @@ defmodule Frameshift.Library do
   end
 
   defp finish_direct_delivery_record(
-         _state,
-         _frame_id,
-         _revision,
-         _request_id,
-         _digest,
-         _outcome
+         _,
+         _,
+         _,
+         _,
+         _,
+         _
        ),
        do: {:error, :invalid_direct_delivery}
 
@@ -1978,21 +1981,21 @@ defmodule Frameshift.Library do
 
   defp write_existing_master(state, digest, function) do
     case get_master_record(state, digest) do
-      {:ok, _master} -> function.()
+      {:ok, _} -> function.()
       :not_found -> {:error, :not_found}
     end
   end
 
   defp write_existing_object(state, digest, function) do
     case query_one(state.connection, "SELECT digest FROM objects WHERE digest = ?", [digest]) do
-      {:ok, _object} -> function.()
+      {:ok, _} -> function.()
       :not_found -> {:error, :not_found}
     end
   end
 
   defp execute(connection, sql, parameters) do
     case Exqlite.query(connection, sql, parameters) do
-      {:ok, _result} -> :ok
+      {:ok, _} -> :ok
       {:error, %Exqlite.Error{message: message}} -> {:error, {:database, message}}
       {:error, reason} -> {:error, reason}
     end
@@ -2002,7 +2005,7 @@ defmodule Frameshift.Library do
     started = System.monotonic_time(:millisecond)
     result = Exqlite.transaction(connection, function, mode: :immediate)
 
-    outcome = if match?({:ok, _value}, result), do: :succeeded, else: :failed
+    outcome = if match?({:ok, _}, result), do: :succeeded, else: :failed
 
     :telemetry.execute(
       [:frameshift, :storage, :transaction],
@@ -2021,7 +2024,7 @@ defmodule Frameshift.Library do
     )
   end
 
-  defp emit_delivery_confirmation(_mode, _started_at_ms), do: :ok
+  defp emit_delivery_confirmation(_, _), do: :ok
 
   defp query_one(connection, sql, parameters) do
     case connection |> Exqlite.query!(sql, parameters) |> rows_to_maps() do
@@ -2050,7 +2053,7 @@ defmodule Frameshift.Library do
     correlation_id =
       case Map.get(details, "commandId") || Map.get(details, "requestId") do
         value when is_binary(value) -> Digest.sha256(value)
-        _missing -> nil
+        _ -> nil
       end
 
     redacted_details = Map.drop(details, ~w(commandId requestId frameId))

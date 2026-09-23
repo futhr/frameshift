@@ -301,6 +301,30 @@ defmodule Frameshift.Qualification.StoreTest do
     {:ok, recipe_digest} =
       Library.register_recipe(library, :composition, recipe, [master["digest"]])
 
+    {:ok, injector} =
+      Exqlite.start_link(database: Path.join(data_dir, "metadata.sqlite"), foreign_keys: :on)
+
+    Exqlite.query!(
+      injector,
+      """
+      CREATE TRIGGER fail_qualified_work BEFORE INSERT ON qualified_work
+      BEGIN SELECT RAISE(ABORT, 'injected work failure'); END
+      """
+    )
+
+    assert {:error, {:database, "injected work failure"}} =
+             Library.accept_qualified_work(
+               library,
+               frame["frame_id"],
+               first_digest,
+               master["digest"],
+               recipe_digest
+             )
+
+    assert Process.alive?(library)
+    Exqlite.query!(injector, "DROP TRIGGER fail_qualified_work")
+    GenServer.stop(injector)
+
     assert {:ok, work_digest} =
              Library.accept_qualified_work(
                library,

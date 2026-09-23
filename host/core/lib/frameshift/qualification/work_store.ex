@@ -8,6 +8,7 @@ defmodule Frameshift.Qualification.WorkStore do
 
   alias Frameshift.Diagnostics.Store, as: DiagnosticsStore
   alias Frameshift.Digest
+  alias Frameshift.Library.Writer
   alias Frameshift.Qualification.Identity
   alias Frameshift.Qualification.Store, as: BindingStore
 
@@ -300,21 +301,9 @@ defmodule Frameshift.Qualification.WorkStore do
   end
 
   defp transact(connection, function) do
-    started = System.monotonic_time(:millisecond)
-    result = Exqlite.transaction(connection, function, mode: :immediate)
-    outcome = if match?({:ok, _}, result), do: :succeeded, else: :failed
-
-    :telemetry.execute(
-      [:frameshift, :storage, :transaction],
-      %{duration_ms: System.monotonic_time(:millisecond) - started},
-      %{outcome: outcome}
-    )
-
-    case result do
-      {:ok, reply} -> reply
-      {:error, %Exqlite.Error{message: message}} -> {:error, {:database, message}}
-      {:error, reason} -> {:error, reason}
-    end
+    connection
+    |> Writer.transaction(function)
+    |> Writer.unwrap()
   end
 
   defp valid_frame?(value),

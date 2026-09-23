@@ -15,6 +15,7 @@ defmodule Frameshift.Library do
   alias Frameshift.FrameRegistry
   alias Frameshift.Library.Identity
   alias Frameshift.Library.Migrations
+  alias Frameshift.Library.Writer
   alias Frameshift.Protocol.Schema
   alias Frameshift.Qualification.Store, as: QualificationStore
   alias Frameshift.Qualification.WorkStore
@@ -2536,20 +2537,7 @@ defmodule Frameshift.Library do
     end
   end
 
-  defp transaction(connection, function) do
-    started = System.monotonic_time(:millisecond)
-    result = Exqlite.transaction(connection, function, mode: :immediate)
-
-    outcome = if match?({:ok, _}, result), do: :succeeded, else: :failed
-
-    :telemetry.execute(
-      [:frameshift, :storage, :transaction],
-      %{duration_ms: System.monotonic_time(:millisecond) - started},
-      %{outcome: outcome}
-    )
-
-    result
-  end
+  defp transaction(connection, function), do: Writer.transaction(connection, function)
 
   defp emit_delivery_confirmation(mode, started_at_ms) when is_integer(started_at_ms) do
     :telemetry.execute(

@@ -74,6 +74,34 @@ defmodule Frameshift.OutboxTest do
     GenServer.stop(restarted)
   end
 
+  test "outbox write failure rolls back its revision and keeps the library alive", context do
+    digest = register_artifact!(context.library, @first_bytes)
+
+    {:ok, injector} =
+      Exqlite.start_link(database: Path.join(context.library_dir, "metadata.sqlite"))
+
+    Exqlite.query!(
+      injector,
+      """
+      CREATE TRIGGER fail_outbox_insert BEFORE INSERT ON frame_outboxes
+      BEGIN SELECT RAISE(ABORT, 'injected outbox failure'); END
+      """
+    )
+
+    assert {:error, {:database, "injected outbox failure"}} =
+             Library.queue_outbox(context.library, @frame_id, digest, @profile_id)
+
+    assert Process.alive?(context.library)
+    assert :empty = Library.outbox_manifest(context.library, @frame_id)
+    refute Map.has_key?(Library.delivery_custody(context.library, @frame_id), "queued")
+
+    Exqlite.query!(injector, "DROP TRIGGER fail_outbox_insert")
+    GenServer.stop(injector)
+
+    assert {:ok, %{"revision" => 1}} =
+             Library.queue_outbox(context.library, @frame_id, digest, @profile_id)
+  end
+
   test "a failed refresh stays queued and can be retried on a later contact", context do
     digest = register_artifact!(context.library, @first_bytes)
 

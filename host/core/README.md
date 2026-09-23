@@ -12,6 +12,8 @@ The implemented core currently provides:
   command receipts that suppress completed replays and expose crash-window
   outcomes for authoritative state reconciliation;
 - a single-owner SQLite library backed by immutable content-addressed files;
+  the shared writer rolls back statement failures, returns database
+  errors, and records transaction outcomes without terminating the Library;
 - a read-only peer-authenticated local diagnostics socket with bounded health,
   metric, and redacted audit pages; a supervised telemetry reporter retains
   minute/hour rollups and reports collection loss and coverage;

@@ -5,6 +5,7 @@ defmodule Frameshift.RendererTest do
 
   import ExUnit.CaptureLog
 
+  alias Frameshift.Digest
   alias Frameshift.Renderer
   alias Frameshift.Renderer.Protocol
 
@@ -27,6 +28,8 @@ defmodule Frameshift.RendererTest do
 
   test "a real Zig worker returns the exact framed RGB artifact" do
     {:ok, renderer} = Renderer.start_link(path: @renderer_path, name: nil)
+
+    assert Renderer.build_digest(renderer) == Digest.sha256(File.read!(@renderer_path))
 
     assert {:ok, rendered} = Renderer.render(renderer, job())
     assert rendered == %{format: :rgb24, width: 2, height: 1, bytes: <<1, 2, 3, 4, 5, 6>>}

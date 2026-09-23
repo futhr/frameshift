@@ -8,10 +8,12 @@ defmodule Frameshift.Renderer do
 
   use GenServer
 
+  alias Frameshift.Digest
   alias Frameshift.Renderer.Protocol
 
   @default_timeout_ms 30_000
   @maximum_response_bytes Protocol.maximum_frame_bytes()
+  @maximum_executable_bytes 64 * 1024 * 1024
 
   defmodule State do
     @moduledoc """
@@ -23,6 +25,7 @@ defmodule Frameshift.Renderer do
 
     @type t :: %__MODULE__{
             port: port() | pid(),
+            build_digest: String.t() | nil,
             pending: term(),
             expected: term(),
             prefix: binary(),
@@ -31,7 +34,7 @@ defmodule Frameshift.Renderer do
           }
 
     @enforce_keys [:port]
-    defstruct [:port, :pending, :expected, prefix: <<>>, chunks: [], received: 0]
+    defstruct [:port, :build_digest, :pending, :expected, prefix: <<>>, chunks: [], received: 0]
   end
 
   @type server :: GenServer.server()
@@ -50,20 +53,27 @@ defmodule Frameshift.Renderer do
     GenServer.call(server, {:render, job, timeout}, call_timeout(timeout))
   end
 
+  @doc "Returns the SHA-256 digest of the executable read when this worker owner started."
+  @spec build_digest(server()) :: String.t()
+  def build_digest(server \\ __MODULE__), do: GenServer.call(server, :build_digest)
+
   @impl true
   def init(options) do
     Process.flag(:trap_exit, true)
     path = options |> Keyword.fetch!(:path) |> Path.expand()
 
     with :ok <- validate_options(path),
+         {:ok, build_digest} <- executable_digest(path),
          {:ok, port} <- open_worker(path) do
-      {:ok, %State{port: port}}
+      {:ok, %State{port: port, build_digest: build_digest}}
     else
       {:error, reason} -> {:stop, reason}
     end
   end
 
   @impl true
+  def handle_call(:build_digest, _, state), do: {:reply, state.build_digest, state}
+
   def handle_call({:render, _, _}, _, %{pending: pending} = state)
       when pending != nil do
     {:reply, {:error, :busy}, state}
@@ -208,6 +218,16 @@ defmodule Frameshift.Renderer do
 
   defp validate_options(path) do
     if File.regular?(path), do: :ok, else: {:error, :renderer_not_found}
+  end
+
+  defp executable_digest(path) do
+    with {:ok, %{size: size}} when size <= @maximum_executable_bytes <- File.stat(path),
+         {:ok, bytes} when byte_size(bytes) <= @maximum_executable_bytes <- File.read(path) do
+      {:ok, Digest.sha256(bytes)}
+    else
+      {:ok, _} -> {:error, :renderer_binary_too_large}
+      {:error, _} -> {:error, :renderer_not_found}
+    end
   end
 
   defp validate_timeout(timeout) when is_integer(timeout) and timeout > 0, do: :ok

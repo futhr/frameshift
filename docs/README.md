@@ -24,6 +24,7 @@ protocol branches.
 - [Frame Protocol](architecture/frame-protocol.md)
 - [Capability model](architecture/capabilities.md)
 - [Content pipeline](architecture/content-pipeline.md)
+- [Qualified render and transfer generations](architecture/qualified-generations.md)
 - [Implementation plan](architecture/implementation-plan.md)
 - [Software verification map](architecture/verification.md)
 

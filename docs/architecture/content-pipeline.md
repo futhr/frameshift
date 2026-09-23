@@ -63,11 +63,18 @@ does not depend on database IDs.
 5. Resize with a renderer-versioned kernel.
 6. Apply the exact target color/palette transform.
 7. Pack the advertised artifact profile.
-8. Hash final bytes and render metadata.
+8. Hash exact final wire bytes. Bind render metadata to that digest in a
+   separate immutable result record.
 
 The same inputs and renderer version MUST produce identical artifact bytes on
 supported machines. Golden fixtures cover edges, transparency, profiles,
 orientation, extreme aspect ratios, and palette boundaries.
+
+A [qualified generation](qualified-generations.md) pins the admitted frame
+profile, exact renderer build, and transfer binding for accepted work. Its
+candidate digest exists before rendering; a result binds it to the final
+wire-byte digest after rendering. A renderer revision label alone is not proof
+that the same binary produced the bytes.
 
 ## Photo renderer
 

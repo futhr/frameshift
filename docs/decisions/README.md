@@ -167,3 +167,19 @@ evidence, but it must change explicitly.
   dependency. No diagnostic UI or remote telemetry service is required.
 - **Detail:** [Diagnostics contract](../architecture/diagnostics.md) and
   [host diagnostics research](../research/host-diagnostics.md)
+
+## D-014 — Qualified render and transfer generations
+
+- **State:** accepted as a software design; qualification implementation and
+  physical evidence remain open
+- **Decision:** Pin each new render and transfer workflow to one immutable,
+  locally admitted generation of source, recipe, renderer build, frame
+  capability instance, artifact profile, and transfer binding. A candidate
+  has an identity before rendering; the exact wire-byte digest is attached as
+  a result. Existing accepted work retains its generation across activation,
+  rollback, and restart.
+- **Consequence:** The artifact digest remains SHA-256 of the exact wire bytes.
+  A successful transfer cannot stand in for display confirmation. Qualification
+  and activation are durable local host decisions; cloud tenancy and a remote
+  composition service are not prerequisites.
+- **Detail:** [Qualified generations](../architecture/qualified-generations.md)

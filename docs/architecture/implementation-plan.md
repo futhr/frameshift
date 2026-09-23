@@ -82,6 +82,24 @@ AI provider configured.
 **Exit:** local-only mode emits no provider traffic; no automatic cloud switch;
 cached repeat avoids provider call; secrets remain in Keychain.
 
+### H5 — Qualified render and transfer generations
+
+- define versioned renderer and connector operation descriptors, a canonical
+  candidate manifest, and an immutable result binding exact wire bytes;
+- attest the renderer build and canonical selected frame profile, then qualify
+  candidate combinations against software fixtures and measured frame cohorts;
+- persist candidate, evidence, admission, and active cohort selection under
+  the single writer; preserve legacy pending work without retroactive claims;
+- pin accepted render work and push/pull intents to an exact generation across
+  restart, candidate activation, rollback, and reconciliation;
+- add bounded diagnostic coverage and adversarial tests for incompatibility,
+  exact replay, uncertain effects, duplicate transfer, and last-good retention.
+
+**Exit:** a new job cannot use an incompatible or unadmitted combination;
+accepted work and last-good bytes survive a cohort switch and restart; physical
+display success still requires authoritative frame evidence. See
+[qualified generations](qualified-generations.md).
+
 ## Protocol track
 
 ### P1 — Schemas and simulator

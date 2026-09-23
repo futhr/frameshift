@@ -328,6 +328,70 @@ defmodule Frameshift.RenderPipelineTest do
              Library.delivery_custody(context.library, @frame_id)
   end
 
+  test "queue uses the admitted push binding when a frame also offers pull", context do
+    {:ok, package} = MasterPackage.encode(@original, @rgba, 2, 1)
+    {:ok, master} = Library.import_master(context.library, package, master_attributes())
+
+    td =
+      thing_description()
+      |> Jason.decode!()
+      |> put_in(["frameshift:capabilities", "transferModes"], ["pull", "push"])
+      |> Jason.encode!()
+
+    {:ok, frame} =
+      Library.register_paired_frame(
+        context.library,
+        td,
+        "keychain:qualified-dual-mode-frame",
+        "sha256:" <> String.duplicate("d", 64)
+      )
+
+    manifest = qualification_manifest(frame, Renderer.build_digest(context.renderer), "push")
+    {:ok, binding_digest} = Library.register_qualification(context.library, manifest)
+
+    :ok =
+      Library.admit_qualification(context.library, binding_digest, %{
+        "schemaVersion" => 1,
+        "scope" => "software_reference",
+        "outcome" => "passed",
+        "suiteDigest" => Digest.sha256("dual mode fixture")
+      })
+
+    :ok = Library.activate_qualification(context.library, @frame_id, binding_digest)
+
+    assert {:ok, %{"statusMessage" => "Displayed on Pipeline Frame"}} =
+             LocalAPI.execute_with_delivery(
+               context.library,
+               context.renderer,
+               %{
+                 "id" => "qualified-dual-mode-push",
+                 "kind" => "queue",
+                 "targetID" => @frame_id,
+                 "itemID" => master["digest"]
+               },
+               credential_resolver: {StaticCredentialResolver, %{owner: self()}},
+               synchronizer: ConfirmedSynchronizer
+             )
+
+    assert_receive {:direct_delivery, _, _, _, _}
+    assert :empty = Library.outbox_manifest(context.library, @frame_id)
+
+    assert %{
+             "current" => [
+               %{
+                 "qualification_digest" => ^binding_digest,
+                 "status" => "qualified",
+                 "work_digest" => work_digest
+               }
+             ]
+           } = Library.delivery_custody(context.library, @frame_id)
+
+    expected_digest = Digest.sha256(@rgb)
+
+    assert {:ok, %{"artifact_digest" => ^expected_digest}} =
+             Library.qualified_result(context.library, work_digest)
+  end
+
   test "a push-only queue command renders and records confirmed direct delivery", context do
     {:ok, package} = MasterPackage.encode(@original, @rgba, 2, 1)
     {:ok, master} = Library.import_master(context.library, package, master_attributes())
@@ -503,10 +567,10 @@ defmodule Frameshift.RenderPipelineTest do
     }
   end
 
-  defp qualification_manifest(frame, renderer_digest) do
-    connector = "frameshift-outbox-v0.1"
+  defp qualification_manifest(frame, renderer_digest, mode \\ "pull") do
+    connector = if mode == "push", do: "wotex-http-v0.1", else: "frameshift-outbox-v0.1"
     {:ok, profile_digest} = Profile.digest(frame["capabilities"], @profile_id)
-    {:ok, binding_digest} = Profile.binding_digest(frame["td_json"], "pull", connector)
+    {:ok, binding_digest} = Profile.binding_digest(frame["td_json"], mode, connector)
 
     %{
       "schemaVersion" => 1,
@@ -520,7 +584,7 @@ defmodule Frameshift.RenderPipelineTest do
       "bindingDigest" => binding_digest,
       "connectorRevision" => connector,
       "effectClass" => "physical_display",
-      "transferMode" => "pull"
+      "transferMode" => mode
     }
   end
 

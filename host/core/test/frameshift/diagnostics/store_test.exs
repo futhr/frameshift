@@ -82,5 +82,24 @@ defmodule Frameshift.Diagnostics.StoreTest do
 
     assert %Exqlite.Result{rows: [[20_000, 1]]} =
              Exqlite.query!(connection, "SELECT count(*), min(bucket_ms) FROM metric_rollups")
+
+    initial_bytes = Store.metric_allocated_bytes(connection)
+    assert initial_bytes > 32_768
+    assert :ok = Store.enforce_metric_page_budget(connection, div(initial_bytes, 2))
+    assert Store.metric_allocated_bytes(connection) <= div(initial_bytes, 2)
+
+    assert %Exqlite.Result{rows: [[remaining, oldest]]} =
+             Exqlite.query!(connection, "SELECT count(*), min(bucket_ms) FROM metric_rollups")
+
+    assert remaining < 20_000
+    assert oldest > 1
+
+    assert {:error, :metric_page_budget_unenforceable} =
+             Exqlite.transaction(connection, fn writer ->
+               Store.enforce_metric_page_budget(writer, 1)
+             end)
+
+    assert %Exqlite.Result{rows: [[^remaining]]} =
+             Exqlite.query!(connection, "SELECT count(*) FROM metric_rollups")
   end
 end

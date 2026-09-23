@@ -59,7 +59,7 @@ defmodule Frameshift.DirectDeliveryTest do
 
     on_exit(fn -> File.rm_rf!(data_dir) end)
     {:ok, library} = Library.start_link(data_dir: data_dir, name: nil)
-    on_exit(fn -> if Process.alive?(library), do: GenServer.stop(library) end)
+    on_exit(fn -> stop_if_alive(library) end)
 
     assert {:ok, _} =
              Library.register_paired_frame(
@@ -134,7 +134,7 @@ defmodule Frameshift.DirectDeliveryTest do
 
     GenServer.stop(context.library)
     {:ok, restarted} = Library.start_link(data_dir: context.data_dir, name: nil)
-    on_exit(fn -> if Process.alive?(restarted), do: GenServer.stop(restarted) end)
+    on_exit(fn -> stop_if_alive(restarted) end)
 
     assert {:ok, %{"revision" => 1, "status" => "pending"}} =
              Library.direct_delivery(restarted, @frame_id)
@@ -352,6 +352,12 @@ defmodule Frameshift.DirectDeliveryTest do
              )
 
     assert [{"desired", ^digest}] = references(context.data_dir)
+  end
+
+  defp stop_if_alive(process) do
+    if Process.alive?(process), do: GenServer.stop(process)
+  catch
+    :exit, _ -> :ok
   end
 
   defp register_artifact!(library, bytes) do

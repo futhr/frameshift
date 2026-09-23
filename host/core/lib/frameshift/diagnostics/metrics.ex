@@ -77,6 +77,7 @@ defmodule Frameshift.Diagnostics.Metrics do
       )
 
     Process.send_after(self(), :flush, @flush_interval_ms)
+    send(self(), :maintenance)
 
     {:ok,
      %State{
@@ -141,6 +142,18 @@ defmodule Frameshift.Diagnostics.Metrics do
     {_, next_state} = flush_pending(state)
     Process.send_after(self(), :flush, @flush_interval_ms)
     {:noreply, next_state}
+  end
+
+  def handle_info(:maintenance, state) do
+    next_state =
+      case Library.write_metric_rollups(state.library, []) do
+        :ok -> state
+        {:error, _} -> %{state | flush_failures: state.flush_failures + 1}
+      end
+
+    {:noreply, next_state}
+  catch
+    :exit, _ -> {:noreply, %{state | flush_failures: state.flush_failures + 1}}
   end
 
   @impl true

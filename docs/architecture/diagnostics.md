@@ -76,10 +76,16 @@ allowed dimensions, and collector reset time alongside each metric page.
 restart resets in-memory loss accounting, so queries must not infer historical
 completeness across that boundary.
 
-The proposed retention budget is minute buckets for 24 hours and hour buckets
-for 30 days, with a 32 MiB local metric ceiling; implementation must measure
-and enforce this bound. Each query includes a coverage interval and reset
-marker so missing observations cannot be represented as zero.
+The retention budget is minute buckets for 24 hours and hour buckets for 30
+days. The writer must prune oldest rollups when their SQLite table and index
+pages exceed 32 MiB, in addition to the 20,000-row cap. This active-page
+budget excludes reusable free pages and the shared database WAL; physical file
+size and long-running resource ceilings still require platform measurement.
+The collector runs one maintenance pass after restart, even if no new samples
+arrive, so an older oversized store converges to the current limits.
+The health read reports active metric page bytes and the enforced page budget.
+Each query includes a coverage interval and reset marker so missing
+observations cannot be represented as zero.
 
 ## Log and audit access
 

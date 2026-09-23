@@ -42,6 +42,8 @@ defmodule Frameshift.LocalIPC.DiagnosticsServerTest do
   test "reads authoritative health and bounded persistent metric rollups", context do
     assert %{"ok" => true, "diagnostics" => health} = request(context.path, "health")
     assert health["store"]["pendingPush"] == 0
+    assert health["store"]["metricPageBudgetBytes"] == 32 * 1024 * 1024
+    assert health["store"]["metricAllocatedBytes"] <= health["store"]["metricPageBudgetBytes"]
     assert health["collector"]["available"]
 
     :telemetry.execute(
@@ -51,6 +53,12 @@ defmodule Frameshift.LocalIPC.DiagnosticsServerTest do
     )
 
     assert :ok = Metrics.flush(context.metrics)
+
+    assert %{"ok" => true, "diagnostics" => %{"store" => metric_store}} =
+             request(context.path, "health")
+
+    assert metric_store["metricAllocatedBytes"] > 0
+    assert metric_store["metricAllocatedBytes"] <= metric_store["metricPageBudgetBytes"]
 
     :telemetry.execute(
       [:frameshift, :command, :completed],

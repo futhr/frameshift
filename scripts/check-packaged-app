@@ -88,6 +88,12 @@ if ! rg -q '"available" : true|"available": true' "$runtime_root/diagnostics.jso
   exit 1
 fi
 
+if ! rg -q '"metricPageBudgetBytes"[[:space:]]*:[[:space:]]*33554432' "$runtime_root/diagnostics.json" || \
+   ! rg -q '"metricAllocatedBytes"[[:space:]]*:[[:space:]]*[0-9]+' "$runtime_root/diagnostics.json"; then
+  echo "packaged diagnostics CLI did not report the metric page budget" >&2
+  exit 1
+fi
+
 FRAMESHIFT_DIAGNOSTICS_SOCKET_PATH="$runtime_root/data/d.sock" \
   "$app_bundle/Contents/MacOS/frameshiftctl" diagnostics metrics --limit 2 \
   >"$runtime_root/metrics.json"

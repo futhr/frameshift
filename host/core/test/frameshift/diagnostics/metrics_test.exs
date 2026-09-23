@@ -80,4 +80,54 @@ defmodule Frameshift.Diagnostics.MetricsTest do
     assert %{"entries" => entries} = Library.metric_page(restarted)
     assert Enum.count(entries, &(&1["metric"] == "frameshift.render.duration.ms")) == 2
   end
+
+  test "collector prunes existing stale rollups on an idle restart" do
+    root = "/tmp/fs-metrics-maintenance-#{System.unique_integer([:positive, :monotonic])}"
+
+    {:ok, initial} = Library.start_link(data_dir: root, name: nil)
+    GenServer.stop(initial)
+
+    {:ok, writer} = Exqlite.start_link(database: Path.join(root, "metadata.sqlite"))
+
+    Exqlite.query!(
+      writer,
+      """
+      INSERT INTO metric_rollups(
+        metric, bucket_ms, granularity, dimensions_json, sample_count,
+        value_sum, value_min, value_max, histogram_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      """,
+      [
+        "frameshift.render.duration.ms",
+        0,
+        "minute",
+        "{\"outcome\":\"succeeded\"}",
+        1,
+        42.0,
+        42.0,
+        42.0,
+        "[1]"
+      ]
+    )
+
+    GenServer.stop(writer)
+
+    {:ok, library} = Library.start_link(data_dir: root, name: nil)
+    {:ok, collector} = Metrics.start_link(library: library, name: nil)
+
+    on_exit(fn ->
+      stop_if_alive(collector)
+      stop_if_alive(library)
+      File.rm_rf!(root)
+    end)
+
+    assert Metrics.status(collector)["flushFailures"] == 0
+    assert %{"entries" => []} = Library.metric_page(library)
+  end
+
+  defp stop_if_alive(process) do
+    if Process.alive?(process), do: GenServer.stop(process)
+  catch
+    :exit, _ -> :ok
+  end
 end

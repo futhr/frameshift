@@ -12,6 +12,7 @@ defmodule Frameshift.Diagnostics.Store do
   @audit_sources ~w(import generated)
   @maximum_page 100
   @maximum_rows 20_000
+  @metric_page_budget_bytes 32 * 1024 * 1024
 
   alias Frameshift.Diagnostics.Catalog
   alias Frameshift.Digest
@@ -203,7 +204,9 @@ defmodule Frameshift.Diagnostics.Store do
       "pendingPush" => direct_pending,
       "unknownCommands" => command_pending,
       "auditEntries" => audit_count,
-      "metricRollups" => metric_count
+      "metricRollups" => metric_count,
+      "metricAllocatedBytes" => metric_allocated_bytes(connection),
+      "metricPageBudgetBytes" => @metric_page_budget_bytes
     }
   end
 
@@ -232,7 +235,45 @@ defmodule Frameshift.Diagnostics.Store do
       )
     end
 
+    enforce_metric_page_budget(connection, @metric_page_budget_bytes)
     :ok
+  end
+
+  @doc "Measures allocated SQLite pages for the metric table and all its indexes."
+  @spec metric_allocated_bytes(pid()) :: non_neg_integer()
+  def metric_allocated_bytes(connection) do
+    connection
+    |> Exqlite.query!("""
+    SELECT COALESCE(SUM(pgsize), 0)
+    FROM dbstat
+    WHERE name = 'metric_rollups'
+       OR name IN (SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'metric_rollups')
+    """)
+    |> Map.fetch!(:rows)
+    |> then(fn [[bytes]] -> bytes end)
+  end
+
+  @doc "Prunes oldest metric rows until their active SQLite pages fit the byte budget."
+  @spec enforce_metric_page_budget(pid(), pos_integer()) :: :ok
+  def enforce_metric_page_budget(connection, budget_bytes)
+      when is_integer(budget_bytes) and budget_bytes > 0 do
+    trim_metric_pages(connection, budget_bytes)
+  end
+
+  defp trim_metric_pages(connection, budget_bytes) do
+    if metric_allocated_bytes(connection) > budget_bytes do
+      Exqlite.query!(
+        connection,
+        "DELETE FROM metric_rollups WHERE rowid IN (SELECT rowid FROM metric_rollups ORDER BY bucket_ms ASC, rowid ASC LIMIT 1000)"
+      )
+
+      case Exqlite.query!(connection, "SELECT changes()").rows do
+        [[0]] -> Exqlite.rollback(connection, :metric_page_budget_unenforceable)
+        [[_]] -> trim_metric_pages(connection, budget_bytes)
+      end
+    else
+      :ok
+    end
   end
 
   defp merge_rollup(connection, row) do

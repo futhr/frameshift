@@ -21,6 +21,12 @@ storage full, display failure, process exit after download, and stale ack.
 Paper also refuses a modeled refresh outside 0–40 °C. Temporary state is
 retained between containers to exercise restart and retry.
 
+`FS_ACTION=inspect` reads the persisted image without contacting the host.
+With `FS_POWER_STATE=off`, Paper reports that retained image as visible, while
+Photo and Pixel report no visible image. Switching power on exposes their
+last confirmed image again; this is a software state model, not an optical
+measurement.
+
 The [simulator specification](../../docs/architecture/container-frame-simulator.md)
 records source documents, evidence limits, and physical validation still
 required. This image is test infrastructure; it is not frame firmware.

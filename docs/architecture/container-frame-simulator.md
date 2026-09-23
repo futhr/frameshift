@@ -69,7 +69,9 @@ full, failure before display completion, failure after durable download, stale
 acknowledgement, and restart. Test time may be accelerated; vendor-quoted Paper
 refresh time remains a labeled scenario parameter and is never presented as a
 measured duration. Photo and Pixel lose visible output when power is removed,
-although their last verified asset remains recoverable from storage.
+although their last verified asset remains recoverable from storage. A read-only
+inspection contact checks this class-specific visibility rule without changing
+the host manifest; a mismatched artifact profile must also fail closed.
 
 This lane augments the in-process `Frameshift.Simulator` semantic tests. The
 networked lane must run in CI where a Docker-compatible daemon is available;

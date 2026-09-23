@@ -23,9 +23,19 @@ defmodule FrameshiftContainerReceiver do
   @maximum_header_bytes 65_536
 
   @profiles %{
-    "paper" => %{model: "Waveshare 13.3-inch e-Paper HAT+ (E)", width: 1600, height: 1200, refresh_ms: 19_000},
+    "paper" => %{
+      model: "Waveshare 13.3-inch e-Paper HAT+ (E)",
+      width: 1600,
+      height: 1200,
+      refresh_ms: 19_000
+    },
     "photo" => %{model: "BOE MV270QHM-N40 Rev.P1", width: 2560, height: 1440, refresh_ms: 17},
-    "pixel" => %{model: "Waveshare RGB-Matrix-P3-64x64 3x2", width: 192, height: 128, refresh_ms: 17}
+    "pixel" => %{
+      model: "Waveshare RGB-Matrix-P3-64x64 3x2",
+      width: 192,
+      height: 128,
+      refresh_ms: 17
+    }
   }
 
   def main do
@@ -34,12 +44,14 @@ defmodule FrameshiftContainerReceiver do
     state = load_state!(config)
 
     result =
-      case config.fault do
-        "missed_contact" -> %{outcome: "missed_contact", state: state}
+      case {config.action, config.power_state, config.fault} do
+        {"inspect", _, _} -> %{outcome: "inspected", state: state}
+        {"contact", "off", _} -> %{outcome: "powered_off", state: state}
+        {"contact", _, "missed_contact"} -> %{outcome: "missed_contact", state: state}
         _ -> contact!(config, state)
       end
 
-    IO.puts(encode_json(result))
+    IO.puts(encode_json(Map.put(result, :visibleAsset, visible_asset(config, result.state))))
   rescue
     exception ->
       IO.puts(:stderr, Exception.message(exception))
@@ -50,13 +62,20 @@ defmodule FrameshiftContainerReceiver do
     class = System.fetch_env!("FS_FRAME_CLASS")
     profile = Map.fetch!(@profiles, class)
     fault = System.get_env("FS_FAULT", "none")
+    action = System.get_env("FS_ACTION", "contact")
+    power_state = System.get_env("FS_POWER_STATE", "on")
 
     unless fault in ~w(none missed_contact corrupt_transfer storage_full display_failure power_loss_after_download stale_ack) do
       raise "invalid fault"
     end
 
+    unless action in ~w(contact inspect) and power_state in ~w(on off),
+      do: raise("invalid action or power state")
+
     %{
       class: class,
+      action: action,
+      power_state: power_state,
       model: profile.model,
       artifact_bytes: profile.width * profile.height * 3,
       scenario_refresh_ms: profile.refresh_ms,
@@ -98,9 +117,14 @@ defmodule FrameshiftContainerReceiver do
   defp verify_current!(%{"currentAsset" => digest}, data_dir, expected_bytes) do
     path = asset_path!(data_dir, digest)
     bytes = File.read!(path)
+
     if byte_size(bytes) != expected_bytes or digest_bytes(bytes) != digest,
       do: raise("persisted current asset corrupt")
   end
+
+  defp visible_asset(%{class: "paper"}, state), do: state["currentAsset"]
+  defp visible_asset(%{power_state: "on"}, state), do: state["currentAsset"]
+  defp visible_asset(_, _), do: nil
 
   defp contact!(config, state) do
     case exchange!(config, "GET", "/v0/outbox/manifest", nil) do

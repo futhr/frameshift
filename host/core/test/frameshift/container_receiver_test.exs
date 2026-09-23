@@ -71,6 +71,14 @@ defmodule Frameshift.ContainerReceiverTest do
                Base.decode16!(String.replace_prefix(digest, "sha256:", ""), case: :lower)
 
       assert %{"currentAsset" => ^digest} = stored_state(context)
+
+      expected_without_power = if context.class == "paper", do: digest, else: nil
+
+      assert %{"outcome" => "inspected", "visibleAsset" => ^expected_without_power} =
+               run_inspector!(context, "off")
+
+      assert %{"outcome" => "inspected", "visibleAsset" => ^digest} =
+               run_inspector!(context, "on")
     end
   end
 
@@ -155,6 +163,21 @@ defmodule Frameshift.ContainerReceiverTest do
 
     assert %{"currentAsset" => nil} = stored_state(context)
     refute File.exists?(asset_path(context, digest))
+  end
+
+  test "rejects a receiver profile that differs from the queued manifest" do
+    context = start_fixture!("photo")
+    on_exit(fn -> stop_fixture(context) end)
+    digest = queue_artifact!(context, 15)
+    wrong_profile = %{context | profile_id: "urn:frameshift:sim:other-rgb24-proxy-v1"}
+
+    assert {:error, output} = run_receiver(wrong_profile, "none")
+    assert output =~ "unexpected manifest profile or revision"
+
+    assert {:ok, %{"desiredAsset" => ^digest}} =
+             Library.outbox_manifest(context.library, context.frame_id)
+
+    assert %{"currentAsset" => nil} = stored_state(context)
   end
 
   defp start_fixture!(class) do
@@ -348,7 +371,20 @@ defmodule Frameshift.ContainerReceiverTest do
     document
   end
 
-  defp run_receiver(context, fault, pin \\ nil, temperature_c \\ 25) do
+  defp run_inspector!(context, power_state) do
+    {:ok, output} = run_receiver(context, "none", nil, 25, "inspect", power_state)
+    {:ok, document} = RFC8785.decode(output)
+    document
+  end
+
+  defp run_receiver(
+         context,
+         fault,
+         pin \\ nil,
+         temperature_c \\ 25,
+         action \\ "contact",
+         power_state \\ "on"
+       ) do
     name = "frameshift-receiver-#{System.unique_integer([:positive])}"
 
     args = [
@@ -372,6 +408,10 @@ defmodule Frameshift.ContainerReceiverTest do
       "FS_FRAME_CLASS=#{context.class}",
       "--env",
       "FS_FAULT=#{fault}",
+      "--env",
+      "FS_ACTION=#{action}",
+      "--env",
+      "FS_POWER_STATE=#{power_state}",
       "--env",
       "FS_DATA_DIR=/data",
       "--env",

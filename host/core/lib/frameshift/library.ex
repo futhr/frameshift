@@ -129,6 +129,11 @@ defmodule Frameshift.Library do
     GenServer.call(server, {:search, query, options})
   end
 
+  @doc "Rebuilds the derived title and label index under the single writer."
+  @spec rebuild_search_index(server()) :: :ok | {:error, term()}
+  def rebuild_search_index(server \\ __MODULE__),
+    do: GenServer.call(server, :rebuild_search_index, :infinity)
+
   @doc "Lists active pinned masters in stable pin order, with an explicit caller bound."
   @spec list_pinned_masters(server(), pos_integer()) :: [map()]
   def list_pinned_masters(server \\ __MODULE__, limit) do
@@ -598,6 +603,18 @@ defmodule Frameshift.Library do
 
   def handle_call({:search, query, options}, _, state) do
     {:reply, search_records(state, query, options), state}
+  end
+
+  def handle_call(:rebuild_search_index, _, state) do
+    result = transaction(state.connection, &Migrations.rebuild_search/1)
+
+    reply =
+      case result do
+        {:ok, :ok} -> :ok
+        {:error, reason} -> {:error, reason}
+      end
+
+    {:reply, reply, state}
   end
 
   def handle_call({:list_pinned_masters, limit}, _, state)

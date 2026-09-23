@@ -6,6 +6,13 @@ defmodule Frameshift.Library.Migrations do
   commands are accepted. New versions retain content and reference history.
   """
 
+  @search_backfill """
+  INSERT INTO master_search(rowid, title, labels)
+  SELECT m.rowid, m.title,
+         COALESCE((SELECT group_concat(label, ' ') FROM labels WHERE master_digest = m.digest), '')
+  FROM masters m WHERE m.removed_at_ms IS NULL
+  """
+
   @migrations [
     {1,
      [
@@ -407,12 +414,7 @@ defmodule Frameshift.Library.Migrations do
     {15,
      [
        "CREATE VIRTUAL TABLE master_search USING fts5(title, labels, tokenize = 'unicode61 remove_diacritics 2', prefix = '2 3')",
-       """
-       INSERT INTO master_search(rowid, title, labels)
-       SELECT m.rowid, m.title,
-              COALESCE((SELECT group_concat(label, ' ') FROM labels WHERE master_digest = m.digest), '')
-       FROM masters m WHERE m.removed_at_ms IS NULL
-       """,
+       @search_backfill,
        """
        CREATE TRIGGER master_search_insert AFTER INSERT ON masters
        WHEN NEW.removed_at_ms IS NULL
@@ -471,6 +473,14 @@ defmodule Frameshift.Library.Migrations do
        """
      ]}
   ]
+
+  @doc "Recreates the search projection inside the caller's writer transaction."
+  @spec rebuild_search(pid()) :: :ok
+  def rebuild_search(connection) do
+    Exqlite.query!(connection, "DELETE FROM master_search")
+    Exqlite.query!(connection, @search_backfill)
+    :ok
+  end
 
   @spec run(pid()) :: :ok | no_return()
   def run(connection) do

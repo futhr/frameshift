@@ -113,6 +113,9 @@ never accepted from the search field. Empty search keeps pinned-first library
 ordering. The index is rebuildable from masters and labels and excludes
 removed masters. Frame, source, and pin filters are separate facets of the
 full library view.
+The library writer exposes an explicit transactional index rebuild from active
+masters and labels for recovery; a rebuild never changes artwork, pins, or
+frame delivery state.
 The compact panel sends the entered text over authenticated, read-only local
 IPC and displays the matching cards without changing the selected target or
 instruction. Empty text returns the ordinary recent/pinned set. Search results

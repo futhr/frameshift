@@ -618,6 +618,31 @@ defmodule Frameshift.LibraryTest do
     GenServer.stop(upgraded)
   end
 
+  test "a missing search projection can be rebuilt without changing library state", %{
+    library: library,
+    data_dir: data_dir
+  } do
+    {:ok, master} =
+      Library.import_master(library, "rebuild image", master_attributes(%{title: "Copper Study"}))
+
+    digest = master["digest"]
+    :ok = Library.add_label(library, digest, "forest", :user)
+    :ok = Library.pin(library, digest)
+    GenServer.stop(library)
+
+    {:ok, database} = Exqlite.start_link(database: Path.join(data_dir, "metadata.sqlite"))
+    Exqlite.query!(database, "DELETE FROM master_search")
+    GenServer.stop(database)
+
+    {:ok, restarted} = Library.start_link(data_dir: data_dir, name: nil)
+    assert [] = Library.search(restarted, "forest")
+
+    assert :ok = Library.rebuild_search_index(restarted)
+    assert [%{"digest" => ^digest, "pinned" => true}] = Library.search(restarted, "forest")
+    assert [%{"digest" => ^digest}] = Library.search(restarted, "copp")
+    GenServer.stop(restarted)
+  end
+
   defp master_attributes(overrides \\ %{}) do
     Map.merge(
       %{

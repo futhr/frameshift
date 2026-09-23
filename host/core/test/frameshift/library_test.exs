@@ -204,6 +204,79 @@ defmodule Frameshift.LibraryTest do
     GenServer.stop(restarted)
   end
 
+  test "paired admission replays exactly and rejects silent identity rebinding", %{
+    library: library
+  } do
+    td_source = File.read!(@frame_fixture)
+
+    assert {:ok, frame} =
+             Library.register_paired_frame(
+               library,
+               td_source,
+               "keychain:persistent-ref-0001",
+               @frame_fingerprint
+             )
+
+    assert {:ok, ^frame} =
+             Library.register_paired_frame(
+               library,
+               td_source,
+               "keychain:persistent-ref-0001",
+               @frame_fingerprint
+             )
+
+    assert {:error, :paired_frame_conflict} =
+             Library.register_paired_frame(
+               library,
+               td_source,
+               "keychain:replacement-ref",
+               @frame_fingerprint
+             )
+
+    assert {:error, :paired_frame_conflict} =
+             Library.register_paired_frame(
+               library,
+               td_source,
+               "keychain:persistent-ref-0001",
+               "sha256:" <> String.duplicate("c", 64)
+             )
+
+    renamed_td =
+      td_source
+      |> Jason.decode!()
+      |> Map.put("title", "Renamed frame")
+      |> Jason.encode!()
+
+    assert {:error, :paired_frame_conflict} =
+             Library.register_paired_frame(
+               library,
+               renamed_td,
+               "keychain:persistent-ref-0001",
+               @frame_fingerprint
+             )
+
+    another_td =
+      td_source
+      |> Jason.decode!()
+      |> Map.put("id", "urn:frameshift:device:another-frame-0001")
+      |> Map.put("title", "Another frame")
+      |> put_in(["frameshift:capabilities", "deviceId"], "another-frame-0001")
+      |> Jason.encode!()
+
+    assert {:error, :server_fingerprint_in_use} =
+             Library.register_paired_frame(
+               library,
+               another_td,
+               "keychain:another-frame",
+               @frame_fingerprint
+             )
+
+    assert {:ok, ^frame} = Library.get_paired_frame(library, frame["frame_id"])
+
+    assert %{"entries" => audit} = Library.audit_page(library)
+    assert Enum.count(audit, &(&1["operation"] == "frame.paired")) == 1
+  end
+
   test "canonical recipes ignore map insertion order and preserve source order", %{
     library: library
   } do

@@ -187,6 +187,13 @@ problem documents without disclosing whether the ID, secret, or certificate
 was wrong. The host then retrieves the full TD through the authenticated
 DNS-SD introduction URL and checks its device ID against the QR record.
 
+Persisting that admitted identity is idempotent only for the same canonical TD,
+credential reference, and pinned frame SPKI. A changed pin, credential
+reference, or TD is not accepted by replaying pairing admission. One server
+SPKI cannot be assigned to two device IDs. Explicit certificate rotation and
+TD refresh need separately authenticated, versioned operations that preserve
+pending delivery and content references.
+
 A temporary USB setup connection is permitted and does not violate a cable-free
 installed frame. BLE or temporary access-point commissioning MAY be added by a
 hardware profile, but cannot weaken certificate pinning or physical pair mode.

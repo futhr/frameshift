@@ -54,6 +54,39 @@ defmodule Frameshift.FrameRegistry do
   def admit(_, _, _),
     do: {:error, :invalid_pairing_record}
 
+  @doc "Decides whether paired-frame admission inserts, reuses, or conflicts with durable custody."
+  @spec admission_decision(paired_frame(), map() | nil, term(), term()) ::
+          :insert | :reuse | {:error, atom()}
+  def admission_decision(candidate, existing, pin_owner, thing_owner) do
+    with :ok <- owner_matches(pin_owner, candidate.frame_id, :server_fingerprint_in_use),
+         :ok <- owner_matches(thing_owner, candidate.frame_id, :thing_identity_in_use) do
+      admission_result(candidate, existing)
+    end
+  end
+
+  defp admission_result(_, nil), do: :insert
+
+  defp admission_result(candidate, existing) do
+    if identical_record?(existing, candidate),
+      do: :reuse,
+      else: {:error, :paired_frame_conflict}
+  end
+
+  defp owner_matches(:not_found, _, _), do: :ok
+  defp owner_matches({:ok, %{"frame_id" => frame_id}}, frame_id, _), do: :ok
+  defp owner_matches({:ok, _}, _, reason), do: {:error, reason}
+  defp owner_matches({:error, reason}, _, _), do: {:error, reason}
+
+  defp identical_record?(record, candidate) do
+    record["frame_id"] == candidate.frame_id and
+      record["thing_id"] == candidate.thing_id and
+      record["title"] == candidate.title and
+      record["medium"] == candidate.medium and
+      record["td_json"] == candidate.td_json and
+      record["credential_ref"] == candidate.credential_ref and
+      record["server_spki_fingerprint"] == candidate.server_spki_fingerprint
+  end
+
   defp validate_credential_ref(reference) when byte_size(reference) in 1..1_024, do: :ok
   defp validate_credential_ref(_), do: {:error, :invalid_credential_reference}
 

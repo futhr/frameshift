@@ -468,7 +468,7 @@ defmodule Frameshift.Library do
     result =
       with {:ok, frame} <-
              FrameRegistry.admit(td_source, credential_ref, server_spki_fingerprint) do
-        upsert_paired_frame(state, frame)
+        admit_paired_frame(state, frame)
       end
 
     {:reply, result, state}
@@ -1307,7 +1307,28 @@ defmodule Frameshift.Library do
     end
   end
 
-  defp upsert_paired_frame(state, frame) do
+  defp admit_paired_frame(state, frame) do
+    existing =
+      case get_paired_frame_record(state, frame.frame_id) do
+        {:ok, record} -> record
+        :not_found -> nil
+      end
+
+    pin_owner = get_paired_frame_by_spki_record(state, frame.server_spki_fingerprint)
+
+    thing_owner =
+      query_one(state.connection, "SELECT frame_id FROM paired_frames WHERE thing_id = ?", [
+        frame.thing_id
+      ])
+
+    case FrameRegistry.admission_decision(frame, existing, pin_owner, thing_owner) do
+      :insert -> insert_paired_frame(state, frame)
+      :reuse -> {:ok, existing}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp insert_paired_frame(state, frame) do
     now = now_ms()
 
     result =
@@ -1320,15 +1341,6 @@ defmodule Frameshift.Library do
             credential_ref, server_spki_fingerprint, connection_state,
             paired_at_ms, updated_at_ms
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'waitingForContact', ?, ?)
-          ON CONFLICT(frame_id) DO UPDATE SET
-            thing_id = excluded.thing_id,
-            title = excluded.title,
-            medium = excluded.medium,
-            td_json = excluded.td_json,
-            capabilities_json = excluded.capabilities_json,
-            credential_ref = excluded.credential_ref,
-            server_spki_fingerprint = excluded.server_spki_fingerprint,
-            updated_at_ms = excluded.updated_at_ms
           """,
           [
             frame.frame_id,

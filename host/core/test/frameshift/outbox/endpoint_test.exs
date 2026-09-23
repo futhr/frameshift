@@ -155,7 +155,7 @@ defmodule Frameshift.Outbox.EndpointTest do
              )
   end
 
-  test "a duplicate paired SPKI is ambiguous rather than selecting a frame", context do
+  test "a duplicate paired SPKI is rejected before it can affect frame resolution", context do
     another_td =
       @thing_fixture
       |> File.read!()
@@ -165,7 +165,7 @@ defmodule Frameshift.Outbox.EndpointTest do
       |> put_in(["frameshift:capabilities", "deviceId"], "another-frame-0001")
       |> Jason.encode!()
 
-    assert {:ok, _} =
+    assert {:error, :server_fingerprint_in_use} =
              Library.register_paired_frame(
                context.library,
                another_td,
@@ -173,8 +173,7 @@ defmodule Frameshift.Outbox.EndpointTest do
                context.pin
              )
 
-    assert {:error, :ambiguous_frame_identity} =
-             request(context, "GET", manifest_path())
+    assert {:ok, %{status: 204}} = request(context, "GET", manifest_path())
   end
 
   test "the bounded HTTP exchange frames authenticated content and safe problems", context do

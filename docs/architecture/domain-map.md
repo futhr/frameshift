@@ -27,6 +27,13 @@ between desired, pending, confirmed, and previous-known-good states. A Frames
 query may show that state, but must not mutate or independently infer it. The
 Library enforces reference protection for all artifacts in those states.
 
+Paired-frame admission is idempotent for an identical canonical TD, credential
+reference, and pinned server SPKI. It rejects an existing device ID with
+changed custody or description and rejects a server SPKI already assigned to a
+different device ID. Certificate rotation and TD refresh require separate
+authenticated operations with their own transition and pending-delivery rules;
+ordinary admission cannot perform either change implicitly.
+
 ## Atomicity and effects
 
 1. A command is admitted, canonically identified, and claimed before effects.

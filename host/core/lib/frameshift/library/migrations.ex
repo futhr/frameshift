@@ -247,6 +247,10 @@ defmodule Frameshift.Library.Migrations do
        ) STRICT
        """,
        "CREATE INDEX metric_rollups_recent ON metric_rollups(bucket_ms DESC, granularity)"
+     ]},
+    {9,
+     [
+       "CREATE UNIQUE INDEX paired_frames_server_spki_unique ON paired_frames(server_spki_fingerprint)"
      ]}
   ]
 

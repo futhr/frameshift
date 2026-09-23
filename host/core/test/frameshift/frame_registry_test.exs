@@ -51,4 +51,30 @@ defmodule Frameshift.FrameRegistryTest do
                @fingerprint
              )
   end
+
+  test "paired admission distinguishes replay from identity and pin conflicts" do
+    assert {:ok, candidate} =
+             FrameRegistry.admit(File.read!(@fixture), "keychain:frame-client-0001", @fingerprint)
+
+    existing = Map.new(candidate, fn {key, value} -> {Atom.to_string(key), value} end)
+    same_owner = {:ok, %{"frame_id" => candidate.frame_id}}
+    other_owner = {:ok, %{"frame_id" => "other-frame"}}
+
+    assert :insert = FrameRegistry.admission_decision(candidate, nil, :not_found, :not_found)
+    assert :reuse = FrameRegistry.admission_decision(candidate, existing, same_owner, same_owner)
+
+    assert {:error, :paired_frame_conflict} =
+             FrameRegistry.admission_decision(
+               %{candidate | credential_ref: "keychain:replacement"},
+               existing,
+               same_owner,
+               same_owner
+             )
+
+    assert {:error, :server_fingerprint_in_use} =
+             FrameRegistry.admission_decision(candidate, nil, other_owner, :not_found)
+
+    assert {:error, :thing_identity_in_use} =
+             FrameRegistry.admission_decision(candidate, nil, :not_found, other_owner)
+  end
 end

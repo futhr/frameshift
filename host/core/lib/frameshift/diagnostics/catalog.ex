@@ -28,6 +28,18 @@ defmodule Frameshift.Diagnostics.Catalog do
       buckets: @duration_buckets
     },
     %{
+      name: "frameshift.qualification.decision.count",
+      event: [:frameshift, :qualification, :decision],
+      measure: :count,
+      kind: :sum,
+      unit: :count,
+      dimensions: %{
+        stage: ~w(candidate admission activation cohort work result other),
+        outcome: ~w(succeeded refused other)
+      },
+      buckets: []
+    },
+    %{
       name: "frameshift.delivery.intent.count",
       event: [:frameshift, :delivery, :intent],
       measure: :count,

@@ -597,19 +597,35 @@ defmodule Frameshift.Library do
   end
 
   def handle_call({:register_qualification, manifest}, _, state) do
-    {:reply, QualificationStore.register(state.connection, manifest), state}
+    qualification_reply(
+      state,
+      :candidate,
+      QualificationStore.register(state.connection, manifest)
+    )
   end
 
   def handle_call({:admit_qualification, digest, evidence}, _, state) do
-    {:reply, QualificationStore.admit(state.connection, digest, evidence), state}
+    qualification_reply(
+      state,
+      :admission,
+      QualificationStore.admit(state.connection, digest, evidence)
+    )
   end
 
   def handle_call({:activate_qualification, frame_id, digest}, _, state) do
-    {:reply, QualificationStore.activate(state.connection, frame_id, digest), state}
+    qualification_reply(
+      state,
+      :activation,
+      QualificationStore.activate(state.connection, frame_id, digest)
+    )
   end
 
   def handle_call({:activate_qualification_cohort, selections}, _, state) do
-    {:reply, QualificationStore.activate_cohort(state.connection, selections), state}
+    qualification_reply(
+      state,
+      :cohort,
+      QualificationStore.activate_cohort(state.connection, selections)
+    )
   end
 
   def handle_call({:get_qualification, digest}, _, state) do
@@ -628,7 +644,7 @@ defmodule Frameshift.Library do
     reply =
       WorkStore.accept(state.connection, frame_id, binding_digest, master_digest, recipe_digest)
 
-    {:reply, reply, state}
+    qualification_reply(state, :work, reply)
   end
 
   def handle_call({:get_qualified_work, digest}, _, state) do
@@ -636,7 +652,11 @@ defmodule Frameshift.Library do
   end
 
   def handle_call({:record_qualified_result, work_digest, artifact_digest}, _, state) do
-    {:reply, WorkStore.record_result(state.connection, work_digest, artifact_digest), state}
+    qualification_reply(
+      state,
+      :result,
+      WorkStore.record_result(state.connection, work_digest, artifact_digest)
+    )
   end
 
   def handle_call({:qualified_result, work_digest}, _, state) do
@@ -2544,6 +2564,18 @@ defmodule Frameshift.Library do
     |> String.replace("\\", "\\\\")
     |> String.replace("%", "\\%")
     |> String.replace("_", "\\_")
+  end
+
+  defp qualification_reply(state, stage, result) do
+    outcome = if match?({:error, _}, result), do: :refused, else: :succeeded
+
+    :telemetry.execute(
+      [:frameshift, :qualification, :decision],
+      %{count: 1},
+      %{stage: stage, outcome: outcome}
+    )
+
+    {:reply, result, state}
   end
 
   defp now_ms, do: System.os_time(:millisecond)

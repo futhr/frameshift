@@ -210,6 +210,35 @@ defmodule Frameshift.Qualification.StoreTest do
     GenServer.stop(restarted)
   end
 
+  test "qualification decisions emit bounded success and refusal telemetry", context do
+    %{library: library, frame: frame} = context
+    handler_id = "qualification-test-#{System.unique_integer([:positive])}"
+
+    :ok =
+      :telemetry.attach(
+        handler_id,
+        [:frameshift, :qualification, :decision],
+        &__MODULE__.capture_qualification_event/4,
+        {library, self()}
+      )
+
+    on_exit(fn -> :telemetry.detach(handler_id) end)
+
+    assert {:error, :invalid_qualification_cohort} =
+             Library.activate_qualification_cohort(library, [])
+
+    assert_receive {%{count: 1}, %{stage: :cohort, outcome: :refused}}
+
+    assert {:ok, digest} = Library.register_qualification(library, manifest(frame))
+    assert_receive {%{count: 1}, %{stage: :candidate, outcome: :succeeded}}
+
+    assert {:error, :qualification_not_admitted} =
+             Library.activate_qualification(library, frame["frame_id"], digest)
+
+    assert_receive {%{count: 1}, %{stage: :activation, outcome: :refused}}
+    GenServer.stop(library)
+  end
+
   test "forgetting frame clears active selection and blocks stale reactivation", context do
     %{library: library, frame: frame} = context
     {:ok, digest} = Library.register_qualification(library, manifest(frame))
@@ -557,5 +586,12 @@ defmodule Frameshift.Qualification.StoreTest do
       work_digest: work_digest,
       artifact_digest: artifact["digest"]
     }
+  end
+
+  @doc false
+  @spec capture_qualification_event(term(), map(), map(), {pid(), pid()}) :: :ok
+  def capture_qualification_event(_, measurements, metadata, {emitter, observer}) do
+    if self() == emitter, do: send(observer, {measurements, metadata})
+    :ok
   end
 end

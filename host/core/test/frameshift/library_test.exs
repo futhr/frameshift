@@ -370,6 +370,136 @@ defmodule Frameshift.LibraryTest do
     assert second["digest"] == first["digest"]
   end
 
+  test "distinct recipes share identical artifact bytes and survive restart", %{
+    library: library,
+    data_dir: data_dir
+  } do
+    {:ok, first_master} = Library.import_master(library, "first master", master_attributes())
+    {:ok, second_master} = Library.import_master(library, "second master", master_attributes())
+
+    {:ok, first_recipe} =
+      Library.register_recipe(library, :composition, %{"crop" => "left"}, [
+        first_master["digest"]
+      ])
+
+    {:ok, second_recipe} =
+      Library.register_recipe(library, :composition, %{"crop" => "right"}, [
+        second_master["digest"]
+      ])
+
+    attributes = %{
+      profile_id: "urn:frameshift:test:rgb24",
+      renderer_revision: "test-renderer-v1",
+      media_type: "application/vnd.frameshift.rgb24"
+    }
+
+    first_attributes =
+      Map.merge(attributes, %{master_digest: first_master["digest"], recipe_hash: first_recipe})
+
+    second_attributes =
+      Map.merge(attributes, %{master_digest: second_master["digest"], recipe_hash: second_recipe})
+
+    bytes = <<0, 1, 2, 3, 4, 5>>
+
+    assert {:ok, first} = Library.register_artifact(library, bytes, first_attributes)
+    assert {:ok, second} = Library.register_artifact(library, bytes, second_attributes)
+    assert first[:cache] == :miss
+    assert second[:cache] == :miss
+    assert first["digest"] == second["digest"]
+    assert first["master_digest"] == first_master["digest"]
+    assert second["master_digest"] == second_master["digest"]
+
+    assert {:error, :cache_identity_conflict} =
+             Library.register_artifact(
+               library,
+               bytes,
+               %{first_attributes | media_type: "application/octet-stream"}
+             )
+
+    {:ok, third_recipe} =
+      Library.register_recipe(library, :composition, %{"crop" => "center"}, [
+        first_master["digest"]
+      ])
+
+    assert {:error, :artifact_media_type_conflict} =
+             Library.register_artifact(
+               library,
+               bytes,
+               %{
+                 first_attributes
+                 | recipe_hash: third_recipe,
+                   media_type: "application/octet-stream"
+               }
+             )
+
+    GenServer.stop(library)
+    {:ok, restarted} = Library.start_link(data_dir: data_dir, name: nil)
+
+    assert {:ok, %{"digest" => digest, "master_digest" => first_digest}} =
+             Library.cached_artifact(
+               restarted,
+               first_recipe,
+               attributes.profile_id,
+               attributes.renderer_revision
+             )
+
+    assert digest == first["digest"]
+    assert first_digest == first_master["digest"]
+
+    assert {:ok, %{"digest" => ^digest, "master_digest" => second_digest}} =
+             Library.cached_artifact(
+               restarted,
+               second_recipe,
+               attributes.profile_id,
+               attributes.renderer_revision
+             )
+
+    assert second_digest == second_master["digest"]
+    assert {:ok, %{"bytes" => ^bytes}} = Library.read_object(restarted, digest)
+
+    GenServer.stop(restarted)
+  end
+
+  test "artifact recipe links are backfilled when an existing library upgrades", %{
+    library: library,
+    data_dir: data_dir
+  } do
+    {:ok, master} = Library.import_master(library, "existing master", master_attributes())
+
+    {:ok, recipe_hash} =
+      Library.register_recipe(library, :composition, %{"crop" => "full"}, [master["digest"]])
+
+    attributes = %{
+      master_digest: master["digest"],
+      recipe_hash: recipe_hash,
+      profile_id: "urn:frameshift:test:rgb24",
+      renderer_revision: "test-renderer-v1",
+      media_type: "application/vnd.frameshift.rgb24"
+    }
+
+    assert {:ok, artifact} = Library.register_artifact(library, <<1, 2, 3>>, attributes)
+    GenServer.stop(library)
+
+    {:ok, database} = Exqlite.start_link(database: Path.join(data_dir, "metadata.sqlite"))
+    Exqlite.query!(database, "DROP TABLE artifact_recipe_links")
+    Exqlite.query!(database, "DELETE FROM schema_migrations WHERE version = 13")
+    GenServer.stop(database)
+
+    {:ok, upgraded} = Library.start_link(data_dir: data_dir, name: nil)
+
+    assert {:ok, %{"digest" => digest, "master_digest" => master_digest}} =
+             Library.cached_artifact(
+               upgraded,
+               recipe_hash,
+               attributes.profile_id,
+               attributes.renderer_revision
+             )
+
+    assert digest == artifact["digest"]
+    assert master_digest == master["digest"]
+    GenServer.stop(upgraded)
+  end
+
   test "remove is recoverable and collection never deletes protected content", %{
     library: library,
     data_dir: data_dir

@@ -225,28 +225,28 @@ defmodule Frameshift.Qualification.WorkStore do
   defp matching_artifact(owner, digest, work) do
     binding = BindingStore.get(owner, work["binding_digest"])
 
-    rows =
-      Exqlite.query!(
-        owner,
-        """
-        SELECT a.master_digest, a.recipe_hash, a.profile_id, a.renderer_revision,
-               o.byte_count, o.media_type
-        FROM artifacts a JOIN objects o ON o.digest = a.digest
-        WHERE a.digest = ? AND o.storage_state = 'active'
-        """,
-        [digest]
-      ).rows
-
-    case {binding, rows} do
-      {{:ok, %{"manifest" => manifest}}, [[master, recipe, profile, revision, bytes, media]]} ->
-        if master == work["master_digest"] and recipe == work["recipe_digest"] and
-             profile == manifest["profileId"] and
-             revision == manifest["rendererAlgorithmRevision"],
-           do: {:ok, %{"byte_count" => bytes, "media_type" => media}},
-           else: {:error, :qualification_artifact_mismatch}
-
-      _ ->
-        {:error, :qualification_artifact_mismatch}
+    with {:ok, %{"manifest" => manifest}} <- binding,
+         [[bytes, media]] <-
+           Exqlite.query!(
+             owner,
+             """
+             SELECT o.byte_count, o.media_type
+             FROM artifact_recipe_links a JOIN objects o ON o.digest = a.artifact_digest
+             WHERE a.artifact_digest = ? AND a.master_digest = ? AND a.recipe_hash = ?
+               AND a.profile_id = ? AND a.renderer_revision = ?
+               AND o.storage_state = 'active'
+             """,
+             [
+               digest,
+               work["master_digest"],
+               work["recipe_digest"],
+               manifest["profileId"],
+               manifest["rendererAlgorithmRevision"]
+             ]
+           ).rows do
+      {:ok, %{"byte_count" => bytes, "media_type" => media}}
+    else
+      _ -> {:error, :qualification_artifact_mismatch}
     end
   end
 

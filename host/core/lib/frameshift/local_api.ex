@@ -169,17 +169,13 @@ defmodule Frameshift.LocalAPI do
        )
        when is_binary(target_id) and is_binary(master_digest) do
     with {:ok, frame} <- fetch_target(library, target_id),
-         {:ok, mode} <- delivery_mode(frame, command, options),
+         {:ok, binding} <- queue_binding(library, frame["frame_id"]),
+         {:ok, mode} <- delivery_mode(frame, command, options, binding),
          {:ok, master} <- fetch_master(library, master_digest),
-         {:ok, compilation} <- RenderProfile.compile(master, frame["capabilities"]),
+         {:ok, compilation} <-
+           RenderProfile.compile(master, frame["capabilities"], binding_profile_id(binding)),
          {:ok, artifact} <-
-           RenderPipeline.render_stored_master(
-             library,
-             renderer,
-             master_digest,
-             compilation.job,
-             compilation.attributes
-           ),
+           render_for_queue(library, renderer, frame, mode, master_digest, compilation, binding),
          {:ok, status} <-
            deliver(library, frame, artifact, compilation.profile, command, mode, options) do
       {:ok, snapshot(library, status)}
@@ -189,6 +185,69 @@ defmodule Frameshift.LocalAPI do
   end
 
   defp do_queue(_, _, _, _), do: {:error, :invalid_command}
+
+  defp queue_binding(library, frame_id) do
+    case Library.active_qualification(library, frame_id) do
+      {:ok, binding} -> {:ok, binding}
+      :not_found -> {:ok, nil}
+    end
+  end
+
+  defp binding_profile_id(nil), do: nil
+  defp binding_profile_id(binding), do: binding["manifest"]["profileId"]
+
+  defp render_for_queue(library, renderer, frame, mode, master_digest, compilation, binding) do
+    if binding do
+      RenderPipeline.render_qualified_stored_master(
+        library,
+        renderer,
+        frame["frame_id"],
+        Atom.to_string(mode),
+        master_digest,
+        compilation.job,
+        compilation.attributes
+      )
+    else
+      RenderPipeline.render_stored_master(
+        library,
+        renderer,
+        master_digest,
+        compilation.job,
+        compilation.attributes
+      )
+    end
+  end
+
+  defp delivery_mode(frame, command, options, nil),
+    do: delivery_mode(frame, command, options)
+
+  defp delivery_mode(%{"capabilities" => %{"transferModes" => modes}}, command, options, binding) do
+    case binding["manifest"]["transferMode"] do
+      "pull" ->
+        if "pull" in modes, do: {:ok, :pull}, else: {:error, :compatible_binding_unavailable}
+
+      "push" ->
+        if "push" in modes,
+          do: push_delivery_mode(command, options),
+          else: {:error, :compatible_binding_unavailable}
+
+      _ ->
+        {:error, :compatible_binding_unavailable}
+    end
+  end
+
+  defp push_delivery_mode(command, options) do
+    cond do
+      not Keyword.has_key?(options, :credential_resolver) ->
+        {:error, :credential_broker_unavailable}
+
+      not is_binary(Map.get(command, "id")) ->
+        {:error, :invalid_command}
+
+      true ->
+        {:ok, :push}
+    end
+  end
 
   defp do_reconcile_delivery(library, %{"targetID" => target_id}, options)
        when is_binary(target_id) do

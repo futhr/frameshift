@@ -41,7 +41,10 @@ to that job and its delivery intents. An immutable result binds the work digest
 to the exact rendered wire-byte digest, byte count, and media type. The final
 artifact digest cannot be an input to the work manifest because it does not
 exist before rendering. It remains SHA-256 of the exact wire bytes, independent
-of database IDs and manifest metadata.
+of database IDs and manifest metadata. Multiple recipe/profile/renderer
+identities may produce the same wire bytes. The library stores one content
+object for that digest and a separate durable mapping for each recipe identity;
+cache lookup and qualification result validation use the exact mapping.
 
 Manifests contain no credential, provider context, raw source bytes, raw
 endpoint URL, UI layout, or mutable health data. No result may rewrite a
@@ -66,7 +69,8 @@ Candidate, admitted, and retired states are durable. One active qualification
 pointer per frame/cohort selects *new* work. A candidate cannot activate
 itself; an activation command records the qualification decision and previous
 active pointer under the single writer. New work also validates its master and
-recipe before claiming a work digest.
+recipe before claiming a work digest. Product queue commands select the active
+binding's artifact profile and transfer mode before compiling a render job.
 
 An accepted render job and both push and pull delivery intents record the
 work digest and qualification digest. Retries, acknowledgements, and

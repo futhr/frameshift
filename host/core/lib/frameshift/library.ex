@@ -524,8 +524,8 @@ defmodule Frameshift.Library do
         """
         SELECT o.digest, o.byte_count, o.media_type, a.master_digest, a.recipe_hash,
                a.profile_id, a.renderer_revision
-        FROM artifacts a
-        JOIN objects o ON o.digest = a.digest
+        FROM artifact_recipe_links a
+        JOIN objects o ON o.digest = a.artifact_digest
         WHERE a.recipe_hash = ? AND a.profile_id = ? AND a.renderer_revision = ?
         """,
         [recipe_hash, profile_id, renderer_revision]
@@ -1055,15 +1055,22 @@ defmodule Frameshift.Library do
            attributes.profile_id,
            attributes.renderer_revision
          ) do
-      {:ok, artifact} -> cached_artifact_result(artifact, attributes.master_digest)
-      :not_found -> insert_artifact(state, bytes, attributes)
+      {:ok, artifact} ->
+        cached_artifact_result(artifact, attributes.master_digest, attributes.media_type)
+
+      :not_found ->
+        insert_artifact(state, bytes, attributes)
     end
   end
 
-  defp cached_artifact_result(%{"master_digest" => master_digest} = artifact, master_digest),
-    do: {:ok, Map.put(artifact, :cache, :hit)}
+  defp cached_artifact_result(
+         %{"master_digest" => master_digest, "media_type" => media_type} = artifact,
+         master_digest,
+         media_type
+       ),
+       do: {:ok, Map.put(artifact, :cache, :hit)}
 
-  defp cached_artifact_result(_, _), do: {:error, :cache_identity_conflict}
+  defp cached_artifact_result(_, _, _), do: {:error, :cache_identity_conflict}
 
   defp insert_artifact(state, bytes, attributes) do
     with {:ok, _} <- get_master_record(state, attributes.master_digest),
@@ -1071,7 +1078,8 @@ defmodule Frameshift.Library do
            query_one(state.connection, "SELECT hash FROM recipes WHERE hash = ?", [
              attributes.recipe_hash
            ]),
-         {:ok, digest, byte_count, placement} <- ContentStore.put(state.data_dir, bytes) do
+         {:ok, digest, byte_count, placement} <- ContentStore.put(state.data_dir, bytes),
+         :ok <- ensure_artifact_media_type(state, digest, attributes.media_type) do
       result =
         transaction(state.connection, fn connection ->
           Exqlite.query!(
@@ -1079,7 +1087,7 @@ defmodule Frameshift.Library do
             """
             INSERT INTO objects(digest, byte_count, media_type, storage_state, created_at_ms)
             VALUES (?, ?, ?, 'active', ?)
-            ON CONFLICT(digest) DO NOTHING
+            ON CONFLICT(digest) DO UPDATE SET storage_state = 'active', trashed_at_ms = NULL
             """,
             [digest, byte_count, attributes.media_type, now_ms()]
           )
@@ -1089,6 +1097,7 @@ defmodule Frameshift.Library do
             """
             INSERT INTO artifacts(digest, master_digest, recipe_hash, profile_id, renderer_revision)
             VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(digest) DO NOTHING
             """,
             [
               digest,
@@ -1096,6 +1105,22 @@ defmodule Frameshift.Library do
               attributes.recipe_hash,
               attributes.profile_id,
               attributes.renderer_revision
+            ]
+          )
+
+          Exqlite.query!(
+            connection,
+            """
+            INSERT INTO artifact_recipe_links(
+              recipe_hash, profile_id, renderer_revision, master_digest, artifact_digest
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            [
+              attributes.recipe_hash,
+              attributes.profile_id,
+              attributes.renderer_revision,
+              attributes.master_digest,
+              digest
             ]
           )
 
@@ -1130,14 +1155,22 @@ defmodule Frameshift.Library do
     end
   end
 
+  defp ensure_artifact_media_type(state, digest, media_type) do
+    case query_one(state.connection, "SELECT media_type FROM objects WHERE digest = ?", [digest]) do
+      {:ok, %{"media_type" => ^media_type}} -> :ok
+      {:ok, _} -> {:error, :artifact_media_type_conflict}
+      :not_found -> :ok
+    end
+  end
+
   defp cached_artifact_record(state, recipe_hash, profile_id, renderer_revision) do
     query_one(
       state.connection,
       """
       SELECT o.digest, o.byte_count, o.media_type, a.master_digest, a.recipe_hash,
              a.profile_id, a.renderer_revision
-      FROM artifacts a
-      JOIN objects o ON o.digest = a.digest
+      FROM artifact_recipe_links a
+      JOIN objects o ON o.digest = a.artifact_digest
       WHERE a.recipe_hash = ? AND a.profile_id = ? AND a.renderer_revision = ?
       """,
       [recipe_hash, profile_id, renderer_revision]
@@ -1630,7 +1663,7 @@ defmodule Frameshift.Library do
         AND o.storage_state = 'active'
         AND NOT EXISTS (SELECT 1 FROM pins p WHERE p.object_digest = m.digest)
         AND NOT EXISTS (SELECT 1 FROM frame_asset_refs f WHERE f.object_digest = m.digest)
-        AND NOT EXISTS (SELECT 1 FROM artifacts a WHERE a.master_digest = m.digest)
+        AND NOT EXISTS (SELECT 1 FROM artifact_recipe_links a WHERE a.master_digest = m.digest)
         AND NOT EXISTS (SELECT 1 FROM recipe_sources r WHERE r.source_digest = m.digest)
       ORDER BY m.digest
       """)
@@ -1762,12 +1795,7 @@ defmodule Frameshift.Library do
              "artifactProfile" => profile_id,
              "playlistRevision" => playlist_revision
            }),
-         {:ok, %{"profile_id" => ^profile_id}} <-
-           query_one(
-             state.connection,
-             "SELECT profile_id FROM artifacts WHERE digest = ?",
-             [digest]
-           ),
+         :ok <- require_artifact_profile(state, digest, profile_id),
          {:ok, qualification_digest} <-
            WorkStore.delivery_binding(
              state.connection,
@@ -1844,8 +1872,6 @@ defmodule Frameshift.Library do
     else
       false -> {:error, :invalid_digest}
       {:error, %JSV.ValidationError{}} -> {:error, :invalid_outbox}
-      :not_found -> {:error, :artifact_missing}
-      {:ok, _} -> {:error, :unsupported_profile}
       {:error, reason} -> {:error, reason}
     end
   end
@@ -2031,10 +2057,21 @@ defmodule Frameshift.Library do
   end
 
   defp require_artifact_profile(state, digest, profile_id) do
-    case query_one(state.connection, "SELECT profile_id FROM artifacts WHERE digest = ?", [digest]) do
-      {:ok, %{"profile_id" => ^profile_id}} -> :ok
-      {:ok, _} -> {:error, :unsupported_profile}
-      :not_found -> {:error, :artifact_missing}
+    case query_one(
+           state.connection,
+           "SELECT 1 AS present FROM artifact_recipe_links WHERE artifact_digest = ? AND profile_id = ? LIMIT 1",
+           [digest, profile_id]
+         ) do
+      {:ok, _} ->
+        :ok
+
+      :not_found ->
+        case query_one(state.connection, "SELECT 1 AS present FROM artifacts WHERE digest = ?", [
+               digest
+             ]) do
+          {:ok, _} -> {:error, :unsupported_profile}
+          :not_found -> {:error, :artifact_missing}
+        end
     end
   end
 

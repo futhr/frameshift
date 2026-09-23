@@ -347,6 +347,27 @@ defmodule Frameshift.Library.Migrations do
        WHEN (NEW.work_digest IS NULL) != (NEW.qualification_digest IS NULL)
        BEGIN SELECT RAISE(ABORT, 'incomplete frame asset qualification custody'); END
        """
+     ]},
+    {13,
+     [
+       """
+       CREATE TABLE artifact_recipe_links (
+         recipe_hash TEXT NOT NULL REFERENCES recipes(hash) ON DELETE RESTRICT,
+         profile_id TEXT NOT NULL,
+         renderer_revision TEXT NOT NULL,
+         master_digest TEXT NOT NULL REFERENCES masters(digest) ON DELETE RESTRICT,
+         artifact_digest TEXT NOT NULL REFERENCES artifacts(digest) ON DELETE RESTRICT,
+         PRIMARY KEY (recipe_hash, profile_id, renderer_revision)
+       ) STRICT
+       """,
+       """
+       INSERT INTO artifact_recipe_links(
+         recipe_hash, profile_id, renderer_revision, master_digest, artifact_digest
+       )
+       SELECT recipe_hash, profile_id, renderer_revision, master_digest, digest
+       FROM artifacts
+       """,
+       "CREATE INDEX artifact_recipe_links_digest ON artifact_recipe_links(artifact_digest)"
      ]}
   ]
 

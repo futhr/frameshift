@@ -208,18 +208,28 @@ defmodule Frameshift.RenderPipelineTest do
     assert artifact_digest == first["digest"]
 
     assert {:ok, _} =
-             Library.queue_outbox(
-               context.library,
-               @frame_id,
-               first["digest"],
-               @profile_id,
-               nil,
-               nil,
-               first.work_digest
-             )
+             LocalAPI.execute_with_renderer(context.library, context.renderer, %{
+               "id" => "qualified-pull-1",
+               "kind" => "queue",
+               "targetID" => @frame_id,
+               "itemID" => master["digest"]
+             })
 
-    assert %{"queued" => [%{"work_digest" => ^work_digest}]} =
-             Library.delivery_custody(context.library, @frame_id)
+    assert %{
+             "queued" => [
+               %{
+                 "artifact_digest" => ^artifact_digest,
+                 "qualification_digest" => ^binding_digest,
+                 "status" => "qualified",
+                 "work_digest" => queued_work_digest
+               }
+             ]
+           } = Library.delivery_custody(context.library, @frame_id)
+
+    assert queued_work_digest != work_digest
+
+    assert {:ok, %{"artifact_digest" => ^artifact_digest}} =
+             Library.qualified_result(context.library, queued_work_digest)
 
     assert {:ok, second} =
              RenderPipeline.render_qualified_stored_master(
@@ -259,6 +269,63 @@ defmodule Frameshift.RenderPipelineTest do
                job,
                artifact_attributes()
              )
+  end
+
+  test "queue uses the active qualification profile instead of the default profile", context do
+    {:ok, package} = MasterPackage.encode(@original, @rgba, 2, 1)
+    {:ok, master} = Library.import_master(context.library, package, master_attributes())
+    alternate_id = "urn:frameshift:test:z-rgb24-v1"
+
+    td = Jason.decode!(thing_description())
+    [default_profile] = td["frameshift:capabilities"]["storage"]["artifactProfiles"]
+
+    td =
+      put_in(
+        td,
+        ["frameshift:capabilities", "storage", "artifactProfiles"],
+        [default_profile, %{default_profile | "id" => alternate_id}]
+      )
+
+    {:ok, frame} =
+      Library.register_paired_frame(
+        context.library,
+        Jason.encode!(td),
+        "keychain:qualified-alternate-frame",
+        "sha256:" <> String.duplicate("d", 64)
+      )
+
+    {:ok, profile_digest} = Profile.digest(frame["capabilities"], alternate_id)
+
+    manifest =
+      qualification_manifest(frame, Renderer.build_digest(context.renderer))
+      |> Map.put("profileId", alternate_id)
+      |> Map.put("profileDigest", profile_digest)
+
+    {:ok, binding_digest} = Library.register_qualification(context.library, manifest)
+
+    :ok =
+      Library.admit_qualification(context.library, binding_digest, %{
+        "schemaVersion" => 1,
+        "scope" => "software_reference",
+        "outcome" => "passed",
+        "suiteDigest" => Digest.sha256("alternate profile fixture")
+      })
+
+    :ok = Library.activate_qualification(context.library, @frame_id, binding_digest)
+
+    assert {:ok, _} =
+             LocalAPI.execute_with_renderer(context.library, context.renderer, %{
+               "id" => "alternate-profile-queue",
+               "kind" => "queue",
+               "targetID" => @frame_id,
+               "itemID" => master["digest"]
+             })
+
+    assert {:ok, %{"artifactProfile" => ^alternate_id}} =
+             Library.outbox_manifest(context.library, @frame_id)
+
+    assert %{"queued" => [%{"qualification_digest" => ^binding_digest}]} =
+             Library.delivery_custody(context.library, @frame_id)
   end
 
   test "a push-only queue command renders and records confirmed direct delivery", context do

@@ -375,7 +375,7 @@ defmodule Frameshift.DirectDeliveryTest do
 
   defp register_artifact!(library, bytes) do
     {:ok, master} =
-      Library.import_master(library, bytes, %{
+      Library.import_master(library, "source:" <> bytes, %{
         title: "Direct delivery fixture",
         source_kind: :import,
         width: 2,

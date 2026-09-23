@@ -35,7 +35,7 @@
           {Credo.Check.Readability.VariableNames, []},
           {Credo.Check.Refactor.Apply, []},
           {Credo.Check.Refactor.CyclomaticComplexity, []},
-          {Credo.Check.Refactor.Nesting, []},
+          {Credo.Check.Refactor.Nesting, [max_nesting: 2]},
           {Credo.Check.Warning.ApplicationConfigInModuleAttribute, []},
           {Credo.Check.Warning.BoolOperationOnSameValues, []},
           {Credo.Check.Warning.Dbg, []},

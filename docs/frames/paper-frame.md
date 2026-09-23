@@ -2,6 +2,11 @@
 
 **Status:** candidate prototype path; no controller selected
 
+The Waveshare 13.3-inch E6 assembly is the default manufacturer candidate for
+the [networked simulator](../architecture/container-frame-simulator.md) and
+first Paper bench fixture. This selects a concrete test baseline, not a
+validated controller, final enclosure, or purchase recommendation.
+
 ## Purpose
 
 Paper is the reflective medium: ambient-light readability, a very thin display

@@ -22,6 +22,7 @@ protocol branches.
 - [Host domain map](architecture/domain-map.md)
 - [Host diagnostics contract](architecture/diagnostics.md)
 - [Frame Protocol](architecture/frame-protocol.md)
+- [Networked frame simulator and manufacturer baselines](architecture/container-frame-simulator.md)
 - [Capability model](architecture/capabilities.md)
 - [Content pipeline](architecture/content-pipeline.md)
 - [Qualified render and transfer generations](architecture/qualified-generations.md)

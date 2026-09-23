@@ -3,6 +3,11 @@
 **Research snapshot:** 2026-09-22
 **Status:** candidates for independent prototypes, not a purchase list
 
+The default manufacturer baselines for software simulation are the Waveshare
+13.3-inch E6 assembly, BOE MV270QHM-N40 preliminary P1 panel, and six Waveshare
+P3 64×64 modules. See the [networked simulator contract](../architecture/container-frame-simulator.md).
+They are concrete candidate fixtures; none is a validated product revision.
+
 Recheck availability, exact revision, interface, dimensions, license, price,
 and safety documentation immediately before purchase. Builders may choose any
 frame path.

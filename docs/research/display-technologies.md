@@ -17,7 +17,7 @@ electrical design or power claim.
 | Image with electronics off | Yes | No | No; continuous scan is required |
 | Practical battery-only wall use | Strongest candidate | Poor | Not credible at the proposed size |
 | Continuous power while visible | No | Yes | Yes, with high peak current |
-| Current reference geometry | 13.3-inch E6 candidate | 27-inch QHD candidate | Six P3 modules, 192×128 logical |
+| Default simulator candidate | Waveshare 13.3-inch E6, 1600×1200 | BOE MV270QHM-N40 P1, 2560×1440 | Six Waveshare P3 modules, 192×128 logical |
 | Primary risk | controller/waveform, refresh time, sourcing | panel-controller match, depth, heat, power | scan timing, signal integrity, power distribution, heat |
 | “No visible cable” route | battery and deep sleep | concealed feed, powered mount, or routed cable | concealed high-capacity feed or routed cable |
 

@@ -56,7 +56,7 @@ The implemented core currently provides:
   transfer coding, pipelining, and oversize requests before dispatch; a
   supervised TLS 1.3 listener requires a paired client certificate and serves
   one bounded exchange per connection, but installed Keychain identity
-  provisioning, app lifecycle wiring, and the frame-side client remain open;
+  provisioning, app lifecycle wiring, and a physical frame-side client remain open;
 - a supervised, single-job Zig renderer port with bounded framing, typed worker
   failures, explicit deadlines, diagnostic redaction, and restart-on-failure;
 - a vendor-neutral profile compiler that selects advertised capability
@@ -70,6 +70,14 @@ The implemented core currently provides:
 - a persistent frame simulator with bounded storage, desired/current state,
   sleeping pull convergence, still playlists, redundant metadata records, and
   injected contact, transfer, display, storage, timing, and power-loss failures.
+
+A separate Docker receiver exercises the actual mutual-TLS outbox with the
+default Paper, Photo, and Pixel manufacturer candidate geometries. It uses
+exact-size RGB24 **software proxy** artifacts; panel wire packing, electrical
+timing, optics, and physical persistence remain hardware gates. Run
+`scripts/check container` from the repository root with a Docker-compatible
+daemon. CI runs this lane independently of the ordinary core gate. See the
+[receiver contract](../../docs/architecture/container-frame-simulator.md).
 
 Run the complete core check from this directory:
 

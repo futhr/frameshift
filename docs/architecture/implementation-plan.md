@@ -112,6 +112,8 @@ display success still requires authoritative frame evidence. See
   selection;
 - state, desired, playlist, outbox manifest/ack, and problem schemas;
 - digest-addressed fake storage;
+- a separate Docker-managed frame receiver for the default Paper, Photo, and
+  Pixel manufacturer candidates, contacting the host over real mutual TLS;
 - fault injection for slow refresh, sleeping contact, bad digest, full storage,
   power-loss checkpoints, and version skew.
 

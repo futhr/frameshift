@@ -2,6 +2,11 @@
 
 **Status:** independent prototype path; exact panel/controller unselected
 
+The BOE MV270QHM-N40 preliminary P1 panel is the default manufacturer geometry
+candidate for the [networked simulator](../architecture/container-frame-simulator.md).
+Its controller match and procurement revision remain unqualified, so the donor
+monitor and raw-panel prototype paths stay open.
+
 ## Purpose
 
 Photo is the high-detail emissive medium: a large matte surface for photography

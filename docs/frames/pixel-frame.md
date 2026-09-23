@@ -2,6 +2,11 @@
 
 **Status:** independent prototype path; controller spike required
 
+Six Waveshare RGB-Matrix-P3-64x64 modules form the default manufacturer
+candidate for the [networked simulator](../architecture/container-frame-simulator.md)
+and six-panel prototype. Their exact PCB/driver IC revision, MCU, brightness
+clamp, and full-array electrical behavior still require qualification.
+
 ## Purpose
 
 Pixel treats coarse luminous pixels as the medium. A source becomes a deliberate

@@ -92,6 +92,20 @@ check_macos() {
   "$repository_root/scripts/check-packaged-app" "$app_bundle"
 }
 
+check_container() {
+  if ! docker info >/dev/null 2>&1; then
+    echo "Docker-compatible daemon required for the frame receiver lane" >&2
+    return 1
+  fi
+
+  (
+    cd "$repository_root/host/core"
+    mise exec -- env -u MIX_HOME -u MIX_ARCHIVES \
+      FRAMESHIFT_CONTAINER_TESTS=1 \
+      mix test test/frameshift/container_receiver_test.exs
+  )
+}
+
 case "${1:-all}" in
   all)
     check_policy
@@ -103,8 +117,9 @@ case "${1:-all}" in
   renderer) check_renderer ;;
   core) check_core ;;
   macos) check_macos ;;
+  container) check_container ;;
   *)
-    echo "usage: scripts/check [all|policy|renderer|core|macos]" >&2
+    echo "usage: scripts/check [all|policy|renderer|core|macos|container]" >&2
     exit 64
     ;;
 esac

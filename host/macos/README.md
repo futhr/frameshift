@@ -5,9 +5,10 @@ presentation, Apple framework integration, image decoding, secure handoff, and
 application lifecycle. Durable library, recipe, outbox, render, and frame state
 remain owned by the bundled Elixir core.
 
-The packaged app has a Dock window with the same `ShellModel` and controls as
-the menu-bar panel. The packaged app uses the selected white perspective-frame
-mark on navy in Dock/Finder and its monochrome silhouette in the menu bar.
+The packaged app runs as a menu-bar agent. The dropdown is its only control
+surface; dismissing it leaves the process and bundled core running. Its Finder
+icon uses the selected white perspective-frame mark on navy, and the menu bar
+uses the matching monochrome silhouette.
 `scripts/build-macos-icons` generates the packaged `.icns` and menu-bar PNG
 resources from the committed SVG sources.
 

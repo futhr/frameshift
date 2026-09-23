@@ -169,9 +169,9 @@ Swift owns only what is genuinely native to macOS:
 - `SMAppService` lifecycle registration.
 
 Apple documents `MenuBarExtra` window style for data-rich menu extras and
-`LSUIElement` for hiding the Dock icon. The current product specification uses
-a visible Dock entry with temporary artwork. `SMAppService` is the supported control
-surface for bundled login items and launch agents. Sources: [MenuBarExtra](https://developer.apple.com/documentation/SwiftUI/MenuBarExtra)
+`LSUIElement` for hiding the Dock icon. The packaged app uses a menu-bar agent
+with the selected artwork retained as its Finder icon. `SMAppService` is the
+supported control surface for bundled login items and launch agents. Sources: [MenuBarExtra](https://developer.apple.com/documentation/SwiftUI/MenuBarExtra)
 and [Service Management](https://developer.apple.com/documentation/servicemanagement/).
 
 The Swift layer must not duplicate library, recipe, scheduling, or frame state.

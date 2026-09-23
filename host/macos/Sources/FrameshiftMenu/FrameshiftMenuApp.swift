@@ -14,7 +14,7 @@ struct FrameshiftMenuApp: App {
   var body: some Scene {
     MenuBarExtra {
       FrameshiftPanel(model: ShellSession.model)
-        .modifier(DockIconAppearance())
+        .modifier(AppIconAppearance())
     } label: {
       Image(nsImage: MenuBarIcon.image)
         .accessibilityLabel("Frameshift")
@@ -51,18 +51,18 @@ private enum MenuBarIcon {
   }()
 }
 
-private struct DockIconAppearance: ViewModifier {
+private struct AppIconAppearance: ViewModifier {
   @Environment(\.colorScheme) private var colorScheme
 
   func body(content: Content) -> some View {
     content
-      .onAppear { DockIcon.apply(colorScheme) }
-      .onChange(of: colorScheme) { _, appearance in DockIcon.apply(appearance) }
+      .onAppear { AppIcon.apply(colorScheme) }
+      .onChange(of: colorScheme) { _, appearance in AppIcon.apply(appearance) }
   }
 }
 
 @MainActor
-private enum DockIcon {
+private enum AppIcon {
   static func apply(_ appearance: ColorScheme) {
     let name = appearance == .dark ? "FrameshiftDark" : "FrameshiftLight"
     guard let url = Bundle.main.url(forResource: name, withExtension: "icns"),
@@ -74,43 +74,11 @@ private enum DockIcon {
 
 @MainActor
 private final class FrameshiftAppDelegate: NSObject, NSApplicationDelegate {
-  private var mainWindow: NSWindow?
-
   func applicationDidFinishLaunching(_ notification: Notification) {
     _ = notification
-    showMainWindow()
     Task {
       _ = try? await LocalCoreClient().snapshot()
     }
-  }
-
-  func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
-    _ = sender
-    _ = hasVisibleWindows
-    showMainWindow()
-    return true
-  }
-
-  private func showMainWindow() {
-    if mainWindow == nil {
-      let window = NSWindow(
-        contentRect: NSRect(x: 0, y: 0, width: 420, height: 560),
-        styleMask: [.titled, .closable, .miniaturizable],
-        backing: .buffered,
-        defer: false
-      )
-      window.title = "Frameshift"
-      window.isReleasedWhenClosed = false
-      window.contentView = NSHostingView(
-        rootView: FrameshiftPanel(model: ShellSession.model)
-          .modifier(DockIconAppearance())
-      )
-      window.center()
-      mainWindow = window
-    }
-
-    mainWindow?.makeKeyAndOrderFront(nil)
-    NSApplication.shared.activate(ignoringOtherApps: true)
   }
 
   func applicationWillTerminate(_ notification: Notification) {

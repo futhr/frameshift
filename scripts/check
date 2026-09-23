@@ -87,7 +87,7 @@ check_macos() {
   codesign --verify --deep --strict "$app_bundle"
   test "$(plutil -extract CFBundlePackageType raw "$app_bundle/Contents/Info.plist")" = "APPL"
   test "$(plutil -extract CFBundleIconFile raw "$app_bundle/Contents/Info.plist")" = "FrameshiftLight.icns"
-  test "$(plutil -extract LSUIElement raw "$app_bundle/Contents/Info.plist")" = "false"
+  test "$(plutil -extract LSUIElement raw "$app_bundle/Contents/Info.plist")" = "true"
 
   "$repository_root/scripts/check-packaged-app" "$app_bundle"
 }

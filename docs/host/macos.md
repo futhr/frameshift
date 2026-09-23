@@ -37,10 +37,10 @@ The native shell owns `MenuBarExtra`, app lifecycle, accessibility, file and
 photo selection, drag/drop, Keychain, Vision, Core Image/Image I/O, Bonjour,
 notifications, and MediaGenerationKit. It presents snapshots received from the
 core and sends commands; it does not create a second source of truth.
-The packaged app uses the selected white perspective-frame mark on a navy
-Dock/Finder tile in both system appearances and its monochrome silhouette in
-the menu bar. Its Dock entry opens the same shell controls; it adds no second
-durable application state.
+The packaged app runs as a menu-bar agent. Its dropdown is the sole shell
+control surface and remains available after it is dismissed. The selected
+white perspective-frame mark appears on a navy Finder tile in both system
+appearances, with a monochrome silhouette in the menu bar.
 
 ### Elixir core
 

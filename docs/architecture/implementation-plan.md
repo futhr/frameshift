@@ -62,8 +62,8 @@ worker crash/timeout recovery, and no in-process native crash surface.
 ### H3 — Native shell
 
 - SwiftUI `MenuBarExtra` window;
-- appearance-aware temporary Dock/Finder icon from the supplied Futhr marks,
-  with a Dock entry opening the same shell controls;
+- menu-bar agent with no launch window or Dock entry, using the selected white
+  perspective-frame mark for its Finder tile and monochrome menu-bar icon;
 - target selection, instruction/import, library search, result cards;
 - regenerate, pin, remove, queue/send, and concise status;
 - Keychain, Vision labels/feature prints, notifications, accessibility;

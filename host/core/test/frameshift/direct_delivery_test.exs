@@ -298,6 +298,19 @@ defmodule Frameshift.DirectDeliveryTest do
     {:ok, frame} = Library.get_paired_frame(context.library, @frame_id)
     [profile | _] = frame["capabilities"]["storage"]["artifactProfiles"]
 
+    assert {:error, :qualification_intent_mismatch} =
+             DirectDelivery.push(
+               context.library,
+               frame,
+               %{"digest" => digest, work_digest: Digest.sha256("unknown work")},
+               profile,
+               "mismatched-push",
+               credential_resolver: {StaticCredentialResolver, nil},
+               synchronizer: TimedOutSynchronizer
+             )
+
+    assert :not_found = Library.direct_delivery(context.library, @frame_id)
+
     assert {:error, :timeout} =
              DirectDelivery.push(
                context.library,

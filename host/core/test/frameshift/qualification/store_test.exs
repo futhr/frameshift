@@ -246,9 +246,140 @@ defmodule Frameshift.Qualification.StoreTest do
     GenServer.stop(library)
   end
 
-  defp manifest(frame) do
+  test "pull intent and last-good reference retain their accepted work across restart", context do
+    %{library: library, frame: frame, data_dir: data_dir} = context
+
+    %{binding_digest: binding, work_digest: work, artifact_digest: artifact} =
+      qualified_artifact(library, frame, "pull")
+
+    assert {:error, :qualification_intent_mismatch} =
+             Library.queue_outbox(
+               library,
+               frame["frame_id"],
+               artifact,
+               @profile_id,
+               nil,
+               nil,
+               Digest.sha256("other work")
+             )
+
+    assert {:ok, manifest} =
+             Library.queue_outbox(
+               library,
+               frame["frame_id"],
+               artifact,
+               @profile_id,
+               nil,
+               nil,
+               work
+             )
+
+    assert %{"queued" => [%{"work_digest" => ^work, "qualification_digest" => ^binding}]} =
+             Library.delivery_custody(library, frame["frame_id"])
+
+    GenServer.stop(library)
+    {:ok, restarted} = Library.start_link(data_dir: data_dir, name: nil)
+
+    assert %{"queued" => [%{"work_digest" => ^work}]} =
+             Library.delivery_custody(restarted, frame["frame_id"])
+
+    assert :ok =
+             Library.acknowledge_outbox(restarted, frame["frame_id"], %{
+               "manifestRevision" => manifest["revision"],
+               "storage" => "verified",
+               "refresh" => "displayed",
+               "currentAsset" => artifact,
+               "lastError" => nil
+             })
+
+    assert %{"current" => [%{"work_digest" => ^work, "qualification_digest" => ^binding}]} =
+             Library.delivery_custody(restarted, frame["frame_id"])
+
+    assert {:ok, legacy_manifest} =
+             Library.queue_outbox(restarted, frame["frame_id"], artifact, @profile_id)
+
+    assert :ok =
+             Library.acknowledge_outbox(restarted, frame["frame_id"], %{
+               "manifestRevision" => legacy_manifest["revision"],
+               "storage" => "verified",
+               "refresh" => "displayed",
+               "currentAsset" => artifact,
+               "lastError" => nil
+             })
+
+    custody = Library.delivery_custody(restarted, frame["frame_id"])
+    assert [%{"status" => "legacy_unqualified"}] = custody["current"]
+
+    assert [%{"work_digest" => ^work, "qualification_digest" => ^binding}] =
+             custody["previous-known-good"]
+
+    GenServer.stop(restarted)
+  end
+
+  test "push pending and confirmation retain exact work after active switch", context do
+    %{library: library, frame: frame} = context
+
+    %{binding_digest: binding, work_digest: work, artifact_digest: artifact} =
+      qualified_artifact(library, frame, "push")
+
+    assert {:ok, intent} =
+             Library.begin_direct_delivery(
+               library,
+               frame["frame_id"],
+               artifact,
+               @profile_id,
+               "push-1",
+               work
+             )
+
+    assert intent["work_digest"] == work
+    assert intent["qualification_digest"] == binding
+
+    assert {:error, :qualification_intent_conflict} =
+             Library.begin_direct_delivery(
+               library,
+               frame["frame_id"],
+               artifact,
+               @profile_id,
+               "push-1"
+             )
+
+    assert {:error, :unsupported_profile} =
+             Library.begin_direct_delivery(
+               library,
+               frame["frame_id"],
+               artifact,
+               "wrong-profile",
+               "push-2",
+               work
+             )
+
+    first = manifest(frame)
+    second = %{first | "rendererBuildDigest" => Digest.sha256("new renderer")}
+    {:ok, second_digest} = Library.register_qualification(library, second)
+    :ok = Library.admit_qualification(library, second_digest, evidence())
+    :ok = Library.activate_qualification(library, frame["frame_id"], second_digest)
+
+    assert :ok =
+             Library.finish_direct_delivery(
+               library,
+               frame["frame_id"],
+               intent["revision"],
+               "push-1",
+               artifact,
+               :displayed
+             )
+
+    assert %{"current" => [%{"work_digest" => ^work, "qualification_digest" => ^binding}]} =
+             Library.delivery_custody(library, frame["frame_id"])
+
+    GenServer.stop(library)
+  end
+
+  defp manifest(frame, mode \\ "push") do
     {:ok, profile_digest} = Profile.digest(frame["capabilities"], @profile_id)
-    {:ok, binding_digest} = Profile.binding_digest(frame["td_json"], "push", "wotex-http-v0.1")
+    connector = if mode == "push", do: "wotex-http-v0.1", else: "frameshift-outbox-v0.1"
+    {:ok, binding_digest} = Profile.binding_digest(frame["td_json"], mode, connector)
 
     %{
       "schemaVersion" => 1,
@@ -260,9 +391,9 @@ defmodule Frameshift.Qualification.StoreTest do
       "rendererProtocolRevision" => "fsr1",
       "rendererAlgorithmRevision" => "frameshift-raster-v0.1",
       "bindingDigest" => binding_digest,
-      "connectorRevision" => "wotex-http-v0.1",
+      "connectorRevision" => connector,
       "effectClass" => "physical_display",
-      "transferMode" => "push"
+      "transferMode" => mode
     }
   end
 
@@ -293,6 +424,44 @@ defmodule Frameshift.Qualification.StoreTest do
       height: 1080,
       media_type: "image/png",
       provenance: %{"kind" => "test"}
+    }
+  end
+
+  defp qualified_artifact(library, frame, mode) do
+    binding = manifest(frame, mode)
+    {:ok, binding_digest} = Library.register_qualification(library, binding)
+    :ok = Library.admit_qualification(library, binding_digest, evidence())
+    :ok = Library.activate_qualification(library, frame["frame_id"], binding_digest)
+
+    {:ok, master} = Library.import_master(library, "qualified source", master_attributes())
+
+    {:ok, recipe_digest} =
+      Library.register_recipe(library, :composition, composition(binding), [master["digest"]])
+
+    {:ok, work_digest} =
+      Library.accept_qualified_work(
+        library,
+        frame["frame_id"],
+        binding_digest,
+        master["digest"],
+        recipe_digest
+      )
+
+    {:ok, artifact} =
+      Library.register_artifact(library, "qualified wire", %{
+        master_digest: master["digest"],
+        recipe_hash: recipe_digest,
+        profile_id: @profile_id,
+        renderer_revision: binding["rendererAlgorithmRevision"],
+        media_type: "application/vnd.frameshift.rgb24"
+      })
+
+    {:ok, _} = Library.record_qualified_result(library, work_digest, artifact["digest"])
+
+    %{
+      binding_digest: binding_digest,
+      work_digest: work_digest,
+      artifact_digest: artifact["digest"]
     }
   end
 end

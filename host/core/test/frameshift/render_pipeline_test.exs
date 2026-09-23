@@ -207,6 +207,20 @@ defmodule Frameshift.RenderPipelineTest do
 
     assert artifact_digest == first["digest"]
 
+    assert {:ok, _} =
+             Library.queue_outbox(
+               context.library,
+               @frame_id,
+               first["digest"],
+               @profile_id,
+               nil,
+               nil,
+               first.work_digest
+             )
+
+    assert %{"queued" => [%{"work_digest" => ^work_digest}]} =
+             Library.delivery_custody(context.library, @frame_id)
+
     assert {:ok, second} =
              RenderPipeline.render_qualified_stored_master(
                context.library,

@@ -302,7 +302,15 @@ defmodule Frameshift.Library do
   end
 
   @doc "Supersedes a sleeping frame's pending delivery with the latest artifact."
-  @spec queue_outbox(server(), String.t(), digest(), String.t(), digest() | nil, String.t() | nil) ::
+  @spec queue_outbox(
+          server(),
+          String.t(),
+          digest(),
+          String.t(),
+          digest() | nil,
+          String.t() | nil,
+          digest() | nil
+        ) ::
           {:ok, map()} | {:error, term()}
   def queue_outbox(
         server \\ __MODULE__,
@@ -310,11 +318,12 @@ defmodule Frameshift.Library do
         digest,
         profile_id,
         playlist_revision \\ nil,
-        command_id \\ nil
+        command_id \\ nil,
+        work_digest \\ nil
       ) do
     GenServer.call(
       server,
-      {:queue_outbox, frame_id, digest, profile_id, playlist_revision, command_id}
+      {:queue_outbox, frame_id, digest, profile_id, playlist_revision, command_id, work_digest}
     )
   end
 
@@ -332,16 +341,39 @@ defmodule Frameshift.Library do
   end
 
   @doc "Records a push delivery before network I/O and protects its desired artifact."
-  @spec begin_direct_delivery(server(), String.t(), digest(), String.t(), String.t()) ::
+  @spec begin_direct_delivery(
+          server(),
+          String.t(),
+          digest(),
+          String.t(),
+          String.t(),
+          digest() | nil
+        ) ::
           {:ok, map()} | {:error, term()}
-  def begin_direct_delivery(server \\ __MODULE__, frame_id, digest, profile_id, request_id) do
-    GenServer.call(server, {:begin_direct_delivery, frame_id, digest, profile_id, request_id})
+  def begin_direct_delivery(
+        server \\ __MODULE__,
+        frame_id,
+        digest,
+        profile_id,
+        request_id,
+        work_digest \\ nil
+      ) do
+    GenServer.call(
+      server,
+      {:begin_direct_delivery, frame_id, digest, profile_id, request_id, work_digest}
+    )
   end
 
   @doc "Returns the latest durable push intent, including an unresolved attempt after restart."
   @spec direct_delivery(server(), String.t()) :: {:ok, map()} | :not_found
   def direct_delivery(server \\ __MODULE__, frame_id) do
     GenServer.call(server, {:direct_delivery, frame_id})
+  end
+
+  @doc "Reads host-only qualification custody for pending and confirmed frame roles."
+  @spec delivery_custody(server(), String.t()) :: map() | {:error, :invalid_frame}
+  def delivery_custody(server \\ __MODULE__, frame_id) do
+    GenServer.call(server, {:delivery_custody, frame_id})
   end
 
   @doc "Records a correlated push or reconciliation attempt through the single writer."
@@ -663,12 +695,20 @@ defmodule Frameshift.Library do
   end
 
   def handle_call(
-        {:queue_outbox, frame_id, digest, profile_id, playlist_revision, command_id},
+        {:queue_outbox, frame_id, digest, profile_id, playlist_revision, command_id, work_digest},
         _,
         state
       ) do
     result =
-      queue_outbox_record(state, frame_id, digest, profile_id, playlist_revision, command_id)
+      queue_outbox_record(
+        state,
+        frame_id,
+        digest,
+        profile_id,
+        playlist_revision,
+        command_id,
+        work_digest
+      )
 
     if match?({:ok, _manifest}, result) do
       :telemetry.execute(
@@ -704,12 +744,14 @@ defmodule Frameshift.Library do
   end
 
   def handle_call(
-        {:begin_direct_delivery, frame_id, digest, profile_id, request_id},
+        {:begin_direct_delivery, frame_id, digest, profile_id, request_id, work_digest},
         _,
         state
       ) do
     previous = direct_delivery_record(state, frame_id)
-    result = begin_direct_delivery_record(state, frame_id, digest, profile_id, request_id)
+
+    result =
+      begin_direct_delivery_record(state, frame_id, digest, profile_id, request_id, work_digest)
 
     if match?({:ok, _delivery}, result) and
          not match?({:ok, %{"request_id" => ^request_id}}, previous) do
@@ -725,6 +767,10 @@ defmodule Frameshift.Library do
 
   def handle_call({:direct_delivery, frame_id}, _, state) do
     {:reply, direct_delivery_record(state, frame_id), state}
+  end
+
+  def handle_call({:delivery_custody, frame_id}, _, state) do
+    {:reply, delivery_custody_record(state, frame_id), state}
   end
 
   def handle_call(
@@ -1696,7 +1742,15 @@ defmodule Frameshift.Library do
     end
   end
 
-  defp queue_outbox_record(state, frame_id, digest, profile_id, playlist_revision, command_id)
+  defp queue_outbox_record(
+         state,
+         frame_id,
+         digest,
+         profile_id,
+         playlist_revision,
+         command_id,
+         work_digest
+       )
        when is_binary(frame_id) and frame_id != "" and is_binary(profile_id) do
     with true <- Digest.valid_sha256?(digest),
          true <- playlist_revision == nil or Digest.valid_sha256?(playlist_revision),
@@ -1713,6 +1767,15 @@ defmodule Frameshift.Library do
              state.connection,
              "SELECT profile_id FROM artifacts WHERE digest = ?",
              [digest]
+           ),
+         {:ok, qualification_digest} <-
+           WorkStore.delivery_binding(
+             state.connection,
+             work_digest,
+             frame_id,
+             digest,
+             profile_id,
+             "pull"
            ) do
       result =
         transaction(state.connection, fn connection ->
@@ -1729,23 +1792,39 @@ defmodule Frameshift.Library do
             """
             INSERT INTO frame_outboxes(
               frame_id, revision, desired_digest, profile_id, playlist_revision, queued_at_ms,
-              command_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+              command_id, work_digest, qualification_digest
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(frame_id) DO UPDATE SET
               revision = excluded.revision,
               desired_digest = excluded.desired_digest,
               profile_id = excluded.profile_id,
               playlist_revision = excluded.playlist_revision,
               queued_at_ms = excluded.queued_at_ms,
-              command_id = excluded.command_id
+              command_id = excluded.command_id,
+              work_digest = excluded.work_digest,
+              qualification_digest = excluded.qualification_digest
             """,
-            [frame_id, revision, digest, profile_id, playlist_revision, now_ms(), command_id]
+            [
+              frame_id,
+              revision,
+              digest,
+              profile_id,
+              playlist_revision,
+              now_ms(),
+              command_id,
+              work_digest,
+              qualification_digest
+            ]
           )
 
           Exqlite.query!(
             connection,
-            "INSERT INTO frame_asset_refs(frame_id, role, object_digest) VALUES (?, 'queued', ?)",
-            [frame_id, digest]
+            """
+            INSERT INTO frame_asset_refs(
+              frame_id, role, object_digest, work_digest, qualification_digest
+            ) VALUES (?, 'queued', ?, ?, ?)
+            """,
+            [frame_id, digest, work_digest, qualification_digest]
           )
 
           DiagnosticsStore.record_audit(connection, "outbox.queued", digest, %{
@@ -1767,10 +1846,12 @@ defmodule Frameshift.Library do
       {:error, %JSV.ValidationError{}} -> {:error, :invalid_outbox}
       :not_found -> {:error, :artifact_missing}
       {:ok, _} -> {:error, :unsupported_profile}
+      {:error, reason} -> {:error, reason}
     end
   end
 
   defp queue_outbox_record(
+         _,
          _,
          _,
          _,
@@ -1842,13 +1923,15 @@ defmodule Frameshift.Library do
 
     result =
       transaction(state.connection, fn connection ->
-        command_id =
-          case query_one(connection, "SELECT command_id FROM frame_outboxes WHERE frame_id = ?", [
-                 frame_id
-               ]) do
-            {:ok, row} -> row["command_id"]
-            :not_found -> nil
-          end
+        {:ok, custody} =
+          query_one(
+            connection,
+            """
+            SELECT command_id, work_digest, qualification_digest
+            FROM frame_outboxes WHERE frame_id = ?
+            """,
+            [frame_id]
+          )
 
         Exqlite.query!(
           connection,
@@ -1859,8 +1942,11 @@ defmodule Frameshift.Library do
         Exqlite.query!(
           connection,
           """
-          INSERT INTO frame_asset_refs(frame_id, role, object_digest)
-          SELECT frame_id, 'previous-known-good', object_digest
+          INSERT INTO frame_asset_refs(
+            frame_id, role, object_digest, work_digest, qualification_digest
+          )
+          SELECT frame_id, 'previous-known-good', object_digest,
+                 work_digest, qualification_digest
           FROM frame_asset_refs
           WHERE frame_id = ? AND role = 'current'
           """,
@@ -1875,15 +1961,19 @@ defmodule Frameshift.Library do
 
         Exqlite.query!(
           connection,
-          "INSERT INTO frame_asset_refs(frame_id, role, object_digest) VALUES (?, 'current', ?)",
-          [frame_id, digest]
+          """
+          INSERT INTO frame_asset_refs(
+            frame_id, role, object_digest, work_digest, qualification_digest
+          ) VALUES (?, 'current', ?, ?, ?)
+          """,
+          [frame_id, digest, custody["work_digest"], custody["qualification_digest"]]
         )
 
         Exqlite.query!(connection, "DELETE FROM frame_outboxes WHERE frame_id = ?", [frame_id])
 
         DiagnosticsStore.record_audit(connection, "outbox.acknowledged", digest, %{
           "frameId" => frame_id,
-          "commandId" => command_id
+          "commandId" => custody["command_id"]
         })
 
         :ok
@@ -1896,12 +1986,29 @@ defmodule Frameshift.Library do
     end
   end
 
-  defp begin_direct_delivery_record(state, frame_id, digest, profile_id, request_id) do
+  defp begin_direct_delivery_record(state, frame_id, digest, profile_id, request_id, work_digest) do
     with :ok <- validate_direct_intent(frame_id, digest, profile_id, request_id),
          {:ok, frame} <- get_paired_frame_record(state, frame_id),
          :ok <- require_push_mode(frame),
-         :ok <- require_artifact_profile(state, digest, profile_id) do
-      begin_or_replay_direct_delivery(state, frame_id, digest, profile_id, request_id)
+         :ok <- require_artifact_profile(state, digest, profile_id),
+         {:ok, qualification_digest} <-
+           WorkStore.delivery_binding(
+             state.connection,
+             work_digest,
+             frame_id,
+             digest,
+             profile_id,
+             "push"
+           ) do
+      begin_or_replay_direct_delivery(
+        state,
+        frame_id,
+        digest,
+        profile_id,
+        request_id,
+        work_digest,
+        qualification_digest
+      )
     else
       :not_found -> {:error, :frame_not_paired}
       {:error, reason} -> {:error, reason}
@@ -1931,21 +2038,63 @@ defmodule Frameshift.Library do
     end
   end
 
-  defp begin_or_replay_direct_delivery(state, frame_id, digest, profile_id, request_id) do
+  defp begin_or_replay_direct_delivery(
+         state,
+         frame_id,
+         digest,
+         profile_id,
+         request_id,
+         work_digest,
+         qualification_digest
+       ) do
     case direct_delivery_record(state, frame_id) do
       {:ok, delivery} ->
         case Transition.direct_request(to_direct_intent(delivery), digest, profile_id, request_id) do
-          {:reuse, _} -> {:ok, delivery}
-          :insert -> insert_direct_delivery(state, frame_id, digest, profile_id, request_id)
-          {:error, reason} -> {:error, reason}
+          {:reuse, _} ->
+            reuse_direct_delivery(delivery, work_digest)
+
+          :insert ->
+            insert_direct_delivery(
+              state,
+              frame_id,
+              digest,
+              profile_id,
+              request_id,
+              work_digest,
+              qualification_digest
+            )
+
+          {:error, reason} ->
+            {:error, reason}
         end
 
       :not_found ->
-        insert_direct_delivery(state, frame_id, digest, profile_id, request_id)
+        insert_direct_delivery(
+          state,
+          frame_id,
+          digest,
+          profile_id,
+          request_id,
+          work_digest,
+          qualification_digest
+        )
     end
   end
 
-  defp insert_direct_delivery(state, frame_id, digest, profile_id, request_id) do
+  defp reuse_direct_delivery(%{"work_digest" => work_digest} = delivery, work_digest),
+    do: {:ok, delivery}
+
+  defp reuse_direct_delivery(_, _), do: {:error, :qualification_intent_conflict}
+
+  defp insert_direct_delivery(
+         state,
+         frame_id,
+         digest,
+         profile_id,
+         request_id,
+         work_digest,
+         qualification_digest
+       ) do
     result =
       transaction(state.connection, fn connection ->
         Exqlite.query!(
@@ -1956,25 +2105,32 @@ defmodule Frameshift.Library do
 
         Exqlite.query!(
           connection,
-          "INSERT INTO frame_asset_refs(frame_id, role, object_digest) VALUES (?, 'desired', ?)",
-          [frame_id, digest]
+          """
+          INSERT INTO frame_asset_refs(
+            frame_id, role, object_digest, work_digest, qualification_digest
+          ) VALUES (?, 'desired', ?, ?, ?)
+          """,
+          [frame_id, digest, work_digest, qualification_digest]
         )
 
         Exqlite.query!(
           connection,
           """
           INSERT INTO frame_direct_deliveries(
-            frame_id, revision, desired_digest, profile_id, request_id, status, updated_at_ms
-          ) VALUES (?, 1, ?, ?, ?, 'pending', ?)
+            frame_id, revision, desired_digest, profile_id, request_id, status, updated_at_ms,
+            work_digest, qualification_digest
+          ) VALUES (?, 1, ?, ?, ?, 'pending', ?, ?, ?)
           ON CONFLICT(frame_id) DO UPDATE SET
             revision = revision + 1,
             desired_digest = excluded.desired_digest,
             profile_id = excluded.profile_id,
             request_id = excluded.request_id,
             status = 'pending',
-            updated_at_ms = excluded.updated_at_ms
+            updated_at_ms = excluded.updated_at_ms,
+            work_digest = excluded.work_digest,
+            qualification_digest = excluded.qualification_digest
           """,
-          [frame_id, digest, profile_id, request_id, now_ms()]
+          [frame_id, digest, profile_id, request_id, now_ms(), work_digest, qualification_digest]
         )
 
         DiagnosticsStore.record_audit(connection, "direct.desired", digest, %{
@@ -1996,7 +2152,8 @@ defmodule Frameshift.Library do
     query_one(
       state.connection,
       """
-      SELECT frame_id, revision, desired_digest, profile_id, request_id, status, updated_at_ms
+      SELECT frame_id, revision, desired_digest, profile_id, request_id, status, updated_at_ms,
+             work_digest, qualification_digest
       FROM frame_direct_deliveries WHERE frame_id = ?
       """,
       [frame_id]
@@ -2004,6 +2161,31 @@ defmodule Frameshift.Library do
   end
 
   defp direct_delivery_record(_, _), do: :not_found
+
+  defp delivery_custody_record(state, frame_id)
+       when is_binary(frame_id) and byte_size(frame_id) in 1..128 do
+    state.connection
+    |> Exqlite.query!(
+      """
+      SELECT role, object_digest, work_digest, qualification_digest
+      FROM frame_asset_refs
+      WHERE frame_id = ? AND role IN ('queued', 'desired', 'current', 'previous-known-good')
+      ORDER BY role, object_digest
+      """,
+      [frame_id]
+    )
+    |> rows_to_maps()
+    |> Enum.group_by(& &1["role"], fn row ->
+      %{
+        "artifact_digest" => row["object_digest"],
+        "work_digest" => row["work_digest"],
+        "qualification_digest" => row["qualification_digest"],
+        "status" => if(row["work_digest"], do: "qualified", else: "legacy_unqualified")
+      }
+    end)
+  end
+
+  defp delivery_custody_record(_, _), do: {:error, :invalid_frame}
 
   defp record_direct_attempt_record(state, frame_id, request_id, attempt_id, mode, phase)
        when mode in [:push, :reconcile] and
@@ -2169,8 +2351,11 @@ defmodule Frameshift.Library do
         Exqlite.query!(
           connection,
           """
-          INSERT INTO frame_asset_refs(frame_id, role, object_digest)
-          SELECT frame_id, 'previous-known-good', object_digest
+          INSERT INTO frame_asset_refs(
+            frame_id, role, object_digest, work_digest, qualification_digest
+          )
+          SELECT frame_id, 'previous-known-good', object_digest,
+                 work_digest, qualification_digest
           FROM frame_asset_refs WHERE frame_id = ? AND role = 'current'
           """,
           [frame_id]
@@ -2184,8 +2369,12 @@ defmodule Frameshift.Library do
 
         Exqlite.query!(
           connection,
-          "INSERT INTO frame_asset_refs(frame_id, role, object_digest) VALUES (?, 'current', ?)",
-          [frame_id, digest]
+          """
+          INSERT INTO frame_asset_refs(
+            frame_id, role, object_digest, work_digest, qualification_digest
+          ) VALUES (?, 'current', ?, ?, ?)
+          """,
+          [frame_id, digest, delivery["work_digest"], delivery["qualification_digest"]]
         )
 
         Exqlite.query!(

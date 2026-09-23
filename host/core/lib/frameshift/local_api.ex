@@ -322,7 +322,8 @@ defmodule Frameshift.LocalAPI do
            artifact["digest"],
            profile["id"],
            nil,
-           command["id"]
+           command["id"],
+           Map.get(artifact, :work_digest)
          ) do
       {:ok, _} ->
         {:ok, "Queued for #{frame["title"]} • waiting for next contact"}

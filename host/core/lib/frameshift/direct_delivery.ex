@@ -49,7 +49,8 @@ defmodule Frameshift.DirectDelivery do
              frame["frame_id"],
              artifact.digest,
              artifact.profile_id,
-             request_id
+             request_id,
+             Map.get(rendered_artifact, :work_digest)
            ) do
       run_attempt(library, frame["frame_id"], request_id, :push, fn attempt_id ->
         synchronize(

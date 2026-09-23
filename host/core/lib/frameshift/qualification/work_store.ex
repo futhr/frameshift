@@ -95,6 +95,23 @@ defmodule Frameshift.Qualification.WorkStore do
 
   def result(_, _), do: :not_found
 
+  @doc "Validates exact work/result custody for one frame delivery intent."
+  @spec delivery_binding(pid(), String.t() | nil, String.t(), String.t(), String.t(), String.t()) ::
+          {:ok, String.t() | nil} | {:error, term()}
+  def delivery_binding(_, nil, _, _, _, _), do: {:ok, nil}
+
+  def delivery_binding(connection, work_digest, frame_id, artifact_digest, profile_id, mode) do
+    with true <- Digest.valid_sha256?(work_digest),
+         {:ok, %{"frame_id" => ^frame_id} = work} <- get(connection, work_digest),
+         {:ok, %{"artifact_digest" => ^artifact_digest}} <- result(connection, work_digest),
+         {:ok, %{"manifest" => manifest}} <- BindingStore.get(connection, work["binding_digest"]),
+         true <- manifest["profileId"] == profile_id and manifest["transferMode"] == mode do
+      {:ok, work["binding_digest"]}
+    else
+      _ -> {:error, :qualification_intent_mismatch}
+    end
+  end
+
   defp accept_in_transaction(owner, frame_id, binding_digest, master_digest, recipe_digest) do
     with {:ok, %{"digest" => ^binding_digest, "status" => "admitted"} = binding} <-
            BindingStore.active(owner, frame_id),

@@ -308,6 +308,45 @@ defmodule Frameshift.Library.Migrations do
          created_at_ms INTEGER NOT NULL
        ) STRICT
        """
+     ]},
+    {12,
+     [
+       "ALTER TABLE frame_outboxes ADD COLUMN work_digest TEXT REFERENCES qualified_work(digest) ON DELETE RESTRICT",
+       "ALTER TABLE frame_outboxes ADD COLUMN qualification_digest TEXT REFERENCES qualified_bindings(digest) ON DELETE RESTRICT",
+       "ALTER TABLE frame_direct_deliveries ADD COLUMN work_digest TEXT REFERENCES qualified_work(digest) ON DELETE RESTRICT",
+       "ALTER TABLE frame_direct_deliveries ADD COLUMN qualification_digest TEXT REFERENCES qualified_bindings(digest) ON DELETE RESTRICT",
+       "ALTER TABLE frame_asset_refs ADD COLUMN work_digest TEXT REFERENCES qualified_work(digest) ON DELETE RESTRICT",
+       "ALTER TABLE frame_asset_refs ADD COLUMN qualification_digest TEXT REFERENCES qualified_bindings(digest) ON DELETE RESTRICT",
+       """
+       CREATE TRIGGER frame_outbox_custody_insert BEFORE INSERT ON frame_outboxes
+       WHEN (NEW.work_digest IS NULL) != (NEW.qualification_digest IS NULL)
+       BEGIN SELECT RAISE(ABORT, 'incomplete outbox qualification custody'); END
+       """,
+       """
+       CREATE TRIGGER frame_outbox_custody_update BEFORE UPDATE ON frame_outboxes
+       WHEN (NEW.work_digest IS NULL) != (NEW.qualification_digest IS NULL)
+       BEGIN SELECT RAISE(ABORT, 'incomplete outbox qualification custody'); END
+       """,
+       """
+       CREATE TRIGGER frame_direct_custody_insert BEFORE INSERT ON frame_direct_deliveries
+       WHEN (NEW.work_digest IS NULL) != (NEW.qualification_digest IS NULL)
+       BEGIN SELECT RAISE(ABORT, 'incomplete direct qualification custody'); END
+       """,
+       """
+       CREATE TRIGGER frame_direct_custody_update BEFORE UPDATE ON frame_direct_deliveries
+       WHEN (NEW.work_digest IS NULL) != (NEW.qualification_digest IS NULL)
+       BEGIN SELECT RAISE(ABORT, 'incomplete direct qualification custody'); END
+       """,
+       """
+       CREATE TRIGGER frame_asset_custody_insert BEFORE INSERT ON frame_asset_refs
+       WHEN (NEW.work_digest IS NULL) != (NEW.qualification_digest IS NULL)
+       BEGIN SELECT RAISE(ABORT, 'incomplete frame asset qualification custody'); END
+       """,
+       """
+       CREATE TRIGGER frame_asset_custody_update BEFORE UPDATE ON frame_asset_refs
+       WHEN (NEW.work_digest IS NULL) != (NEW.qualification_digest IS NULL)
+       BEGIN SELECT RAISE(ABORT, 'incomplete frame asset qualification custody'); END
+       """
      ]}
   ]
 

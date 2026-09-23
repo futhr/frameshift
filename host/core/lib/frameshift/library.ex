@@ -17,6 +17,7 @@ defmodule Frameshift.Library do
   alias Frameshift.Library.Migrations
   alias Frameshift.Protocol.Schema
   alias Frameshift.Qualification.Store, as: QualificationStore
+  alias Frameshift.Qualification.WorkStore
 
   @type server :: GenServer.server()
   @type digest :: String.t()
@@ -217,6 +218,41 @@ defmodule Frameshift.Library do
   @spec active_qualification(server(), String.t()) :: {:ok, map()} | :not_found
   def active_qualification(server \\ __MODULE__, frame_id) do
     GenServer.call(server, {:active_qualification, frame_id})
+  end
+
+  @doc "Accepts one immutable render work identity under the current binding."
+  @spec accept_qualified_work(server(), String.t(), digest(), digest(), digest()) ::
+          {:ok, digest()} | {:error, term()}
+  def accept_qualified_work(
+        server \\ __MODULE__,
+        frame_id,
+        binding_digest,
+        master_digest,
+        recipe_digest
+      ) do
+    GenServer.call(
+      server,
+      {:accept_qualified_work, frame_id, binding_digest, master_digest, recipe_digest}
+    )
+  end
+
+  @doc "Reads accepted work without consulting the current active binding."
+  @spec get_qualified_work(server(), digest()) :: {:ok, map()} | :not_found
+  def get_qualified_work(server \\ __MODULE__, digest) do
+    GenServer.call(server, {:get_qualified_work, digest})
+  end
+
+  @doc "Attaches one exact rendered artifact to accepted qualified work."
+  @spec record_qualified_result(server(), digest(), digest()) ::
+          {:ok, digest()} | {:error, term()}
+  def record_qualified_result(server \\ __MODULE__, work_digest, artifact_digest) do
+    GenServer.call(server, {:record_qualified_result, work_digest, artifact_digest})
+  end
+
+  @doc "Reads an immutable result without reselecting a binding."
+  @spec qualified_result(server(), digest()) :: {:ok, map()} | :not_found
+  def qualified_result(server \\ __MODULE__, work_digest) do
+    GenServer.call(server, {:qualified_result, work_digest})
   end
 
   @doc "Pins an active master so library collection cannot remove it."
@@ -539,6 +575,29 @@ defmodule Frameshift.Library do
 
   def handle_call({:active_qualification, frame_id}, _, state) do
     {:reply, QualificationStore.active(state.connection, frame_id), state}
+  end
+
+  def handle_call(
+        {:accept_qualified_work, frame_id, binding_digest, master_digest, recipe_digest},
+        _,
+        state
+      ) do
+    reply =
+      WorkStore.accept(state.connection, frame_id, binding_digest, master_digest, recipe_digest)
+
+    {:reply, reply, state}
+  end
+
+  def handle_call({:get_qualified_work, digest}, _, state) do
+    {:reply, WorkStore.get(state.connection, digest), state}
+  end
+
+  def handle_call({:record_qualified_result, work_digest, artifact_digest}, _, state) do
+    {:reply, WorkStore.record_result(state.connection, work_digest, artifact_digest), state}
+  end
+
+  def handle_call({:qualified_result, work_digest}, _, state) do
+    {:reply, WorkStore.result(state.connection, work_digest), state}
   end
 
   def handle_call({:pin, digest}, _, state) do

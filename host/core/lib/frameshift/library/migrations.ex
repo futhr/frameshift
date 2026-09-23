@@ -278,6 +278,36 @@ defmodule Frameshift.Library.Migrations do
          activated_at_ms INTEGER NOT NULL
        ) STRICT
        """
+     ]},
+    {11,
+     [
+       """
+       CREATE TABLE qualified_work (
+         digest TEXT PRIMARY KEY CHECK (
+           length(digest) = 71 AND substr(digest, 1, 7) = 'sha256:' AND
+           substr(digest, 8) NOT GLOB '*[^0-9a-f]*'
+         ),
+         binding_digest TEXT NOT NULL REFERENCES qualified_bindings(digest) ON DELETE RESTRICT,
+         frame_id TEXT NOT NULL,
+         master_digest TEXT NOT NULL REFERENCES masters(digest) ON DELETE RESTRICT,
+         recipe_digest TEXT NOT NULL REFERENCES recipes(hash) ON DELETE RESTRICT,
+         manifest_json TEXT NOT NULL,
+         accepted_at_ms INTEGER NOT NULL
+       ) STRICT
+       """,
+       "CREATE INDEX qualified_work_binding ON qualified_work(binding_digest, accepted_at_ms)",
+       """
+       CREATE TABLE qualified_results (
+         digest TEXT PRIMARY KEY CHECK (
+           length(digest) = 71 AND substr(digest, 1, 7) = 'sha256:' AND
+           substr(digest, 8) NOT GLOB '*[^0-9a-f]*'
+         ),
+         work_digest TEXT NOT NULL UNIQUE REFERENCES qualified_work(digest) ON DELETE RESTRICT,
+         artifact_digest TEXT NOT NULL REFERENCES artifacts(digest) ON DELETE RESTRICT,
+         manifest_json TEXT NOT NULL,
+         created_at_ms INTEGER NOT NULL
+       ) STRICT
+       """
      ]}
   ]
 

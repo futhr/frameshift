@@ -66,11 +66,16 @@ Candidate qualification validates the admitted frame identity, profile,
 renderer, and connector without a network effect. It records the exact
 software fixture suite and, for a physical cohort, measured device evidence.
 Candidate, admitted, and retired states are durable. One active qualification
-pointer per frame/cohort selects *new* work. A candidate cannot activate
-itself; an activation command records the qualification decision and previous
-active pointer under the single writer. New work also validates its master and
-recipe before claiming a work digest. Product queue commands select the active
-binding's artifact profile and transfer mode before compiling a render job.
+pointer per frame selects *new* work. A candidate cannot activate itself. A
+cohort promotion selects admitted bindings for up to 64 distinct paired frames
+in one local SQLite transaction. Every binding must still match its frame's
+current capability and transfer contract. A refusal leaves all active pointers
+and activation audit records unchanged; repeating a successful selection is
+idempotent. The single writer serializes validation and promotion, so another
+local command cannot change a frame between those steps. New work also
+validates its master and recipe before claiming a work digest. Product queue
+commands select the active binding's artifact profile and transfer mode before
+compiling a render job.
 
 An accepted render job and both push and pull delivery intents record the
 work digest and qualification digest. Retries, acknowledgements, and

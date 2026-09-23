@@ -56,6 +56,78 @@ defmodule Frameshift.Qualification.Store do
     end
   end
 
+  @doc "Promotes an exact admitted cohort in one transaction, or leaves every pointer unchanged."
+  @spec activate_cohort(pid(), term()) :: :ok | {:error, term()}
+  def activate_cohort(connection, selections)
+      when is_list(selections) and length(selections) in 1..64 do
+    with :ok <- validate_cohort_shape(selections),
+         :ok <- unique_cohort_frames(selections),
+         :ok <- validate_cohort_bindings(connection, selections) do
+      transact(connection, &activate_cohort_bindings(&1, selections))
+    end
+  end
+
+  def activate_cohort(_, _), do: {:error, :invalid_qualification_cohort}
+
+  defp activate_cohort_bindings(owner, selections) do
+    Enum.each(selections, fn {frame_id, digest} ->
+      activate_binding(owner, frame_id, digest)
+    end)
+
+    :ok
+  end
+
+  defp validate_cohort_shape(selections) do
+    if Enum.all?(selections, fn
+         {frame_id, digest} ->
+           is_binary(frame_id) and byte_size(frame_id) in 1..128 and
+             Digest.valid_sha256?(digest)
+
+         _ ->
+           false
+       end),
+       do: :ok,
+       else: {:error, :invalid_qualification_cohort}
+  end
+
+  defp unique_cohort_frames(selections) do
+    frame_ids = Enum.map(selections, &elem(&1, 0))
+
+    if length(frame_ids) == MapSet.size(MapSet.new(frame_ids)),
+      do: :ok,
+      else: {:error, :duplicate_qualification_frame}
+  end
+
+  defp validate_cohort_bindings(connection, selections) do
+    Enum.reduce_while(selections, :ok, &validate_cohort_binding(connection, &1, &2))
+  end
+
+  defp validate_cohort_binding(connection, {frame_id, digest}, :ok) do
+    case get(connection, digest) do
+      {:ok, %{"frame_id" => ^frame_id, "status" => "admitted"} = binding} ->
+        binding
+        |> validate_active_binding(connection)
+        |> continue_or_halt()
+
+      {:ok, %{"frame_id" => ^frame_id}} ->
+        {:halt, {:error, :qualification_not_admitted}}
+
+      {:ok, _} ->
+        {:halt, {:error, :qualification_frame_mismatch}}
+
+      :not_found ->
+        {:halt, {:error, :qualification_missing}}
+    end
+  end
+
+  defp validate_active_binding(binding, connection) do
+    with :ok <- Contract.validate(binding["manifest"]),
+         do: matching_frame_profile(connection, binding["manifest"])
+  end
+
+  defp continue_or_halt(:ok), do: {:cont, :ok}
+  defp continue_or_halt(error), do: {:halt, error}
+
   @doc "Returns one candidate/admitted binding without exposing the database owner."
   @spec get(pid(), String.t()) :: {:ok, map()} | :not_found
   def get(connection, digest) when is_binary(digest) do

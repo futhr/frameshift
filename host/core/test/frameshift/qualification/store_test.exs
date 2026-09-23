@@ -116,6 +116,77 @@ defmodule Frameshift.Qualification.StoreTest do
     GenServer.stop(library)
   end
 
+  test "cohort promotion is all or nothing and survives restart", context do
+    %{library: library, frame: first, data_dir: data_dir} = context
+
+    second_td =
+      @fixture
+      |> File.read!()
+      |> String.replace("sim-photo-00000001", "sim-photo-00000002")
+
+    {:ok, second} =
+      Library.register_paired_frame(
+        library,
+        second_td,
+        "keychain:second",
+        "sha256:" <> String.duplicate("c", 64)
+      )
+
+    first_id = first["frame_id"]
+    second_id = second["frame_id"]
+    {:ok, first_old} = Library.register_qualification(library, manifest(first))
+    {:ok, second_old} = Library.register_qualification(library, manifest(second))
+    :ok = Library.admit_qualification(library, first_old, evidence())
+    :ok = Library.admit_qualification(library, second_old, evidence())
+    :ok = Library.activate_qualification(library, first_id, first_old)
+    :ok = Library.activate_qualification(library, second_id, second_old)
+
+    upgraded = fn frame ->
+      %{manifest(frame) | "rendererBuildDigest" => Digest.sha256("renderer-v2")}
+    end
+
+    {:ok, first_new} = Library.register_qualification(library, upgraded.(first))
+    {:ok, second_new} = Library.register_qualification(library, upgraded.(second))
+    :ok = Library.admit_qualification(library, first_new, evidence())
+    selections = [{first_id, first_new}, {second_id, second_new}]
+
+    assert %{"entries" => before_failed_promotion} = Library.audit_page(library)
+
+    assert {:error, :qualification_not_admitted} =
+             Library.activate_qualification_cohort(library, selections)
+
+    assert {:ok, %{"digest" => ^first_old}} = Library.active_qualification(library, first_id)
+    assert {:ok, %{"digest" => ^second_old}} = Library.active_qualification(library, second_id)
+    assert %{"entries" => ^before_failed_promotion} = Library.audit_page(library)
+
+    assert {:error, :duplicate_qualification_frame} =
+             Library.activate_qualification_cohort(library, [
+               {first_id, first_new},
+               {first_id, first_old}
+             ])
+
+    assert {:error, :qualification_frame_mismatch} =
+             Library.activate_qualification_cohort(library, [{second_id, first_new}])
+
+    assert {:error, :invalid_qualification_cohort} =
+             Library.activate_qualification_cohort(library, [])
+
+    :ok = Library.admit_qualification(library, second_new, evidence())
+    assert :ok = Library.activate_qualification_cohort(library, selections)
+    assert :ok = Library.activate_qualification_cohort(library, selections)
+    assert {:ok, %{"digest" => ^first_new}} = Library.active_qualification(library, first_id)
+    assert {:ok, %{"digest" => ^second_new}} = Library.active_qualification(library, second_id)
+
+    assert %{"entries" => audit} = Library.audit_page(library)
+    assert Enum.count(audit, &(&1["operation"] == "qualification.activated")) == 4
+
+    GenServer.stop(library)
+    {:ok, restarted} = Library.start_link(data_dir: data_dir, name: nil)
+    assert {:ok, %{"digest" => ^first_new}} = Library.active_qualification(restarted, first_id)
+    assert {:ok, %{"digest" => ^second_new}} = Library.active_qualification(restarted, second_id)
+    GenServer.stop(restarted)
+  end
+
   test "forgetting frame clears active selection and blocks stale reactivation", context do
     %{library: library, frame: frame} = context
     {:ok, digest} = Library.register_qualification(library, manifest(frame))

@@ -208,6 +208,13 @@ defmodule Frameshift.Library do
     GenServer.call(server, {:activate_qualification, frame_id, digest})
   end
 
+  @doc "Atomically selects admitted bindings for a bounded cohort of frames."
+  @spec activate_qualification_cohort(server(), [{String.t(), digest()}]) ::
+          :ok | {:error, term()}
+  def activate_qualification_cohort(server \\ __MODULE__, selections) do
+    GenServer.call(server, {:activate_qualification_cohort, selections})
+  end
+
   @doc "Reads one durable qualification, including its admission status."
   @spec get_qualification(server(), digest()) :: {:ok, map()} | :not_found
   def get_qualification(server \\ __MODULE__, digest) do
@@ -599,6 +606,10 @@ defmodule Frameshift.Library do
 
   def handle_call({:activate_qualification, frame_id, digest}, _, state) do
     {:reply, QualificationStore.activate(state.connection, frame_id, digest), state}
+  end
+
+  def handle_call({:activate_qualification_cohort, selections}, _, state) do
+    {:reply, QualificationStore.activate_cohort(state.connection, selections), state}
   end
 
   def handle_call({:get_qualification, digest}, _, state) do

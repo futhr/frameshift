@@ -14,18 +14,19 @@ move original assets, recipe lineage, rendered bytes, or confirmed display
 state out of Frameshift.
 
 The September 2026 adaptive adoption atlas proposes an asset/profile
-generation for this repository. This specification narrows
-that proposal to the bytes and effects that require stable compatibility.
+generation for this repository. This specification narrows that proposal to
+the bytes and effects that require stable compatibility.
 SwiftUI presentation may change independently. A generation provider is part
 of the generation recipe that produces a master; a target render generation
 pins the resulting immutable master and its recipe lineage.
 
 ## Immutable identity and outcome
 
-A candidate manifest is canonical JSON and has a versioned schema. Its digest
-is SHA-256 of those exact canonical bytes. Required identity fields are:
+A qualification manifest describes a reusable renderer/profile/transfer
+binding. It is versioned canonical JSON, identified by SHA-256 of those exact
+canonical bytes. It excludes source art so one admitted binding can serve many
+masters. Required identity fields are:
 
-- source master digest and composition recipe digest;
 - frame ID and admitted canonical Thing Description digest;
 - selected artifact profile ID and canonical profile/capability digest;
 - renderer binary digest, renderer protocol revision, and deterministic
@@ -33,13 +34,19 @@ is SHA-256 of those exact canonical bytes. Required identity fields are:
 - transfer binding identity, selected advertised Form contract, connector
   implementation revision, and required security/effect semantics.
 
-The manifest contains no credential, provider context, raw source bytes,
-raw endpoint URL, UI layout, mutable health data, or final artifact digest. The
-final digest does not exist when a render candidate is formed. A separate
-immutable result binds the candidate digest to its exact rendered wire-byte
-digest, byte count, media type, and conformance evidence. The artifact digest
-alone remains SHA-256 of the exact wire bytes, independent of database IDs and
-manifest metadata. A generation result must never rewrite either identity.
+An accepted work manifest combines one admitted qualification digest, source
+master digest, and canonical composition recipe digest. Its digest is SHA-256
+of its own versioned canonical bytes. It exists before rendering and is pinned
+to that job and its delivery intents. An immutable result binds the work digest
+to the exact rendered wire-byte digest, byte count, and media type. The final
+artifact digest cannot be an input to the work manifest because it does not
+exist before rendering. It remains SHA-256 of the exact wire bytes, independent
+of database IDs and manifest metadata.
+
+Manifests contain no credential, provider context, raw source bytes, raw
+endpoint URL, UI layout, or mutable health data. No result may rewrite a
+qualification, work identity, or artifact identity. Qualification evidence is
+recorded separately and names the exact fixture suite or physical cohort.
 
 An operation descriptor for each renderer and transfer connector declares its
 version, scope, input/output schema, authority and credential audience, effect
@@ -47,38 +54,40 @@ class, evidence shape, compatibility rules, and unavailable or ambiguous
 outcomes. The host admits only an exact compatible descriptor and profile
 combination. Optional WoT extensions are preserved; required unknown profiles
 fail closed. The frame receives the existing protocol artifact digest and
-profile. A generation digest is host custody metadata unless a separately
+profile. A work digest is host custody metadata unless a separately
 versioned frame affordance is specified and qualified.
 
 ## Admission, pinning, and rollback
 
-Candidate creation validates the master, recipe, admitted frame identity,
-profile, renderer, and connector without a network effect. Qualification
-records the exact software fixture suite and, for a physical cohort, the
-measured device evidence. Candidate, admitted, and retired states are durable.
-One active generation pointer per frame/cohort selects *new* work. A candidate
-cannot activate itself; an activation command records the qualification
-decision and previous active pointer under the single writer.
+Candidate qualification validates the admitted frame identity, profile,
+renderer, and connector without a network effect. It records the exact
+software fixture suite and, for a physical cohort, measured device evidence.
+Candidate, admitted, and retired states are durable. One active qualification
+pointer per frame/cohort selects *new* work. A candidate cannot activate
+itself; an activation command records the qualification decision and previous
+active pointer under the single writer. New work also validates its master and
+recipe before claiming a work digest.
 
 An accepted render job and both push and pull delivery intents record the
-generation digest. Retries, acknowledgements, and reconciliation use that
-frozen record even after another generation is activated. Revision, request
+work digest and qualification digest. Retries, acknowledgements, and
+reconciliation use that frozen record even after another qualification is
+activated. Revision, request
 ID, artifact digest, authenticated frame identity, and authoritative display
 state still govern confirmation. Only confirmed display advances current and
 previous-known-good. Both accepted pending work and last-good bytes remain
 protected from collection. Rollback changes the pointer for future work; it
 never reassigns an in-flight intent or claims that a frame changed display.
 
-Existing pre-generation work is preserved by migration with an explicit
+Existing pre-qualification work is preserved by migration with an explicit
 legacy/unqualified marker. It can be reconciled using its original identity
 and digest, but must not be reported as having passed new qualification.
 
 ## Diagnostic and verification contract
 
-Audit and native logs include generation, command, and attempt IDs with bounded
+Audit and native logs include work, qualification, command, and attempt IDs with bounded
 public fields. Metrics count qualification refusal, render outcome, transfer
 attempt, ambiguous outcome, and confirmed display with bounded dimensions such
-as outcome and mode. Generation, frame, recipe, and attempt IDs are excluded
+as outcome and mode. Work, qualification, frame, recipe, and attempt IDs are excluded
 from metric labels. Health exposes qualification coverage and loss/reset status.
 
 The software conformance suite must cover incompatible geometry/color,

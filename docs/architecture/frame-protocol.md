@@ -35,6 +35,9 @@ The words MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY are interpreted as in
 - **Current asset:** the digest last confirmed by the display adapter.
 - **Previous-known-good:** the prior confirmed current asset retained for
   recovery.
+- **Host work digest:** local identity of the admitted binding, source, and
+  recipe that produced an artifact; it does not replace the artifact digest on
+  the wire.
 - **Direct mode:** an awake frame exposes the API and the host pushes.
 - **Outbox mode:** a sleeping frame wakes, connects to the host, and pulls.
 

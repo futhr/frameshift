@@ -70,11 +70,11 @@ The same inputs and renderer version MUST produce identical artifact bytes on
 supported machines. Golden fixtures cover edges, transparency, profiles,
 orientation, extreme aspect ratios, and palette boundaries.
 
-A [qualified generation](qualified-generations.md) pins the admitted frame
-profile, exact renderer build, and transfer binding for accepted work. Its
-candidate digest exists before rendering; a result binds it to the final
-wire-byte digest after rendering. A renderer revision label alone is not proof
-that the same binary produced the bytes.
+A [qualified binding](qualified-generations.md) pins the admitted frame
+profile, exact renderer build, and transfer contract. One work digest combines
+that reusable binding with the source and recipe before rendering; a result
+binds it to the final wire-byte digest. A renderer revision label alone is not
+proof that the same binary produced the bytes.
 
 ## Photo renderer
 
@@ -127,7 +127,7 @@ measured in hours, not seconds, to respect wake energy and visible refresh.
 
 ## Cache behavior
 
-- Identical recipe hashes reuse existing artifacts.
+- Identical work digests reuse existing artifacts after exact byte verification.
 - Regenerate creates a new master variant; it never overwrites.
 - Re-render after a renderer/profile update creates a new artifact.
 - Pin protects a master, generation, and referenced artifacts from automatic

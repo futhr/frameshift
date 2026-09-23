@@ -172,12 +172,12 @@ evidence, but it must change explicitly.
 
 - **State:** accepted as a software design; qualification implementation and
   physical evidence remain open
-- **Decision:** Pin each new render and transfer workflow to one immutable,
-  locally admitted generation of source, recipe, renderer build, frame
-  capability instance, artifact profile, and transfer binding. A candidate
-  has an identity before rendering; the exact wire-byte digest is attached as
-  a result. Existing accepted work retains its generation across activation,
-  rollback, and restart.
+- **Decision:** Admit a reusable renderer/profile/transfer qualification for
+  each exact frame capability instance. Pin each accepted render and transfer
+  workflow to an immutable work digest combining that qualification with its
+  source and recipe. The work identity exists before rendering; the exact
+  wire-byte digest is attached as a result. Accepted work retains its binding
+  across activation, rollback, and restart.
 - **Consequence:** The artifact digest remains SHA-256 of the exact wire bytes.
   A successful transfer cannot stand in for display confirmation. Qualification
   and activation are durable local host decisions; cloud tenancy and a remote

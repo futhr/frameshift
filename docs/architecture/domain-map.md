@@ -13,7 +13,9 @@ all durable mutations. The same model runs on macOS and Linux.
 | --- | --- | --- |
 | Master | Immutable source image and recorded provenance | Library |
 | Recipe | Canonical inputs for generation or composition | Library identity; Generation or Rendering behavior |
-| Artifact | Immutable rendered bytes for an exact profile and renderer revision | Library identity; Rendering production |
+| Qualification | Admitted renderer build, frame capability/profile instance, and transfer binding | Rendering/Frames compatibility; Delivery effect policy |
+| Work | One immutable source, recipe, and admitted qualification selected for rendering and delivery | Application workflow |
+| Artifact | Immutable exact wire bytes produced for a work identity | Library identity; Rendering production |
 | Paired frame | Admitted identity, pinned server certificate, credential reference, and capabilities | Frames |
 | Desired | Artifact the host intends a frame to show | Delivery |
 | Confirmed displayed | Artifact reported by the frame after its display commit | Delivery |
@@ -26,6 +28,10 @@ Frame discovery and admission belong to Frames. Delivery owns every transition
 between desired, pending, confirmed, and previous-known-good states. A Frames
 query may show that state, but must not mutate or independently infer it. The
 Library enforces reference protection for all artifacts in those states.
+The active qualification selects new work. An accepted work identity remains
+fixed across qualification switching, rollback, restart, and reconciliation;
+its result records the separate exact wire-byte digest. Qualification and work
+records commit through the same SQLite owner as their protected references.
 
 Paired-frame admission is idempotent for an identical canonical TD, credential
 reference, and pinned server SPKI. It rejects an existing device ID with
@@ -71,6 +77,8 @@ for a real external or platform boundary, not for every table.
 - Delivery: request, inspect pending work, acknowledge, confirm, reconcile,
   and reject conflicting updates.
 - Rendering: plan and execute a deterministic bounded job.
+- Qualification: admit a compatible renderer/profile/transfer binding, select
+  it for new work, and preserve each accepted work identity.
 - Generation: preflight, execute or cancel a selected provider, and record
   provenance with explicit cloud consent.
 - Diagnostics: query bounded health and metrics; page or export redacted audit.

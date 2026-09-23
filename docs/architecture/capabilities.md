@@ -125,6 +125,10 @@ not sufficient. It can name an exact vendor panel, controller, palette,
 waveform, packing, gamma, or electrical limit after those properties have been
 qualified. That name selects bytes and adapter behavior; it does not alter the
 Frame Thing affordances.
+The host records the canonical digest of the selected profile and relevant
+capability instance in its [qualification](qualified-generations.md). Reusing a
+profile name after any byte-affecting property changes does not reuse the old
+render result or silently rebind accepted work.
 
 ## Reference capability classes
 

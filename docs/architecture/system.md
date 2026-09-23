@@ -16,6 +16,9 @@ same core and frame semantics through platform adapters.
 The [domain map](domain-map.md) assigns host transition ownership. The
 [diagnostics contract](diagnostics.md) defines audit, logs, metrics, and
 read-only access independently of the shell UI.
+The [qualification contract](qualified-generations.md) binds new render and
+transfer work to an admitted renderer/profile/connector combination while
+accepted work and previous-known-good display references survive changes.
 
 ## Topology
 

@@ -62,6 +62,8 @@ worker crash/timeout recovery, and no in-process native crash surface.
 ### H3 — Native shell
 
 - SwiftUI `MenuBarExtra` window;
+- appearance-aware temporary Dock/Finder icon from the supplied Futhr marks,
+  with a Dock entry opening the same shell controls;
 - target selection, instruction/import, library search, result cards;
 - regenerate, pin, remove, queue/send, and concise status;
 - Keychain, Vision labels/feature prints, notifications, accessibility;
@@ -84,13 +86,14 @@ cached repeat avoids provider call; secrets remain in Keychain.
 
 ### H5 — Qualified render and transfer generations
 
-- define versioned renderer and connector operation descriptors, a canonical
-  candidate manifest, and an immutable result binding exact wire bytes;
+- define versioned renderer and connector operation descriptors, a reusable
+  qualification manifest, an asset-specific work manifest, and an immutable
+  result binding exact wire bytes;
 - attest the renderer build and canonical selected frame profile, then qualify
   candidate combinations against software fixtures and measured frame cohorts;
 - persist candidate, evidence, admission, and active cohort selection under
   the single writer; preserve legacy pending work without retroactive claims;
-- pin accepted render work and push/pull intents to an exact generation across
+- pin accepted render work and push/pull intents to exact work and qualification digests across
   restart, candidate activation, rollback, and reconciliation;
 - add bounded diagnostic coverage and adversarial tests for incompatibility,
   exact replay, uncertain effects, duplicate transfer, and last-good retention.

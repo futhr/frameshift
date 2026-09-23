@@ -13,6 +13,11 @@ Frameshift is a quiet menu-bar utility, not a dashboard. The primary flow is:
 open -> choose frame -> describe or choose image -> generate/render -> send
 ```
 
+The macOS app also has a Dock presence while the temporary Futhr mark is in
+use. Opening it from the Dock presents the same authoritative artwork and
+frame controls as the menu-bar entry. The Dock artwork is separate from the
+small monochrome menu-bar template symbol.
+
 Advanced provider, model, storage, pairing, and hardware details live in
 Settings. The popover shows only information needed to choose artwork and know
 whether it reached the selected frame.

@@ -31,6 +31,12 @@ The core exposes product operations, not SQL tables or framework resources:
 | Generation | Provider contract, preflight, provenance, recipe caching, cancellation, and explicit cloud consent |
 | Diagnostics | Redacted audit history, bounded operational logs, metrics, health, and correlation identifiers |
 
+The [qualification contract](qualified-generations.md) joins an admitted
+renderer build, frame profile, and transfer binding for new work. A work digest
+then pins that binding to one source and recipe. Qualification decisions are
+pure; the existing single writer persists admission, selection, work, and
+delivery intent without splitting cross-context transactions.
+
 The [domain map](domain-map.md) defines the vocabulary, transition ownership,
 and atomic invariants. These are boundaries inside one host process, not a
 mandate for separate GenServers or databases. Each boundary has documented

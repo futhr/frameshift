@@ -62,6 +62,9 @@ activates only after a matching first-display acknowledgement. The menu's
 explicit **Loop pins** action snapshots the ordered pin set, renders each
 master for the selected profile, and submits this transaction. A single-image
 send supersedes a pending playlist or suspends an active one when confirmed.
+When a replacement is pending, the previous active loop continues on the frame.
+The host snapshot marks this as a pending replacement so the menu can show both
+the new intent and the continuing display truth.
 Repeating **Loop pins** after suspension may queue the same canonical revision
 as a fresh pending intent; the previous suspension is replaced atomically.
 Further single-image sends leave a suspended loop record and its protected

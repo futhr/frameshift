@@ -68,7 +68,11 @@ defmodule Frameshift.Playlist.Store do
     case Exqlite.query!(
            connection,
            """
-           SELECT p.status, p.revision, p.canonical_json, COUNT(e.ordinal)
+           SELECT p.status, p.revision, p.canonical_json, COUNT(e.ordinal),
+             EXISTS (
+               SELECT 1 FROM frame_playlists active
+               WHERE active.frame_id = p.frame_id AND active.status = 'active'
+             )
            FROM frame_playlists p
            JOIN frame_playlist_entries e ON e.frame_id = p.frame_id AND e.revision = p.revision
            WHERE p.frame_id = ?
@@ -78,14 +82,15 @@ defmodule Frameshift.Playlist.Store do
            """,
            [frame_id]
          ).rows do
-      [[state, revision, body, count]] ->
+      [[state, revision, body, count, has_active]] ->
         {:ok, playlist} = RFC8785.decode(body)
 
         %{
           "status" => state,
           "revision" => revision,
           "entryCount" => count,
-          "dwellMs" => playlist["entries"] |> hd() |> Map.fetch!("dwellMs")
+          "dwellMs" => playlist["entries"] |> hd() |> Map.fetch!("dwellMs"),
+          "replacingActive" => state == "pending" and has_active == 1
         }
 
       [] ->

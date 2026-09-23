@@ -268,7 +268,8 @@ struct FrameshiftPanel: View {
 
   private func playlistStatus(_ playlist: FramePlaylist) -> String {
     switch playlist.status {
-    case .pending: "Waiting for frame"
+    case .pending:
+      playlist.replacingActive == true ? "Updating · current loop continues" : "Waiting for frame"
     case .active: "Looping \(playlist.entryCount) stills"
     case .suspended: "Loop paused"
     }

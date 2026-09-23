@@ -321,6 +321,25 @@ defmodule Frameshift.Outbox.EndpointTest do
 
     assert %{"status" => "active"} = Library.frame_playlist_status(context.library, @frame_id)
 
+    {:ok, replacement} =
+      Plan.build(
+        frame["capabilities"],
+        [first["artifactDigest"], second["artifactDigest"]],
+        2_000
+      )
+
+    assert {:ok, _} =
+             Library.queue_playlist(
+               context.library,
+               @frame_id,
+               @profile_id,
+               replacement.playlist,
+               entries
+             )
+
+    assert %{"status" => "pending", "replacingActive" => true} =
+             Library.frame_playlist_status(context.library, @frame_id)
+
     assert {:ok, single} =
              Library.queue_outbox(
                context.library,

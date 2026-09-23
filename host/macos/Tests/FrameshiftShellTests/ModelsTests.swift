@@ -88,6 +88,18 @@ struct ModelsTests {
     #expect(item.queuedTargetID == nil)
   }
 
+  @Test("Pending replacement retains the continuing active-loop indication")
+  func replacementLoopState() throws {
+    let source = Data(
+      """
+      {"status":"pending","revision":"sha256:fixture","entryCount":2,"dwellMs":21600000,"replacingActive":true}
+      """.utf8
+    )
+
+    let playlist = try JSONDecoder().decode(FramePlaylist.self, from: source)
+    #expect(playlist.replacingActive == true)
+  }
+
   @Test("Disconnected state never invents device or generation availability")
   func disconnectedState() {
     let snapshot = CoreSnapshot.disconnected

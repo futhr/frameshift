@@ -147,6 +147,8 @@ active states. See [display timing](../architecture/display-timing.md).
 The current compact menu exposes this as **Loop pins** with a provisional
 suggestion when advertised and fixed choices filtered by the receiver minimum.
 It shows pending, active, or suspended state from the durable core snapshot.
+For a pending replacement it says that the current loop continues until the
+frame confirms the new revision.
 Each visible library card in that frame's selected playlist carries the same
 state, including entries after the first still; the outbox's first desired
 asset alone does not describe the whole loop.

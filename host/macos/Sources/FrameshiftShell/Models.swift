@@ -42,6 +42,7 @@ public struct FramePlaylist: Codable, Equatable, Sendable {
   public let revision: String
   public let entryCount: Int
   public let dwellMs: Int
+  public let replacingActive: Bool?
 }
 
 public struct FrameTarget: Codable, Equatable, Identifiable, Sendable {

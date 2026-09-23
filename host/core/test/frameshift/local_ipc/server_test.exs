@@ -1,4 +1,6 @@
 defmodule Frameshift.LocalIPC.ServerTest do
+  @moduledoc false
+
   use ExUnit.Case, async: true
 
   alias Frameshift.Digest

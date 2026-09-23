@@ -20,16 +20,19 @@ defmodule Frameshift.Protocol.JSON do
           | :unknown_schema
           | {:schema, term()}
 
+  @doc "Decodes a control document within byte and nesting limits, then validates its schema."
   @spec decode_control(binary(), Schema.schema_name()) :: {:ok, term()} | {:error, reason()}
   def decode_control(json, schema_name) when is_binary(json) do
     decode(json, schema_name, @control_limit)
   end
 
+  @doc "Decodes a larger bounded Thing Description without fetching remote schemas."
   @spec decode_thing_description(binary()) :: {:ok, term()} | {:error, reason()}
   def decode_thing_description(json) when is_binary(json) do
     decode(json, "thing-description", @thing_description_limit)
   end
 
+  @doc "Encodes a JSON value using deterministic RFC 8785 key and number spelling."
   @spec encode(term()) :: {:ok, binary()} | {:error, term()}
   def encode(document), do: RFC8785.encode(document)
 

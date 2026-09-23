@@ -1,5 +1,11 @@
 defmodule Frameshift.Simulator.Persistence do
-  @moduledoc false
+  @moduledoc """
+  Recovers simulated frame state from redundant, checksummed records.
+
+  A damaged latest slot does not erase an older valid state. This models the
+  frame's power-loss recovery rules without treating the simulator as proof of
+  physical flash or panel behavior.
+  """
 
   alias Frameshift.Digest
   alias Frameshift.Simulator.State

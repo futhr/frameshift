@@ -16,6 +16,7 @@ defmodule Frameshift.RenderPipeline do
 
   @required_attributes ~w(profile_id renderer_revision media_type)a
 
+  @doc "Verifies a stored master, renders it, and registers its exact target artifact."
   @spec render_stored_master(
           GenServer.server(),
           GenServer.server(),
@@ -24,6 +25,26 @@ defmodule Frameshift.RenderPipeline do
           map()
         ) :: {:ok, map()} | {:error, term()}
   def render_stored_master(library, renderer, master_digest, job, attributes) do
+    started = System.monotonic_time(:millisecond)
+    result = do_render_stored_master(library, renderer, master_digest, job, attributes)
+
+    outcome =
+      case result do
+        {:ok, %{cache: :hit}} -> :cache_hit
+        {:ok, _artifact} -> :succeeded
+        {:error, _reason} -> :failed
+      end
+
+    :telemetry.execute(
+      [:frameshift, :render, :completed],
+      %{duration_ms: System.monotonic_time(:millisecond) - started},
+      %{outcome: outcome}
+    )
+
+    result
+  end
+
+  defp do_render_stored_master(library, renderer, master_digest, job, attributes) do
     with :ok <- validate_attributes(attributes),
          :ok <- validate_master_digest(master_digest),
          {:ok, master} <- Library.get_master(library, master_digest),

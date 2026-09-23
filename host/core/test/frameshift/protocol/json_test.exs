@@ -1,6 +1,10 @@
 defmodule Frameshift.Protocol.JSONTest do
-  use ExUnit.Case, async: true
+  @moduledoc false
 
+  use ExUnit.Case, async: true
+  use ExUnitProperties
+
+  alias Frameshift.Digest
   alias Frameshift.Protocol.JSON, as: ProtocolJSON
 
   @valid_desired ~S({
@@ -46,5 +50,23 @@ defmodule Frameshift.Protocol.JSONTest do
 
     assert {:ok, ~S({"a":1,"b":2})} = ProtocolJSON.encode(left)
     assert ProtocolJSON.encode(left) == ProtocolJSON.encode(right)
+  end
+
+  property "canonical desired documents round-trip through bounded schema admission" do
+    check all(
+            bytes <- binary(max_length: 4_096),
+            request_id <- string(:alphanumeric, min_length: 1, max_length: 64),
+            profile_suffix <- string(:alphanumeric, min_length: 1, max_length: 64)
+          ) do
+      desired = %{
+        "assetDigest" => Digest.sha256(bytes),
+        "artifactProfile" => "urn:frameshift:profile:#{profile_suffix}",
+        "requestId" => request_id
+      }
+
+      assert {:ok, encoded} = ProtocolJSON.encode(desired)
+      assert {:ok, ^desired} = ProtocolJSON.decode_control(encoded, "desired")
+      assert {:ok, ^encoded} = ProtocolJSON.encode(desired)
+    end
   end
 end

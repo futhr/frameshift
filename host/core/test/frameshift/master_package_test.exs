@@ -1,4 +1,6 @@
 defmodule Frameshift.MasterPackageTest do
+  @moduledoc false
+
   use ExUnit.Case, async: true
 
   alias Frameshift.MasterPackage

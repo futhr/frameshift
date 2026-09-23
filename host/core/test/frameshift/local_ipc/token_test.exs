@@ -1,4 +1,6 @@
 defmodule Frameshift.LocalIPC.TokenTest do
+  @moduledoc false
+
   use ExUnit.Case, async: true
 
   alias Frameshift.LocalIPC.Token

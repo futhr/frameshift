@@ -1,4 +1,6 @@
 defmodule Frameshift.OutboxTest do
+  @moduledoc false
+
   use ExUnit.Case, async: true
 
   alias Frameshift.Digest

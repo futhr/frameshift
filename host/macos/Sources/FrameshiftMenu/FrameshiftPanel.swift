@@ -70,6 +70,17 @@ struct FrameshiftPanel: View {
         LabeledContent("Frame", value: "No paired frame")
           .foregroundStyle(.secondary)
       }
+      if model.snapshot.selectedTarget?.directDelivery?.status == .pending {
+        HStack {
+          Label("Direct delivery pending confirmation", systemImage: "clock.arrow.circlepath")
+            .font(.caption)
+            .foregroundStyle(.orange)
+            .accessibilityIdentifier("direct-delivery-pending")
+          Spacer()
+          Button("Check frame") { Task { await model.reconcileDelivery() } }
+            .disabled(model.isBusy)
+        }
+      }
     }
   }
 
@@ -165,7 +176,8 @@ struct FrameshiftPanel: View {
             ResultCard(
               item: item,
               targetName: model.snapshot.selectedTarget?.name ?? "selected target",
-              canQueue: model.snapshot.selectedTarget != nil,
+              canQueue: model.snapshot.selectedTarget != nil
+                && model.snapshot.selectedTarget?.directDelivery?.status != .pending,
               queue: { Task { await model.queue(item.id) } },
               togglePin: { Task { await model.togglePin(item.id) } },
               remove: { Task { await model.remove(item.id) } }

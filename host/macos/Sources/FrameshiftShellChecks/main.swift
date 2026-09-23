@@ -315,6 +315,12 @@ private actor InMemoryCoreClient: CoreClient {
         throw CoreClientError.targetNotFound
       }
       try updateItem(command.itemID) { $0.queuedTargetID = targetID }
+    case .reconcileDelivery:
+      guard let targetID = command.targetID,
+        current.targets.contains(where: { $0.id == targetID })
+      else {
+        throw CoreClientError.targetNotFound
+      }
     }
     return current
   }

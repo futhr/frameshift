@@ -14,7 +14,22 @@ defmodule Frameshift.Renderer do
   @maximum_response_bytes Protocol.maximum_frame_bytes()
 
   defmodule State do
-    @moduledoc false
+    @moduledoc """
+    Tracks one supervised Zig port and the bounded response in flight.
+
+    The worker is replaced after a timeout or malformed frame so no subsequent
+    render can inherit an ambiguous native-process state.
+    """
+
+    @type t :: %__MODULE__{
+            port: port() | pid(),
+            pending: term(),
+            expected: term(),
+            prefix: binary(),
+            chunks: [binary()],
+            received: non_neg_integer()
+          }
+
     @enforce_keys [:port]
     defstruct [:port, :pending, :expected, prefix: <<>>, chunks: [], received: 0]
   end

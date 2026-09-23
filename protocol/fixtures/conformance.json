@@ -8,10 +8,15 @@
     { "schema": "problem", "document": "valid/problem.json", "valid": true },
     { "schema": "outbox-manifest", "document": "valid/outbox-manifest.json", "valid": true },
     { "schema": "outbox-ack", "document": "valid/outbox-ack.json", "valid": true },
+    { "schema": "pairing-bootstrap", "document": "valid/pairing-bootstrap.json", "valid": true },
+    { "schema": "pairing-request", "document": "valid/pairing-request.json", "valid": true },
+    { "schema": "pairing-response", "document": "valid/pairing-response.json", "valid": true },
     { "schema": "thing-description", "document": "valid/thing-description.json", "valid": true },
     { "schema": "capabilities", "document": "invalid/capabilities-motion.json", "valid": false },
     { "schema": "desired", "document": "invalid/desired-uppercase-digest.json", "valid": false },
     { "schema": "playlist", "document": "invalid/playlist-transition.json", "valid": false },
-    { "schema": "outbox-ack", "document": "invalid/outbox-ack-secret.json", "valid": false }
+    { "schema": "outbox-ack", "document": "invalid/outbox-ack-secret.json", "valid": false },
+    { "schema": "pairing-bootstrap", "document": "invalid/pairing-bootstrap-routing.json", "valid": false },
+    { "schema": "pairing-request", "document": "invalid/pairing-request-certificate.json", "valid": false }
   ]
 }

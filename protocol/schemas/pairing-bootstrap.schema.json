@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.frameshift.invalid/v0.1/pairing-bootstrap.schema.json",
+  "title": "Frame Protocol v0.1 physical pairing bootstrap",
+  "type": "object",
+  "required": ["version", "deviceId", "serverSpki", "secret"],
+  "properties": {
+    "version": { "const": 1 },
+    "deviceId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._~-]{16,128}$"
+    },
+    "serverSpki": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "secret": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{22,86}$",
+      "description": "Canonical unpadded base64url encoding of 16–64 random bytes"
+    }
+  },
+  "additionalProperties": false
+}

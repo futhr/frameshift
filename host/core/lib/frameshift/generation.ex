@@ -20,6 +20,7 @@ defmodule Frameshift.Generation do
     reproducibility seed target_profile_id target_profile_revision title
   )a
 
+  @doc "Preflights the selected provider and persists a provenance linked generated still."
   @spec generate(GenServer.server(), module(), map(), keyword()) ::
           {:ok, map()} | {:error, term()}
   def generate(library, provider, request, options \\ []) do

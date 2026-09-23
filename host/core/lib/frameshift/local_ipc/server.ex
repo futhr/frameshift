@@ -21,7 +21,15 @@ defmodule Frameshift.LocalIPC.Server do
   @token_pattern ~r/^[0-9a-f]{64}$/
 
   defmodule State do
-    @moduledoc false
+    @moduledoc """
+    Owns the local listener and its acceptor task for one core process.
+
+    Keeping both handles together lets shutdown close the socket before the
+    process exits and prevents an orphaned command endpoint.
+    """
+
+    @type t :: %__MODULE__{acceptor: term(), listener: term(), path: String.t()}
+
     @enforce_keys [:acceptor, :listener, :path]
     defstruct [:acceptor, :listener, :path]
   end
@@ -177,7 +185,7 @@ defmodule Frameshift.LocalIPC.Server do
     :gen_tcp.close(socket)
   catch
     kind, _reason ->
-      Logger.error("local IPC request failed (#{kind})")
+      Logger.error("local IPC request failed", frameshift_event: :ipc_failure, error_class: kind)
       :gen_tcp.close(socket)
   end
 
@@ -304,12 +312,39 @@ defmodule Frameshift.LocalIPC.Server do
          %{"requestId" => request_id, "operation" => "command", "command" => command},
          library
        ) do
-    with {:ok, command_hash} <- command_hash(command),
-         {:ok, disposition} <- Library.claim_command(library, command["id"], command_hash) do
-      execute_command(disposition, request_id, command, command_hash, library)
-    else
-      {:error, code} -> {:error, {request_id, code}}
-    end
+    started = System.monotonic_time(:millisecond)
+    Logger.metadata(request_id: request_id, command_id: command["id"])
+
+    result =
+      with {:ok, command_hash} <- command_hash(command),
+           {:ok, disposition} <- Library.claim_command(library, command["id"], command_hash) do
+        execute_command(disposition, request_id, command, command_hash, library)
+      else
+        {:error, code} -> {:error, {request_id, code}}
+      end
+
+    outcome =
+      case result do
+        {:ok, _response} -> :succeeded
+        {:error, {_, :command_outcome_unknown}} -> :unknown
+        {:error, _error} -> :failed
+      end
+
+    duration_ms = System.monotonic_time(:millisecond) - started
+
+    :telemetry.execute(
+      [:frameshift, :command, :completed],
+      %{count: 1, duration_ms: duration_ms},
+      %{outcome: outcome}
+    )
+
+    Logger.info("local command completed",
+      frameshift_event: :command_completed,
+      frameshift_outcome: outcome,
+      duration_ms: duration_ms
+    )
+
+    result
   end
 
   defp execute_command(:execute, request_id, command, command_hash, library) do

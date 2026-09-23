@@ -60,15 +60,16 @@ marker so missing observations cannot be represented as zero.
 
 ## Log and audit access
 
-The macOS shell logs with Swift `Logger`. A signed, supervised, long-lived
-bridge forwards structured OTP Logger events to Apple unified logging under
-subsystem `io.frameshift.app`, with stable categories. Its input queue is
-bounded, lower-severity events drop first, and bridge failure does not block a
-command. A small rotating OTP file captures critical failures when the bridge
-is unavailable. Console.app and `/usr/bin/log` are the macOS log readers; the
-product does not build a logs UI. Apple controls unified-log persistence, so
-it is not the audit store. Linux uses a journald adapter or an equivalent
-bounded local sink with `journalctl` access.
+The macOS shell logs with Swift `Logger`. It supervises the bundled core and
+drains its stdout/stderr pipes. A bounded parser forwards only allowlisted,
+structured core records to Apple unified logging under subsystem
+`io.frameshift.app`, with stable categories; arbitrary third-party output is
+discarded. The shell records dropped records. Pipe and bridge failure must not
+block a command. A small rotating OTP file captures sanitized critical
+failures when the bridge is unavailable. Console.app and `/usr/bin/log` are the
+macOS log readers; the product does not build a logs UI. Apple controls
+unified-log persistence, so it is not the audit store. Linux uses a journald
+adapter or an equivalent bounded local sink with `journalctl` access.
 
 `frameshiftctl diagnostics health|metrics|audit` is a read-only client of the
 versioned local IPC contract. Responses are size-limited and audit queries use

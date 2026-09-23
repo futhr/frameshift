@@ -1,0 +1,278 @@
+defmodule Frameshift.Outbox.EndpointTest do
+  @moduledoc false
+
+  use ExUnit.Case, async: true
+
+  alias Frameshift.Digest
+  alias Frameshift.Library
+  alias Frameshift.Outbox.Endpoint
+  alias Frameshift.Outbox.HTTP1
+  alias Frameshift.Outbox.TLSServer
+  alias Frameshift.Protocol.JSON
+  alias Frameshift.Transport.SPKIPin
+
+  @frame_id "sim-photo-00000001"
+  @profile_id "urn:frameshift:profile:sim-rgb24-v1"
+  @bytes <<1, 2, 3, 4, 5, 6>>
+  @next_bytes <<6, 5, 4, 3, 2, 1>>
+  @thing_fixture Path.expand(
+                   "../../../../../protocol/fixtures/valid/thing-description.json",
+                   __DIR__
+                 )
+
+  setup_all do
+    key = {:rsa, 2048, 65_537}
+
+    certificates =
+      :public_key.pkix_test_data(%{
+        server_chain: %{root: [key: key], intermediates: [], peer: [key: key]},
+        client_chain: %{root: [key: key], intermediates: [], peer: [key: key]}
+      })
+
+    certificate = Keyword.fetch!(certificates.server_config, :cert)
+    unknown_certificate = Keyword.fetch!(certificates.client_config, :cert)
+    assert {:ok, pin} = SPKIPin.fingerprint_der(certificate)
+    assert {:ok, other_pin} = SPKIPin.fingerprint_der(unknown_certificate)
+    refute pin == other_pin
+
+    %{certificate: certificate, unknown_certificate: unknown_certificate, pin: pin}
+  end
+
+  setup context do
+    root =
+      Path.join(
+        System.tmp_dir!(),
+        "frameshift-outbox-endpoint-#{System.unique_integer([:positive, :monotonic])}"
+      )
+
+    on_exit(fn -> File.rm_rf!(root) end)
+    {:ok, library} = Library.start_link(data_dir: Path.join(root, "library"), name: nil)
+    on_exit(fn -> if Process.alive?(library), do: GenServer.stop(library) end)
+
+    assert {:ok, _frame} =
+             Library.register_paired_frame(
+               library,
+               File.read!(@thing_fixture),
+               "keychain:outbox-endpoint-frame",
+               context.pin
+             )
+
+    %{library: library}
+  end
+
+  test "serves only the authenticated frame's current manifest and exact bytes", context do
+    assert {:ok, %{status: 204, body: <<>>}} = request(context, "GET", manifest_path())
+
+    digest = register_artifact!(context.library, @bytes)
+    assert {:ok, manifest} = Library.queue_outbox(context.library, @frame_id, digest, @profile_id)
+
+    assert {:ok, %{status: 200, body: manifest_body, headers: manifest_headers}} =
+             request(context, "GET", manifest_path())
+
+    assert manifest_headers["content-length"] == Integer.to_string(byte_size(manifest_body))
+    assert {:ok, ^manifest} = JSON.decode_control(manifest_body, "outbox-manifest")
+
+    path = "/v0/outbox/assets/sha256/" <> Digest.hex!(digest)
+
+    assert {:ok, %{status: 200, body: @bytes, headers: headers}} =
+             request(context, "GET", path)
+
+    assert headers["content-length"] == "6"
+    assert headers["content-type"] == "application/vnd.frameshift.rgb24"
+
+    assert headers["content-digest"] ==
+             "sha-256=:#{Base.encode64(:crypto.hash(:sha256, @bytes))}:"
+
+    next_digest = register_artifact!(context.library, @next_bytes)
+
+    assert {:ok, _new_manifest} =
+             Library.queue_outbox(context.library, @frame_id, next_digest, @profile_id)
+
+    assert {:error, :not_found} = request(context, "GET", path)
+
+    assert {:ok, %{body: @next_bytes}} =
+             request(context, "GET", "/v0/outbox/assets/sha256/" <> Digest.hex!(next_digest))
+
+    assert {:error, :frame_not_paired} =
+             Endpoint.handle(context.library, context.unknown_certificate, "GET", path, nil, <<>>)
+
+    assert {:error, :invalid_peer_certificate} =
+             Endpoint.handle(context.library, "another-frame", "GET", path, nil, <<>>)
+
+    assert {:error, :not_found} =
+             request(
+               context,
+               "GET",
+               "/v0/outbox/assets/sha256/" <> String.duplicate("f", 64)
+             )
+
+    assert {:error, :invalid_request} =
+             request(
+               context,
+               "GET",
+               "/v0/outbox/assets/sha256/../" <> Digest.hex!(digest)
+             )
+  end
+
+  test "only a schema-valid acknowledgement of the current revision can clear the outbox",
+       context do
+    digest = register_artifact!(context.library, @bytes)
+    assert {:ok, manifest} = Library.queue_outbox(context.library, @frame_id, digest, @profile_id)
+
+    acknowledgement = %{
+      "manifestRevision" => manifest["revision"],
+      "storage" => "verified",
+      "refresh" => "displayed",
+      "currentAsset" => digest,
+      "lastError" => nil
+    }
+
+    assert {:error, :invalid_acknowledgement} =
+             Endpoint.handle(
+               context.library,
+               context.certificate,
+               "POST",
+               "/v0/outbox/ack",
+               "application/json",
+               ~s({"manifestRevision":1,"storage":"verified","storage":"failed"})
+             )
+
+    assert {:error, :acknowledgement_conflict} =
+             post_ack(context, %{acknowledgement | "manifestRevision" => 2})
+
+    assert {:ok, ^manifest} = Library.outbox_manifest(context.library, @frame_id)
+
+    assert {:ok, %{status: 200, body: ~s({"status":"confirmed"})}} =
+             post_ack(context, acknowledgement)
+
+    assert :empty = Library.outbox_manifest(context.library, @frame_id)
+
+    assert {:error, :not_found} =
+             request(
+               context,
+               "GET",
+               "/v0/outbox/assets/sha256/" <> Digest.hex!(digest)
+             )
+  end
+
+  test "a duplicate paired SPKI is ambiguous rather than selecting a frame", context do
+    another_td =
+      @thing_fixture
+      |> File.read!()
+      |> Jason.decode!()
+      |> Map.put("id", "urn:frameshift:device:another-frame-0001")
+      |> Map.put("title", "Another frame")
+      |> put_in(["frameshift:capabilities", "deviceId"], "another-frame-0001")
+      |> Jason.encode!()
+
+    assert {:ok, _frame} =
+             Library.register_paired_frame(
+               context.library,
+               another_td,
+               "keychain:another-frame",
+               context.pin
+             )
+
+    assert {:error, :ambiguous_frame_identity} =
+             request(context, "GET", manifest_path())
+  end
+
+  test "the bounded HTTP exchange frames authenticated content and safe problems", context do
+    digest = register_artifact!(context.library, @bytes)
+
+    assert {:ok, _manifest} =
+             Library.queue_outbox(context.library, @frame_id, digest, @profile_id)
+
+    request = "GET /v0/outbox/manifest HTTP/1.1\r\nHost: host.local\r\n\r\n"
+
+    assert {:ok, response} = HTTP1.exchange(context.library, context.certificate, request)
+    assert response =~ "HTTP/1.1 200 OK\r\n"
+    assert response =~ "content-type: application/json\r\n"
+    assert response =~ "connection: close\r\n"
+
+    [head, body] = :binary.split(response, "\r\n\r\n")
+    assert head =~ "content-length: #{byte_size(body)}\r\n"
+    assert {:ok, %{"desiredAsset" => ^digest}} = JSON.decode_control(body, "outbox-manifest")
+
+    assert {:ok, forbidden} =
+             HTTP1.exchange(context.library, context.unknown_certificate, request)
+
+    assert forbidden =~ "HTTP/1.1 403 Forbidden\r\n"
+    assert forbidden =~ "content-type: application/problem+json\r\n"
+    refute forbidden =~ @frame_id
+    refute forbidden =~ digest
+
+    assert {:ok, malformed} =
+             HTTP1.exchange(
+               context.library,
+               context.certificate,
+               request <> "GET /v0/outbox/manifest HTTP/1.1\r\n\r\n"
+             )
+
+    assert malformed =~ "HTTP/1.1 400 Bad Request\r\n"
+  end
+
+  test "the TLS verification callback pins only one paired pull-capable frame", context do
+    certificate = :public_key.pkix_decode_cert(context.certificate, :otp)
+    unknown_certificate = :public_key.pkix_decode_cert(context.unknown_certificate, :otp)
+    state = %{library: context.library}
+
+    assert {:valid, ^state} =
+             TLSServer.verify_client(certificate, {:bad_cert, :unknown_ca}, state)
+
+    assert {:fail, {:bad_cert, :cert_expired}} =
+             TLSServer.verify_client(certificate, {:bad_cert, :cert_expired}, state)
+
+    assert {:valid, %{matched: true}} = TLSServer.verify_client(certificate, :valid_peer, state)
+
+    assert {:fail, :unpaired_frame} =
+             TLSServer.verify_client(unknown_certificate, :valid_peer, state)
+  end
+
+  defp request(context, method, path) do
+    Endpoint.handle(context.library, context.certificate, method, path, nil, <<>>)
+  end
+
+  defp post_ack(context, acknowledgement) do
+    {:ok, body} = JSON.encode(acknowledgement)
+
+    Endpoint.handle(
+      context.library,
+      context.certificate,
+      "POST",
+      "/v0/outbox/ack",
+      "application/json",
+      body
+    )
+  end
+
+  defp manifest_path, do: "/v0/outbox/manifest"
+
+  defp register_artifact!(library, bytes) do
+    {:ok, master} =
+      Library.import_master(library, "master-#{Digest.sha256(bytes)}", %{
+        title: "Endpoint fixture",
+        source_kind: :import,
+        width: 2,
+        height: 1,
+        media_type: "image/png",
+        provenance: %{"kind" => "test-fixture"}
+      })
+
+    {:ok, recipe_hash} =
+      Library.register_recipe(library, :composition, %{"width" => 2, "height" => 1}, [
+        master["digest"]
+      ])
+
+    {:ok, artifact} =
+      Library.register_artifact(library, bytes, %{
+        master_digest: master["digest"],
+        recipe_hash: recipe_hash,
+        profile_id: @profile_id,
+        renderer_revision: "outbox-endpoint-test-v1",
+        media_type: "application/vnd.frameshift.rgb24"
+      })
+
+    artifact["digest"]
+  end
+end

@@ -1,5 +1,10 @@
 defmodule Frameshift.Library.Migrations do
-  @moduledoc false
+  @moduledoc """
+  Versioned SQLite schema for content, frame, and command-replay records.
+
+  Migrations run under the library's single-owner connection before runtime
+  commands are accepted. New versions retain content and reference history.
+  """
 
   @migrations [
     {1,
@@ -205,6 +210,43 @@ defmodule Frameshift.Library.Migrations do
        ) STRICT
        """,
        "CREATE INDEX command_receipts_completed ON command_receipts(completed_at_ms DESC)"
+     ]},
+    {7,
+     [
+       """
+       CREATE TABLE frame_direct_deliveries (
+         frame_id TEXT PRIMARY KEY REFERENCES paired_frames(frame_id) ON DELETE CASCADE,
+         revision INTEGER NOT NULL CHECK (revision > 0),
+         desired_digest TEXT NOT NULL REFERENCES artifacts(digest) ON DELETE RESTRICT,
+         profile_id TEXT NOT NULL,
+         request_id TEXT NOT NULL CHECK (length(request_id) BETWEEN 1 AND 64),
+         status TEXT NOT NULL CHECK (status IN ('pending', 'displayed')),
+         updated_at_ms INTEGER NOT NULL
+       ) STRICT
+       """
+     ]},
+    {8,
+     [
+       "ALTER TABLE audit_entries ADD COLUMN correlation_id TEXT",
+       "ALTER TABLE audit_entries ADD COLUMN attempt_id TEXT",
+       "CREATE INDEX audit_entries_recent ON audit_entries(id DESC)",
+       "CREATE INDEX audit_entries_correlation ON audit_entries(correlation_id, id DESC)",
+       "ALTER TABLE frame_outboxes ADD COLUMN command_id TEXT",
+       """
+       CREATE TABLE metric_rollups (
+         metric TEXT NOT NULL CHECK (length(metric) BETWEEN 1 AND 96),
+         bucket_ms INTEGER NOT NULL,
+         granularity TEXT NOT NULL CHECK (granularity IN ('minute', 'hour')),
+         dimensions_json TEXT NOT NULL CHECK (length(dimensions_json) <= 256),
+         sample_count INTEGER NOT NULL CHECK (sample_count >= 0),
+         value_sum REAL NOT NULL,
+         value_min REAL NOT NULL,
+         value_max REAL NOT NULL,
+         histogram_json TEXT NOT NULL CHECK (length(histogram_json) <= 512),
+         PRIMARY KEY(metric, bucket_ms, granularity, dimensions_json)
+       ) STRICT
+       """,
+       "CREATE INDEX metric_rollups_recent ON metric_rollups(bucket_ms DESC, granularity)"
      ]}
   ]
 

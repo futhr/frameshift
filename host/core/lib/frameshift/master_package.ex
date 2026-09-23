@@ -24,12 +24,15 @@ defmodule Frameshift.MasterPackage do
           original: binary()
         }
 
+  @doc "Returns the versioned media type for immutable master packages."
   @spec media_type() :: String.t()
   def media_type, do: "application/vnd.frameshift.master-v1"
 
+  @doc "Returns the admitted maximum package size in bytes."
   @spec maximum_package_bytes() :: pos_integer()
   def maximum_package_bytes, do: @maximum_package_bytes
 
+  @doc "Packages exact source bytes with canonical RGBA pixels and checked dimensions."
   @spec encode(binary(), binary(), pos_integer(), pos_integer()) ::
           {:ok, iodata()} | {:error, atom()}
   def encode(original, rgba, width, height)
@@ -48,6 +51,7 @@ defmodule Frameshift.MasterPackage do
 
   def encode(_original, _rgba, _width, _height), do: {:error, :invalid_master_package}
 
+  @doc "Verifies and unpacks a bounded versioned master package."
   @spec decode(binary()) :: {:ok, decoded()} | {:error, atom()}
   def decode(package) when is_binary(package) and byte_size(package) <= @maximum_package_bytes do
     with {:ok, width, height, rgba_bytes, original_bytes, body} <- parse_header(package),

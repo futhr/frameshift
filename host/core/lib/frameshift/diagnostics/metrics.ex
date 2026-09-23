@@ -1,0 +1,235 @@
+defmodule Frameshift.Diagnostics.Metrics do
+  @moduledoc """
+  Bounded local reporter for Frameshift telemetry events.
+
+  The synchronous telemetry handler only sends a message. Aggregation and
+  SQLite writes happen in this supervised process, never in the emitter.
+  """
+
+  use GenServer
+
+  alias Frameshift.Diagnostics.Catalog
+  alias Frameshift.Library
+
+  @queue_limit 10_000
+  @pending_limit 2_000
+  @flush_interval_ms 10_000
+
+  defmodule State do
+    @moduledoc "Mutable aggregate buckets retained until the next committed flush."
+
+    @type t :: %__MODULE__{
+            handler_id: String.t(),
+            library: GenServer.server(),
+            dropped: reference(),
+            pending: map(),
+            started_at_ms: integer(),
+            last_dropped: non_neg_integer(),
+            last_event_at_ms: integer() | nil,
+            last_flushed_at_ms: integer() | nil,
+            flush_failures: non_neg_integer()
+          }
+
+    @enforce_keys [:handler_id, :library, :dropped]
+    defstruct [
+      :handler_id,
+      :library,
+      :dropped,
+      pending: %{},
+      started_at_ms: nil,
+      last_dropped: 0,
+      last_event_at_ms: nil,
+      last_flushed_at_ms: nil,
+      flush_failures: 0
+    ]
+  end
+
+  @doc "Starts the supervised local reporter after the SQLite owner."
+  @spec start_link(keyword()) :: GenServer.on_start()
+  def start_link(options) do
+    case Keyword.get(options, :name, __MODULE__) do
+      nil -> GenServer.start_link(__MODULE__, options)
+      name -> GenServer.start_link(__MODULE__, options, name: name)
+    end
+  end
+
+  @doc "Reports collector coverage and loss without waiting for a database flush."
+  @spec status(GenServer.server()) :: map()
+  def status(server \\ __MODULE__), do: GenServer.call(server, :status)
+
+  @doc "Flushes pending aggregates; intended for lifecycle and verification."
+  @spec flush(GenServer.server()) :: :ok | {:error, term()}
+  def flush(server \\ __MODULE__), do: GenServer.call(server, :flush, 30_000)
+
+  @impl true
+  def init(options) do
+    library = Keyword.get(options, :library, Library)
+    handler_id = "frameshift-local-metrics-#{System.unique_integer([:positive, :monotonic])}"
+    dropped = :atomics.new(1, signed: false)
+
+    :ok =
+      :telemetry.attach_many(
+        handler_id,
+        Catalog.events(),
+        &__MODULE__.handle_event/4,
+        %{target: self(), dropped: dropped}
+      )
+
+    Process.send_after(self(), :flush, @flush_interval_ms)
+
+    {:ok,
+     %State{
+       handler_id: handler_id,
+       library: library,
+       dropped: dropped,
+       started_at_ms: System.os_time(:millisecond)
+     }}
+  end
+
+  @doc "Telemetry callback: sends bounded work to the supervised reporter."
+  @spec handle_event(list(atom()), map(), map(), map()) :: :ok
+  def handle_event(event, measurements, metadata, %{target: target, dropped: dropped}) do
+    case Process.info(target, :message_queue_len) do
+      {:message_queue_len, length} when length < @queue_limit ->
+        send(target, {:sample, event, measurements, metadata})
+        :ok
+
+      _overloaded ->
+        :atomics.add(dropped, 1, 1)
+        :ok
+    end
+  end
+
+  @impl true
+  def handle_call(:status, _from, state) do
+    {:reply,
+     %{
+       "startedAtMs" => state.started_at_ms,
+       "lastEventAtMs" => state.last_event_at_ms,
+       "lastFlushedAtMs" => state.last_flushed_at_ms,
+       "flushFailures" => state.flush_failures,
+       "pendingSeries" => map_size(state.pending),
+       "droppedEvents" => :atomics.get(state.dropped, 1)
+     }, state}
+  end
+
+  def handle_call(:flush, _from, state) do
+    {result, next_state} = flush_pending(state)
+    {:reply, result, next_state}
+  end
+
+  @impl true
+  def handle_info({:sample, event, measurements, metadata}, state) do
+    now_ms = System.os_time(:millisecond)
+
+    next =
+      event
+      |> Catalog.samples(measurements, metadata)
+      |> Enum.reduce(state, fn sample, accumulator -> add_sample(accumulator, sample, now_ms) end)
+
+    {:noreply, %{next | last_event_at_ms: now_ms}}
+  end
+
+  def handle_info(:flush, state) do
+    {_result, next_state} = flush_pending(state)
+    Process.send_after(self(), :flush, @flush_interval_ms)
+    {:noreply, next_state}
+  end
+
+  @impl true
+  def terminate(_reason, state) do
+    :telemetry.detach(state.handler_id)
+    :ok
+  end
+
+  defp add_sample(state, sample, now_ms) do
+    Enum.reduce([{"minute", 60_000}, {"hour", 3_600_000}], state, fn {granularity, width},
+                                                                     current ->
+      bucket_ms = div(now_ms, width) * width
+      key = {sample.metric, bucket_ms, granularity, sample.dimensions}
+
+      cond do
+        Map.has_key?(current.pending, key) ->
+          %{current | pending: Map.update!(current.pending, key, &accumulate(&1, sample))}
+
+        map_size(current.pending) < @pending_limit ->
+          row = %{
+            metric: sample.metric,
+            bucket_ms: bucket_ms,
+            granularity: granularity,
+            dimensions: sample.dimensions,
+            count: 0,
+            sum: 0.0,
+            min: sample.value * 1.0,
+            max: sample.value * 1.0,
+            histogram: List.duplicate(0, length(sample.buckets) + 1)
+          }
+
+          %{current | pending: Map.put(current.pending, key, accumulate(row, sample))}
+
+        true ->
+          :atomics.add(current.dropped, 1, 1)
+          current
+      end
+    end)
+  end
+
+  defp accumulate(row, sample) do
+    index = Enum.find_index(sample.buckets, &(sample.value <= &1)) || length(sample.buckets)
+
+    %{
+      row
+      | count: row.count + 1,
+        sum: row.sum + sample.value,
+        min: min(row.min, sample.value),
+        max: max(row.max, sample.value),
+        histogram: List.update_at(row.histogram, index, &(&1 + 1))
+    }
+  end
+
+  defp flush_pending(state) do
+    state = if map_size(state.pending) == 0, do: collect_drop_count(state), else: state
+
+    if map_size(state.pending) == 0 do
+      {:ok, state}
+    else
+      result = Library.write_metric_rollups(state.library, Map.values(state.pending))
+
+      case result do
+        :ok ->
+          next =
+            state
+            |> Map.put(:pending, %{})
+            |> Map.put(:last_flushed_at_ms, System.os_time(:millisecond))
+            |> collect_drop_count()
+
+          {:ok, next}
+
+        {:error, reason} ->
+          {{:error, reason}, %{state | flush_failures: state.flush_failures + 1}}
+      end
+    end
+  catch
+    :exit, reason -> {{:error, reason}, %{state | flush_failures: state.flush_failures + 1}}
+  end
+
+  defp collect_drop_count(state) do
+    total = :atomics.get(state.dropped, 1)
+    delta = total - state.last_dropped
+
+    if delta > 0 do
+      sample = %{
+        metric: "frameshift.diagnostics.dropped.count",
+        value: delta,
+        dimensions: %{"signal" => "metric"},
+        buckets: []
+      }
+
+      state
+      |> add_sample(sample, System.os_time(:millisecond))
+      |> Map.put(:last_dropped, total)
+    else
+      state
+    end
+  end
+end

@@ -1,5 +1,11 @@
 defmodule Frameshift.Renderer.Protocol do
-  @moduledoc false
+  @moduledoc """
+  Encodes the bounded binary request and response contract with the Zig worker.
+
+  Source dimensions, palette size, wire length, and output ceilings are checked
+  before the native process receives a job, isolating malformed work from the
+  BEAM supervisor.
+  """
 
   @maximum_frame_bytes 64 * 1024 * 1024
   @maximum_dimension 32_768
@@ -41,12 +47,15 @@ defmodule Frameshift.Renderer.Protocol do
     rgba
   )a
 
+  @doc "Returns the maximum accepted worker frame size."
   @spec maximum_frame_bytes() :: pos_integer()
   def maximum_frame_bytes, do: @maximum_frame_bytes
 
+  @doc "Returns the source pixel ceiling after protocol header and palette overhead."
   @spec maximum_source_pixels() :: pos_integer()
   def maximum_source_pixels, do: @maximum_source_pixels
 
+  @doc "Validates a raster job and builds its length prefixed Zig worker request."
   @spec encode_request(map()) :: {:ok, iodata()} | {:error, term()}
   def encode_request(job) when is_map(job) do
     with :ok <- required_fields(job),
@@ -93,6 +102,7 @@ defmodule Frameshift.Renderer.Protocol do
 
   def encode_request(_job), do: {:error, :invalid_job}
 
+  @doc "Consumes one complete response from a possibly fragmented port buffer."
   @spec take_response(binary()) ::
           {:more, binary()}
           | {:ok, {:ok, map()} | {:worker_error, atom()}, binary()}
@@ -117,6 +127,7 @@ defmodule Frameshift.Renderer.Protocol do
     end
   end
 
+  @doc "Decodes a bounded worker response body into pixels or a typed worker error."
   @spec decode_response(binary()) ::
           {:ok, {:ok, map()} | {:worker_error, atom()}} | {:error, term()}
   def decode_response(<<

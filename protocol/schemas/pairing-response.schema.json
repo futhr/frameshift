@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.frameshift.invalid/v0.1/pairing-response.schema.json",
+  "title": "Frame Protocol v0.1 pre-pair success response",
+  "type": "object",
+  "required": ["version", "requestId", "deviceId", "hostCertificateFingerprint"],
+  "properties": {
+    "version": { "const": 1 },
+    "requestId": { "$ref": "common.schema.json#/$defs/requestId" },
+    "deviceId": { "type": "string", "pattern": "^[A-Za-z0-9._~-]{16,128}$" },
+    "hostCertificateFingerprint": { "$ref": "common.schema.json#/$defs/digest" }
+  },
+  "additionalProperties": false
+}

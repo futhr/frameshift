@@ -1,5 +1,10 @@
 defmodule Frameshift.Simulator.State do
-  @moduledoc false
+  @moduledoc """
+  Explicit frame state used by the persistent fault-injection simulator.
+
+  Desired and current assets remain separate so an interrupted refresh cannot
+  claim that the new still is already on the display.
+  """
 
   @enforce_keys [:capabilities, :data_dir]
   defstruct capabilities: nil,
@@ -15,6 +20,7 @@ defmodule Frameshift.Simulator.State do
             assets: %{},
             requests: %{},
             playlist: nil,
+            pairing: nil,
             faults: %{}
 
   @type t :: %__MODULE__{}

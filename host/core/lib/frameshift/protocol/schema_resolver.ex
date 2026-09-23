@@ -1,5 +1,10 @@
 defmodule Frameshift.Protocol.SchemaResolver do
-  @moduledoc false
+  @moduledoc """
+  Resolves protocol schema references from the embedded schema set only.
+
+  Control or Thing Description validation never fetches a remote schema, so
+  an untrusted document cannot trigger network I/O or redefine validation.
+  """
 
   @behaviour JSV.Resolver
 

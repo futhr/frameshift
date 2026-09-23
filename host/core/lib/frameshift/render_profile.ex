@@ -17,6 +17,7 @@ defmodule Frameshift.RenderProfile do
           profile: map()
         }
 
+  @doc "Selects a compatible advertised profile and compiles a centered raster job."
   @spec compile(map(), map(), String.t() | nil) :: {:ok, compilation()} | {:error, atom()}
   def compile(master, capabilities, requested_profile_id \\ nil)
 

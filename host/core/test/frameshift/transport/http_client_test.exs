@@ -1,4 +1,6 @@
 defmodule Frameshift.Transport.HTTPClientTest do
+  @moduledoc false
+
   use ExUnit.Case, async: false
 
   alias Frameshift.Digest
@@ -13,6 +15,7 @@ defmodule Frameshift.Transport.HTTPClientTest do
 
   defmodule StaticCredentials do
     @moduledoc false
+
     @behaviour Wotex.Runtime.Credentials
 
     @impl Wotex.Runtime.Credentials
@@ -22,6 +25,7 @@ defmodule Frameshift.Transport.HTTPClientTest do
   defmodule FixtureResolver do
     @moduledoc false
 
+    @spec resolve(term(), term()) :: term()
     def resolve(_host, result), do: result
   end
 
@@ -355,6 +359,10 @@ defmodule Frameshift.Transport.HTTPClientTest do
 
     assert {:error, :invalid_certificate} = SPKIPin.fingerprint({})
     assert {:error, :invalid_certificate} = SPKIPin.fingerprint(:invalid)
+    assert {:error, :invalid_certificate} = SPKIPin.fingerprint_der(<<1, 2, 3>>)
+    assert {:error, :invalid_certificate} = SPKIPin.fingerprint_der(<<>>)
+    assert {:fail, :invalid_peer_certificate} = SPKIPin.verify({}, :valid_peer, state)
+    assert {:unknown, ^state} = SPKIPin.verify(certificate, :unexpected, state)
   end
 
   defp request(url, options \\ []) do

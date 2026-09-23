@@ -1,4 +1,6 @@
 defmodule Frameshift.SimulatorTest do
+  @moduledoc false
+
   use ExUnit.Case, async: true
 
   alias Frameshift.Digest
@@ -49,6 +51,95 @@ defmodule Frameshift.SimulatorTest do
     assert {:ok, :created} = Simulator.put_asset(simulator, digest, @profile_id, @first_bytes)
     assert {:ok, :existing} = Simulator.put_asset(simulator, digest, @profile_id, @first_bytes)
     assert Simulator.has_asset?(simulator, digest)
+  end
+
+  test "pairing acknowledges only a persisted host and rejects a reused bootstrap secret", %{
+    simulator: simulator,
+    data_dir: data_dir,
+    capabilities: capabilities
+  } do
+    GenServer.stop(simulator)
+    secret = <<7::128>>
+
+    {:ok, frame} =
+      Simulator.start_link(
+        data_dir: data_dir,
+        capabilities: capabilities,
+        pairing_secret: secret,
+        name: nil
+      )
+
+    key = {:rsa, 2048, 65_537}
+
+    certificates =
+      :public_key.pkix_test_data(%{
+        server_chain: %{root: [key: key], intermediates: [], peer: [key: key]},
+        client_chain: %{root: [key: key], intermediates: [], peer: [key: key]}
+      })
+
+    peer_der = Keyword.fetch!(certificates.client_config, :cert)
+    assert :ok = Simulator.open_pairing(frame, 100)
+
+    body =
+      Jason.encode!(%{
+        version: 1,
+        requestId: "pair-1",
+        deviceId: capabilities["deviceId"],
+        secret: Base.url_encode64(secret, padding: false)
+      })
+
+    assert {:ok, %{status: 201}} = Simulator.pair(frame, peer_der, body, 101)
+    GenServer.stop(frame)
+
+    {:ok, restarted} =
+      Simulator.start_link(data_dir: data_dir, capabilities: capabilities, name: nil)
+
+    assert {:ok, %{status: 200}} = Simulator.pair(restarted, peer_der, body, 102)
+    assert {:error, :already_paired} = Simulator.open_pairing(restarted, 103)
+    GenServer.stop(restarted)
+  end
+
+  test "a restart closes pair mode and retains a rejected attempt", %{
+    simulator: simulator,
+    data_dir: data_dir,
+    capabilities: capabilities
+  } do
+    GenServer.stop(simulator)
+    secret = <<8::128>>
+
+    {:ok, frame} =
+      Simulator.start_link(
+        data_dir: data_dir,
+        capabilities: capabilities,
+        pairing_secret: secret,
+        name: nil
+      )
+
+    assert :ok = Simulator.open_pairing(frame, 100)
+
+    invalid_body =
+      Jason.encode!(%{
+        version: 1,
+        requestId: "pair-2",
+        deviceId: capabilities["deviceId"],
+        secret: Base.url_encode64(<<0::128>>, padding: false)
+      })
+
+    assert {:ok, %{status: 403}} = Simulator.pair(frame, <<1>>, invalid_body, 101)
+    GenServer.stop(frame)
+
+    record = data_dir |> Path.join("pairing-authority.json") |> File.read!() |> Jason.decode!()
+    assert record["payload"]["attempts"] == 1
+
+    {:ok, restarted} =
+      Simulator.start_link(data_dir: data_dir, capabilities: capabilities, name: nil)
+
+    assert {:ok, %{status: 403, body: body}} =
+             Simulator.pair(restarted, <<1>>, invalid_body, 102)
+
+    assert Jason.decode!(body)["type"] == "urn:frameshift:problem:pair-mode-required"
+    assert :ok = Simulator.open_pairing(restarted, 103)
+    GenServer.stop(restarted)
   end
 
   test "desired activation advances current only after display success", %{simulator: simulator} do

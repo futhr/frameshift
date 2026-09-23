@@ -22,6 +22,11 @@ private struct FrameshiftIPCProbe {
     let refreshed = try await client.snapshot()
     guard refreshed.instruction == marker else { throw ProbeFailure() }
 
+    let diagnosticHealth = try DiagnosticsClient.query("health")
+    guard let health = try JSONSerialization.jsonObject(with: diagnosticHealth) as? [String: Any],
+      health["ok"] as? Bool == true
+    else { throw ProbeFailure() }
+
     let fixtureDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(
       "frameshift-ipc-probe-\(UUID().uuidString.lowercased())",
       isDirectory: true

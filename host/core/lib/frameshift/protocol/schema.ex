@@ -17,6 +17,9 @@ defmodule Frameshift.Protocol.Schema do
     desired
     outbox-ack
     outbox-manifest
+    pairing-bootstrap
+    pairing-request
+    pairing-response
     playlist
     problem
     state
@@ -36,12 +39,15 @@ defmodule Frameshift.Protocol.Schema do
 
   @type schema_name :: String.t()
 
+  @doc "Lists the embedded Frame Protocol schema names."
   @spec names() :: [schema_name()]
   def names, do: @schema_names
 
+  @doc "Returns an embedded schema as data, without a network fetch."
   @spec raw(schema_name()) :: {:ok, map()} | :error
   def raw(name), do: Map.fetch(@schemas, name)
 
+  @doc "Validates a decoded document against a named embedded schema."
   @spec validate(schema_name(), term()) :: :ok | {:error, term()}
   def validate(name, document) do
     with {:ok, root} <- compiled(name),
@@ -50,6 +56,7 @@ defmodule Frameshift.Protocol.Schema do
     end
   end
 
+  @doc "Returns the precompiled schema used by protocol admission."
   @spec compiled(schema_name()) :: {:ok, JSV.Root.t()} | {:error, term()}
   def compiled(name) do
     cache_key = {__MODULE__, name}
@@ -72,6 +79,9 @@ defmodule Frameshift.Protocol.Schema do
            ) do
       :persistent_term.put(cache_key, root)
       {:ok, root}
+    else
+      :error -> {:error, :unknown_schema}
+      {:error, reason} -> {:error, reason}
     end
   end
 end

@@ -91,6 +91,12 @@ static-analysis, test, fuzz, and release-build gate with:
 make check
 ```
 
+The core's `mix check` configuration covers compilation, formatting, strict
+Credo, Doctor, ExDoc, coverage, Dialyzer, and dependency audits. Swift Package
+tests and the Zig Debug and ReleaseSafe test builds are part of the repository
+gate. Run `make index` for the local Dexter code index, and run `mix bench` from
+`host/core/` to regenerate Markdown performance reports.
+
 On macOS, build the current ad-hoc-signed development bundle with its embedded
 Elixir core and Zig renderer with:
 

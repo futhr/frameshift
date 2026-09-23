@@ -14,6 +14,7 @@ defmodule Frameshift.DirectSync do
   `currentAsset` with `displayState: displayed` yields `:displayed`.
   """
 
+  alias Frameshift.Digest
   alias Frameshift.DirectSync.Artifact
   alias Frameshift.Protocol.{JSON, Schema, Thing}
   alias Wotex.Binding.HTTP.{Config, Headers, Request, Response}
@@ -50,13 +51,36 @@ defmodule Frameshift.DirectSync do
         }
 
   defmodule Session do
-    @moduledoc false
+    @moduledoc """
+    Short-lived context for one direct synchronization attempt.
+
+    It holds the credential only while selected Forms are being executed and
+    omits all fields from inspection to avoid accidental diagnostic exposure.
+    """
+
+    @type t :: %__MODULE__{
+            artifact: term(),
+            config: term(),
+            context: term(),
+            credential: term(),
+            profile: term(),
+            selections: term(),
+            installation: term()
+          }
 
     @derive {Inspect, only: []}
     @enforce_keys [:artifact, :config, :context, :credential, :profile, :selections]
     defstruct @enforce_keys ++ [installation: nil]
   end
 
+  @doc """
+  Synchronizes one immutable artifact with a push capable frame.
+
+  The frame's admitted Thing Description selects every request Form. The
+  operation reads current state, installs missing bytes, writes desired state
+  under a strong ETag, then reads back authoritative display state. A pending
+  result means the request was accepted but display has not been confirmed.
+  """
   @spec sync(ThingDescription.t(), Artifact.t(), term(), Config.t(), Context.t()) ::
           {:ok, outcome()} | {:error, atom()}
   def sync(
@@ -86,6 +110,59 @@ defmodule Frameshift.DirectSync do
 
   def sync(_td, _artifact, _credential, _config, _context),
     do: {:error, :invalid_sync_arguments}
+
+  @doc "Reads the selected frame state without replaying an uncertain mutation."
+  @spec observe(ThingDescription.t(), String.t(), String.t(), term(), Config.t(), Context.t()) ::
+          {:ok, :displayed | :pending | :not_applied} | {:error, atom()}
+  def observe(
+        %ThingDescription{} = td,
+        digest,
+        request_id,
+        credential,
+        %Config{} = config,
+        %Context{} = context
+      )
+      when is_binary(digest) and is_binary(request_id) do
+    with :ok <- validate_observation(digest, request_id, context),
+         {:ok, json_profile} <- Thing.reference_https_profile(),
+         {:ok, state_form} <-
+           Thing.select_frame(td, :property, "state", :readproperty, [json_profile]),
+         {:ok, observed} <- read_state(state_form, credential, config, context) do
+      {:ok, observed_outcome(observed.state, digest, request_id)}
+    else
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  def observe(_td, _digest, _request_id, _credential, _config, _context),
+    do: {:error, :invalid_sync_arguments}
+
+  defp validate_observation(digest, request_id, context) do
+    with :ok <- validate_context(context),
+         true <- Digest.valid_sha256?(digest) and request_id == context.request_id do
+      :ok
+    else
+      false -> {:error, :invalid_sync_arguments}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp observed_outcome(
+         %{"currentAsset" => digest, "displayState" => "displayed"},
+         digest,
+         _request_id
+       ),
+       do: :displayed
+
+  defp observed_outcome(
+         %{"desiredAsset" => digest, "pendingRequestId" => request_id, "displayState" => state},
+         digest,
+         request_id
+       )
+       when state in ["preparing", "refreshing", "recovering"],
+       do: :pending
+
+  defp observed_outcome(_state, _digest, _request_id), do: :not_applied
 
   defp validate_context(%Context{request_id: request_id, deadline: deadline}) do
     cond do

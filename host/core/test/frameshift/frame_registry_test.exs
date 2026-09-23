@@ -1,4 +1,6 @@
 defmodule Frameshift.FrameRegistryTest do
+  @moduledoc false
+
   use ExUnit.Case, async: true
 
   alias Frameshift.FrameRegistry
@@ -29,6 +31,9 @@ defmodule Frameshift.FrameRegistryTest do
 
     assert {:error, :invalid_credential_reference} =
              FrameRegistry.admit(source, "", @fingerprint)
+
+    assert {:error, :invalid_credential_reference} =
+             FrameRegistry.admit(source, String.duplicate("x", 1_025), @fingerprint)
 
     assert {:error, :invalid_server_fingerprint} =
              FrameRegistry.admit(source, "keychain:frame", "sha256:UPPERCASE")

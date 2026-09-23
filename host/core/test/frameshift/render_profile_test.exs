@@ -1,4 +1,6 @@
 defmodule Frameshift.RenderProfileTest do
+  @moduledoc false
+
   use ExUnit.Case, async: true
 
   alias Frameshift.RenderProfile

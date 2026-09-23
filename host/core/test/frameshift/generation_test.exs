@@ -1,10 +1,14 @@
 defmodule Frameshift.GenerationTest do
+  @moduledoc false
+
   use ExUnit.Case, async: false
 
   alias Frameshift.Generation
   alias Frameshift.Library
 
   defmodule FixtureProvider do
+    @moduledoc false
+
     @behaviour Frameshift.Generation.Provider
 
     @impl true
@@ -44,6 +48,8 @@ defmodule Frameshift.GenerationTest do
   end
 
   defmodule SlowProvider do
+    @moduledoc false
+
     @behaviour Frameshift.Generation.Provider
 
     @impl true

@@ -18,6 +18,7 @@ Frameshift, sleeping the Mac, or losing the network does not blank it.
 Frameshift.app
   SwiftUI MenuBarExtra
   Apple framework bridge
+  Apple unified-log bridge for structured core records
        |
        | local authenticated length-framed IPC
        v
@@ -27,7 +28,6 @@ Frameshift.app
        |-- bounded metric collector and read-only diagnostics IPC
        |-- job/outbox supervisors
        |-- WoT Consumer/ExposedThing runtime + binding clients/servers
-       |-- supervised Apple unified-log bridge
        `-- frameshift-raster (supervised Zig executable)
 ```
 

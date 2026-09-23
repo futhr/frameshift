@@ -1,8 +1,9 @@
 # Frameshift maintainer instructions
 
-Frameshift is an experimental, open-source research project for thin, frameable
-digital art displays. Read `README.md` and `docs/README.md` before changing the
-repository. The documents under `docs/` are the current design record.
+Frameshift is a complete product specification under active implementation for
+thin, frameable digital art displays. Read `README.md` and `docs/README.md`
+before changing the repository. The documents under `docs/` are the current
+design record; implementation status does not reduce their scope.
 
 ## Working rules
 

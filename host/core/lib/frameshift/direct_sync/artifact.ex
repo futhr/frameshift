@@ -20,6 +20,7 @@ defmodule Frameshift.DirectSync.Artifact do
           byte_count: pos_integer()
         }
 
+  @doc "Constructs a bounded, content addressed artifact for direct frame delivery."
   @spec new(binary(), String.t(), String.t(), String.t()) ::
           {:ok, t()} | {:error, :invalid_artifact}
   def new(bytes, digest, profile_id, media_type)

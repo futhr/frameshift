@@ -4,7 +4,7 @@ This OTP application owns Frameshift's durable library and protocol state. It
 does not own macOS presentation, Apple framework calls, raster transforms, or
 frame electronics.
 
-The current partial core implementation provides:
+The implemented core currently provides:
 
 - embedded Frame Protocol v0.1 schema validation with no runtime schema fetch;
 - an authenticated bounded Unix-socket command boundary whose fresh per-launch
@@ -12,12 +12,23 @@ The current partial core implementation provides:
   command receipts that suppress completed replays and expose crash-window
   outcomes for authoritative state reconciliation;
 - a single-owner SQLite library backed by immutable content-addressed files;
+- a read-only peer-authenticated local diagnostics socket with bounded health,
+  metric, and redacted audit pages; a supervised telemetry reporter retains
+  minute/hour rollups and reports collection loss and coverage;
+- transactional command/audit correlation and pure push/pull delivery decision
+  rules that cannot advance current state on an unconfirmed response;
 - canonical recipe identities and artifact cache relationships;
 - master import, generated-variant lineage, labels, search, pinning, recoverable
   removal, and frame-reference protection;
 - a durable paired-frame registry that retains the admitted universal Thing
   Description, capability instance, pinned server fingerprint, and opaque
   Keychain credential reference without storing private key material;
+- a fixed pre-pair HTTPS binding with bounded QR/request parsing, frame SPKI
+  pinning before secret transmission, TLS client-key proof, a physical-only
+  five-minute window, and fail-closed simulator custody that consumes the
+  secret before acknowledging a host; its live socket test requires local
+  network permission, while hardware key storage and commissioning UI remain
+  separate acceptance gates;
 - a one-shot Wotex HTTP client for finite JSON interactions that admits only
   the credential's exact advertised HTTPS authority and local addresses,
   performs mutual TLS with an SPKI-pinned frame, refuses pooling and redirects,
@@ -26,9 +37,24 @@ The current partial core implementation provides:
   Forms, uploads digest-addressed binary artifacts with exact profile metadata,
   applies strong-ETag desired-state preconditions, performs only explicitly
   safe bounded retries, and confirms display truth from the state Property;
+- a push-only queue path that renders through Zig, resolves ephemeral client
+  identity through a configurable credential-resolver contract, records the
+  desired artifact durably before network mutation, and advances current and
+  previous-known-good only after direct state confirms display; the bundled
+  macOS menu process now supplies an authenticated Keychain signing broker,
+  but commissioned identities and live interoperability remain unverified;
 - startup reconciliation for interrupted active/trash file moves;
 - durable per-frame sleeping outboxes with monotonic revisions, supersession,
   acknowledgement checks, and current/previous-known-good reference rotation;
+- a frame-scoped outbox request handler that derives one paired identity from
+  the TLS peer certificate's SPKI, rejects ambiguous pins, serves only that
+  frame's current manifest and exact digest-verified artifact, enforces finite
+  asset ceilings and content length/digest, and accepts schema-valid
+  acknowledgements; its HTTP/1.1 exchange parser rejects ambiguous lengths,
+  transfer coding, pipelining, and oversize requests before dispatch; a
+  supervised TLS 1.3 listener requires a paired client certificate and serves
+  one bounded exchange per connection, but installed Keychain identity
+  provisioning, app lifecycle wiring, and the frame-side client remain open;
 - a supervised, single-job Zig renderer port with bounded framing, typed worker
   failures, explicit deadlines, diagnostic redaction, and restart-on-failure;
 - a vendor-neutral profile compiler that selects advertised capability
@@ -49,6 +75,15 @@ Run the complete core check from this directory:
 mise exec -- env -u MIX_HOME -u MIX_ARCHIVES mix check
 ```
 
+`mix check` runs the locked dependency check, unused dependency check,
+warnings-as-errors compile, formatter, strict Credo, dependency audits, Doctor
+documentation and type coverage, warning-free ExDoc build, ExCoveralls tests,
+Dialyzer, and whitespace validation. Protocol and renderer-wire property tests
+use StreamData. Run `mix bench` separately to regenerate the checked Markdown
+reports in `bench/output/`; timings are machine-specific evidence, not a
+release threshold. Run `make index` at the repository root to create or refresh
+Dexter's local code index in the ignored `.dexter/` directory.
+
 The explicit environment cleanup avoids inheriting a stale developer-level Mix
 installation. It does not affect the application runtime.
 
@@ -65,3 +100,12 @@ trip, and terminates it cleanly. The packaging check embeds and supervises the
 release and renderer inside the macOS app; Developer ID signing, hardened
 runtime, notarization, and Service Management registration remain distribution
 gates.
+
+The Mac shell bridges allowlisted structured core logs to Apple unified
+logging. The core keeps a rotating, sanitized error fallback under
+`<data-dir>/diagnostics/core-fallback.log`. Neither log sink is the durable
+audit trail. On macOS use Console.app or `/usr/bin/log` with subsystem
+`io.frameshift.app` to inspect operational logs. The bundled
+`frameshiftctl diagnostics health|metrics|audit` reads diagnostic state through
+the separate socket without the menu UI. Metric disk, idle-energy, Linux
+logging, and independent-device gates remain open in the verification map.

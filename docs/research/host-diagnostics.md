@@ -43,12 +43,14 @@ cannot reuse it. These are code observations, not release evidence.
 
 ## Design inference and validation gaps
 
-A signed long-lived Swift helper can translate structured core log records to
-Apple unified logging while the core remains portable. This must be proven in
-the bundled app, including helper crash, queue backpressure, code signing,
-redaction, and quiet idle behavior. Apple does not promise fixed unified-log
-retention, so audit must remain in the application store. A local metric
-reporter needs bounded dimensions and a measured disk budget. A read-only CLI
-needs separate peer authentication because the mutation token is private to
-the shell; cross-platform peer-credential access and installed lifecycle need
-an implementation spike. None of these design inferences validates a release.
+A shell-owned Swift pipe bridge now translates allowlisted structured core
+records to Apple unified logging while the core remains portable. A packaged
+ad-hoc-signed app has shown command records through `/usr/bin/log`; malformed
+record, backpressure, signed distribution, and quiet idle behavior still need
+qualification. Apple does not promise fixed unified-log retention, so audit
+remains in the application store. The implemented local reporter bounds its
+dimensions and row count; physical disk and idle costs still need measurement.
+The installed Mac CLI uses a separate peer-authenticated socket because the
+mutation token is private to the shell. Linux peer-credential behavior and
+installed lifecycle still need qualification. These observations do not
+validate a release.

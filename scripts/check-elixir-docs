@@ -1,0 +1,51 @@
+#!/bin/sh
+set -eu
+
+repository_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+
+# The single-quoted AWK programs intentionally contain regular expressions.
+# shellcheck disable=SC2016
+find "$repository_root/host/core/lib" "$repository_root/host/core/test" \
+  -type f \( -name '*.ex' -o -name '*.exs' \) -print0 |
+  xargs -0 awk '
+    /^[[:space:]]*(defmodule|defimpl)[[:space:]]/ {
+      location = FILENAME ":" FNR
+
+      if (getline <= 0 || $0 !~ /^[[:space:]]*@moduledoc[[:space:]]/) {
+        print location ": missing immediate @moduledoc" > "/dev/stderr"
+        failed = 1
+        next
+      }
+
+      if (FILENAME ~ /\/test\// && $0 !~ /^[[:space:]]*@moduledoc false[[:space:]]*$/) {
+        print location ": test modules require @moduledoc false" > "/dev/stderr"
+        failed = 1
+      }
+
+      if (FILENAME ~ /\/lib\// && $0 ~ /^[[:space:]]*@moduledoc false[[:space:]]*$/) {
+        print location ": production modules require a useful @moduledoc" > "/dev/stderr"
+        failed = 1
+      }
+
+      if ($0 ~ /@moduledoc[[:space:]]*"""/ && $0 !~ /"""[[:space:]]*$/) {
+        while (getline > 0 && $0 !~ /"""/) {
+        }
+      } else if ($0 ~ /@moduledoc[[:space:]]*"""[[:space:]]*$/) {
+        while (getline > 0 && $0 !~ /"""/) {
+        }
+      }
+
+      if (getline <= 0 || $0 !~ /^[[:space:]]*$/) {
+        print location ": expected one blank line after @moduledoc" > "/dev/stderr"
+        failed = 1
+      }
+    }
+
+    END { exit failed }
+  '
+
+awk '
+  NR == 1 && $0 !~ /^defmodule / { exit 1 }
+  NR == 2 && $0 !~ /^  @moduledoc false$/ { exit 1 }
+  NR == 3 && $0 !~ /^$/ { exit 1 }
+' "$repository_root/host/core/mix.exs"

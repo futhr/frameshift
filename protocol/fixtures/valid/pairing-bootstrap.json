@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "deviceId": "frame-000000000001",
+  "serverSpki": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "secret": "AQIDBAECAwQBAgMEAQIDBA"
+}

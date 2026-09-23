@@ -1,6 +1,7 @@
 import CryptoKit
 import Darwin
 import Foundation
+import OSLog
 
 public actor LocalCoreClient: CoreClient {
   private static let maximumRequestBytes = 64 * 1024
@@ -111,6 +112,9 @@ public actor LocalCoreClient: CoreClient {
     switch code {
     case "command_id_conflict": .commandIDConflict
     case "command_outcome_unknown": .commandOutcomeUnknown
+    case "credential_broker_unavailable": .credentialBrokerUnavailable
+    case "delivery_outcome_unknown": .deliveryOutcomeUnknown
+    case "direct_delivery_pending": .deliveryPending
     case "import_too_large": .importTooLarge
     case "import_unreadable", "import_not_regular", "import_changed",
       "invalid_canonical_image", "canonical_digest_mismatch":
@@ -132,20 +136,29 @@ private struct PreparedCommand {
 
 private actor BundledCore {
   static let shared = BundledCore()
+  private static let logger = Logger(subsystem: "io.frameshift.app", category: "shell")
 
   private var process: Process?
   private var token: String?
+  private var credentialBroker: KeychainCredentialBroker?
+  private var logBridge: CoreLogBridge?
 
   func ensureRunning(socketPath: String, force: Bool = false) async throws {
     if !force, FileManager.default.fileExists(atPath: socketPath) {
-      try loadExternalTokenIfNeeded()
-      return
+      if process?.isRunning == true { return }
+      if process == nil, try loadExternalTokenIfAvailable() { return }
     }
 
     if process?.isRunning != true {
+      logBridge?.stop()
+      logBridge = nil
+      credentialBroker?.stop()
+      credentialBroker = nil
       let launched = try launch(socketPath: socketPath)
       process = launched.process
       token = launched.token
+      credentialBroker = launched.broker
+      logBridge = launched.bridge
     }
 
     for _ in 0..<100 {
@@ -169,9 +182,16 @@ private actor BundledCore {
     }
     self.process = nil
     token = nil
+    credentialBroker?.stop()
+    credentialBroker = nil
+    logBridge?.stop()
+    logBridge = nil
+    Self.logger.info("bundled core stopped")
   }
 
-  private func launch(socketPath: String) throws -> (process: Process, token: String) {
+  private func launch(socketPath: String) throws -> (
+    process: Process, token: String, broker: KeychainCredentialBroker, bridge: CoreLogBridge
+  ) {
     guard let resources = Bundle.main.resourceURL else {
       throw CoreClientError.coreUnavailable
     }
@@ -212,6 +232,12 @@ private actor BundledCore {
 
     let configuredToken = ProcessInfo.processInfo.environment["FRAMESHIFT_IPC_TOKEN"]
     let token = configuredToken.flatMap { Self.validToken($0) ? $0 : nil } ?? Self.makeToken()
+    let socketNonce = UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
+    let credentialSocket = dataDirectory.appendingPathComponent("c-\(socketNonce).sock")
+    let broker = try KeychainCredentialBroker.start(
+      socketPath: credentialSocket.path,
+      token: token
+    )
     let tokenURL = dataDirectory.appendingPathComponent(
       "ipc-bootstrap-\(UUID().uuidString.lowercased())",
       isDirectory: false
@@ -224,6 +250,7 @@ private actor BundledCore {
       )
     } catch {
       try? FileManager.default.removeItem(at: tokenURL)
+      broker.stop()
       throw CoreClientError.coreUnavailable
     }
 
@@ -237,32 +264,38 @@ private actor BundledCore {
     environment["FRAMESHIFT_CORE_PID_FILE"] =
       dataDirectory.appendingPathComponent("core.pid").path
     environment["FRAMESHIFT_IPC_TOKEN_FILE"] = tokenURL.path
+    environment["FRAMESHIFT_CREDENTIAL_SOCKET"] = credentialSocket.path
     environment["RELEASE_DISTRIBUTION"] = "none"
 
     let child = Process()
     child.executableURL = launcher
     child.arguments = [String(getpid()), coreExecutable.path]
     child.environment = environment
-    child.standardOutput = FileHandle.nullDevice
-    child.standardError = FileHandle.nullDevice
+    let output = Pipe()
+    let error = Pipe()
+    child.standardOutput = output
+    child.standardError = error
+    let bridge = CoreLogBridge(output: output, error: error)
 
     do {
       try child.run()
-      return (child, token)
+      Self.logger.info("bundled core launched")
+      return (child, token, broker, bridge)
     } catch {
+      bridge.stop()
       try? FileManager.default.removeItem(at: tokenURL)
+      broker.stop()
       throw CoreClientError.coreUnavailable
     }
   }
 
-  private func loadExternalTokenIfNeeded() throws {
-    if token != nil { return }
-    guard let configured = ProcessInfo.processInfo.environment["FRAMESHIFT_IPC_TOKEN"],
-      Self.validToken(configured)
-    else {
-      throw CoreClientError.coreUnavailable
+  private func loadExternalTokenIfAvailable() throws -> Bool {
+    guard let configured = ProcessInfo.processInfo.environment["FRAMESHIFT_IPC_TOKEN"] else {
+      return false
     }
+    guard Self.validToken(configured) else { throw CoreClientError.coreUnavailable }
     token = configured
+    return true
   }
 
   private static func makeToken() -> String {
@@ -323,8 +356,9 @@ private struct WireError: Decodable, Sendable {
   let code: String
 }
 
-private enum UnixSocket {
-  private static let timeoutSeconds = 5
+enum UnixSocket {
+  // Rendering and a bounded direct frame exchange may outlast the handshake timeout.
+  private static let timeoutSeconds = 30
 
   static func exchange(path: String, payload: Data, maximumResponseBytes: Int) throws -> Data {
     let descriptor = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)

@@ -156,6 +156,12 @@ The hardware-independent v0.1 requirements are:
    one-time bootstrap secret.
 2. A QR label or equivalent physical record carries device ID, SHA-256 SPKI
    fingerprint, and the bootstrap secret. The secret MUST NOT appear in mDNS.
+   The v0.1 QR payload is bounded UTF-8 JSON with exactly `version: 1`,
+   `deviceId`, `serverSpki`, and `secret` fields, as defined by
+   `pairing-bootstrap.schema.json`. The secret is canonical unpadded base64url
+   for 16–64 random bytes. A QR payload contains no URL: the host discovers
+   an endpoint separately and checks its pinned certificate and device ID
+   before transmitting the secret.
 3. A physical action enables a five-minute pairing window. Network requests
    alone cannot enable it.
 4. The host pins the device SPKI fingerprint before sending the bootstrap
@@ -163,6 +169,23 @@ The hardware-independent v0.1 requirements are:
 5. The frame verifies proof of possession of the client private key, stores the
    allowed certificate fingerprint, and destroys or rotates the one-time secret.
 6. Normal protocol traffic uses mutually authenticated TLS.
+
+The pre-pair reference HTTPS exchange is a distinct, fixed bootstrap binding,
+not a private TD Form. While physical pair mode is active, the frame accepts
+`POST /.well-known/frameshift/pair` over TLS 1.3 with a client certificate.
+The host checks the frame certificate's QR-pinned SPKI **before** sending the
+secret. The frame validates the TLS certificate and proof of possession, then
+parses `pairing-request.schema.json`: exactly `version`, `requestId`,
+`deviceId`, and `secret`. A certificate supplied in JSON is never authority.
+The request ID is a bounded idempotency key; after success, only the same ID
+from the same authenticated host certificate may replay successfully. The
+one-time secret is consumed on first success. Five rejected attempts close the
+window until another physical action, and the window expires after five
+minutes. The successful response identifies the device and allowed host
+certificate fingerprint but never echoes the secret. Errors use bounded
+problem documents without disclosing whether the ID, secret, or certificate
+was wrong. The host then retrieves the full TD through the authenticated
+DNS-SD introduction URL and checks its device ID against the QR record.
 
 A temporary USB setup connection is permitted and does not violate a cable-free
 installed frame. BLE or temporary access-point commissioning MAY be added by a

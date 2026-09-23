@@ -1,5 +1,11 @@
 defmodule Frameshift.Transport.SPKIPin do
-  @moduledoc false
+  @moduledoc """
+  Pins a frame's TLS public key independently of hostname and CA selection.
+
+  The same DER-to-SPKI calculation identifies a frame when it calls the host
+  outbox. TLS still has to verify that the peer possesses the corresponding
+  private key before handing its certificate to the outbox handler.
+  """
 
   require Record
 
@@ -15,6 +21,7 @@ defmodule Frameshift.Transport.SPKIPin do
 
   @accepted_path_failures [:unknown_ca, :selfsigned_peer, :hostname_check_failed]
 
+  @doc "Hashes the public-key information in an already decoded X.509 certificate."
   @spec fingerprint(tuple()) :: {:ok, binary()} | {:error, :invalid_certificate}
   def fingerprint(certificate) when is_tuple(certificate) do
     public_key_info =
@@ -31,6 +38,21 @@ defmodule Frameshift.Transport.SPKIPin do
   end
 
   def fingerprint(_certificate), do: {:error, :invalid_certificate}
+
+  @doc "Derives a protocol-formatted SPKI pin from a DER peer certificate."
+  @spec fingerprint_der(binary()) :: {:ok, String.t()} | {:error, :invalid_certificate}
+  def fingerprint_der(der) when is_binary(der) and byte_size(der) in 1..65_536 do
+    with certificate <- :public_key.pkix_decode_cert(der, :otp),
+         {:ok, digest} <- fingerprint(certificate) do
+      {:ok, "sha256:" <> Base.encode16(digest, case: :lower)}
+    end
+  rescue
+    _exception -> {:error, :invalid_certificate}
+  catch
+    _kind, _reason -> {:error, :invalid_certificate}
+  end
+
+  def fingerprint_der(_der), do: {:error, :invalid_certificate}
 
   @doc false
   @spec verify(tuple(), term(), map()) ::

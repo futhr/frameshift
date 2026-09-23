@@ -9,6 +9,9 @@ public enum CoreClientError: Error, Equatable, Sendable {
   case commandIDConflict
   case commandOutcomeUnknown
   case coreUnavailable
+  case credentialBrokerUnavailable
+  case deliveryOutcomeUnknown
+  case deliveryPending
   case importTooLarge
   case importUnreadable
   case invalidCommand

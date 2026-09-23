@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+
+repository_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+cd "$repository_root"
+
+if [ -f .dexter/dexter.db ]; then
+  mise exec -- dexter reindex
+else
+  mise exec -- dexter init .
+fi

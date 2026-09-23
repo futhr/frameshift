@@ -17,13 +17,16 @@ check_policy() {
 
   mise exec -- shellcheck \
     "$repository_root/scripts/check" \
+    "$repository_root/scripts/check-elixir-docs" \
     "$repository_root/scripts/check-core-release" \
     "$repository_root/scripts/check-packaged-app" \
     "$repository_root/scripts/format" \
+    "$repository_root/scripts/index" \
     "$repository_root/scripts/launch-bundled-core" \
     "$repository_root/scripts/package-macos" \
     "$repository_root/host/core/test/fixtures/hanging-worker.sh"
   mise exec -- actionlint "$repository_root/.github/workflows/check.yml"
+  "$repository_root/scripts/check-elixir-docs"
 }
 
 check_renderer() {
@@ -31,6 +34,7 @@ check_renderer() {
     cd "$repository_root/renderer"
     mise exec -- zig fmt --check build.zig src
     mise exec -- zig build test
+    mise exec -- zig build test -Doptimize=ReleaseSafe
     mise exec -- zig build -Doptimize=ReleaseSafe
   )
 }
@@ -39,7 +43,6 @@ check_core() {
   (
     cd "$repository_root/host/core"
     mise exec -- env -u MIX_HOME -u MIX_ARCHIVES mix check
-    mise exec -- env -u MIX_HOME -u MIX_ARCHIVES mix hex.audit
   )
 
   "$repository_root/scripts/check-core-release"
@@ -48,7 +51,20 @@ check_core() {
 check_macos() {
   (
     cd "$repository_root/host/macos"
-    swift format lint --recursive --strict Sources Package.swift
+    swift format lint --recursive --strict Sources Tests Package.swift
+
+    swiftc_path=$(xcrun --find swiftc)
+    swift_usr=$(CDPATH='' cd -- "$(dirname -- "$swiftc_path")/.." && pwd)
+    testing_macros="$swift_usr/lib/swift/host/plugins/testing/libTestingMacros.dylib"
+
+    if [ -f "$testing_macros" ]; then
+      swift test --parallel \
+        -Xswiftc -load-plugin-library \
+        -Xswiftc "$testing_macros"
+    else
+      swift test --parallel
+    fi
+
     swift run frameshift-shell-checks
   )
 
@@ -56,6 +72,7 @@ check_macos() {
 
   app_bundle="$repository_root/host/macos/.build/artifacts/Frameshift.app"
   test -x "$app_bundle/Contents/MacOS/Frameshift"
+  test -x "$app_bundle/Contents/MacOS/frameshiftctl"
   test -x "$app_bundle/Contents/Resources/bin/frameshift-raster"
   test -x "$app_bundle/Contents/Resources/bin/launch-bundled-core"
   test -x "$app_bundle/Contents/Resources/core/bin/frameshift_core"

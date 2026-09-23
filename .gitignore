@@ -4,8 +4,11 @@
 /host/core/_build/
 /host/core/deps/
 /host/core/erl_crash.dump
+/erl_crash.dump
 /host/core/cover/
+/host/core/doc/
 /host/core/priv/plts/
+/.dexter/
 
 # Zig
 /.zig-cache/

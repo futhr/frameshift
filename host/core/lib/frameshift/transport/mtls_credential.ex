@@ -68,8 +68,14 @@ defmodule Frameshift.Transport.MTLSCredential do
 
   defp parse_fingerprint(fingerprint) do
     case Regex.run(@fingerprint_pattern, fingerprint, capture: :all_but_first) do
-      [hex] -> Base.decode16(hex, case: :lower)
-      _other -> {:error, :invalid_server_fingerprint}
+      [hex] ->
+        case Base.decode16(hex, case: :lower) do
+          {:ok, pin} -> {:ok, pin}
+          :error -> {:error, :invalid_server_fingerprint}
+        end
+
+      _other ->
+        {:error, :invalid_server_fingerprint}
     end
   end
 
@@ -80,12 +86,26 @@ defmodule Frameshift.Transport.MTLSCredential do
   defp validate_certificate(_certificate), do: {:error, :invalid_client_certificate}
 
   defp validate_private_key({_type, _key}), do: :ok
+
+  defp validate_private_key(%{algorithm: _algorithm, sign_fun: sign_fun})
+       when is_function(sign_fun, 3),
+       do: :ok
+
+  defp validate_private_key(%{algorithm: _algorithm, engine: _engine, key_id: _key_id}), do: :ok
   defp validate_private_key(_private_key), do: {:error, :invalid_client_private_key}
 end
 
 defimpl Inspect, for: Frameshift.Transport.MTLSCredential do
+  @moduledoc """
+  Redacts mutual-TLS key material from credential inspection.
+
+  Diagnostic formatting includes the origin and server pin only; certificate
+  and private-key values never enter ordinary logs through `inspect/2`.
+  """
+
   import Inspect.Algebra
 
+  @spec inspect(Frameshift.Transport.MTLSCredential.t(), Inspect.Opts.t()) :: Inspect.Algebra.t()
   def inspect(credential, opts) do
     concat([
       "#Frameshift.Transport.MTLSCredential<origin=",

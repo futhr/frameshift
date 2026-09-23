@@ -1,4 +1,6 @@
 defmodule Frameshift.LocalAPITest do
+  @moduledoc false
+
   use ExUnit.Case, async: true
 
   alias Frameshift.Digest
@@ -180,6 +182,40 @@ defmodule Frameshift.LocalAPITest do
                "kind" => "selectTarget",
                "targetID" => "missing-frame"
              })
+  end
+
+  test "a push-only frame is not misreported as queued to a pull outbox", context do
+    push_only_td =
+      @frame_fixture
+      |> File.read!()
+      |> Jason.decode!()
+      |> put_in(["frameshift:capabilities", "transferModes"], ["push"])
+      |> Jason.encode!()
+
+    assert {:ok, frame} =
+             Library.register_paired_frame(
+               context.library,
+               push_only_td,
+               "keychain:push-only-frame",
+               "sha256:" <> String.duplicate("c", 64)
+             )
+
+    assert {:ok, imported} =
+             LocalAPI.execute(
+               context.library,
+               import_command(context.import_path, context.canonical_path)
+             )
+
+    [item] = imported["items"]
+
+    assert {:error, :credential_broker_unavailable} =
+             LocalAPI.execute(context.library, %{
+               "kind" => "queue",
+               "targetID" => frame["frame_id"],
+               "itemID" => item["id"]
+             })
+
+    assert :empty = Library.outbox_manifest(context.library, frame["frame_id"])
   end
 
   defp import_command(path, canonical_path) do

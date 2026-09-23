@@ -99,9 +99,10 @@ The [diagnostics contract](diagnostics.md) defines three separate signals:
 durable audit entries for state changes, operational logs for causal detail,
 and bounded metrics for rates, latency, backlog, and health. The core emits
 named telemetry events and retains bounded local aggregates so closing the UI
-does not erase measurements. On macOS the shell and a supervised core bridge
-write to Apple unified logging, readable through Console.app and `/usr/bin/log`
-without a Frameshift log UI. A versioned read-only diagnostic IPC client reads
+does not erase measurements. On macOS the shell writes native logs and drains
+structured core records through a supervised pipe bridge to Apple unified
+logging, readable through Console.app and `/usr/bin/log` without a Frameshift
+log UI. A versioned read-only diagnostic IPC client reads
 health, metrics, and paginated audit through the core; it does not open SQLite.
 Every command and delivery attempt carries a correlation ID across audit,
 logs, and displayed state. Credentials, artwork bytes, and full prompts are

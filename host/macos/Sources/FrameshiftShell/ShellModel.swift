@@ -56,6 +56,11 @@ public final class ShellModel {
     )
   }
 
+  public func reconcileDelivery() async {
+    guard let selectedTargetID = snapshot.selectedTargetID else { return }
+    await send(CoreCommand(kind: .reconcileDelivery, targetID: selectedTargetID))
+  }
+
   public func dismissError() {
     errorMessage = nil
   }
@@ -79,6 +84,21 @@ public final class ShellModel {
       }
     } catch CoreClientError.commandIDConflict {
       errorMessage = "The command identity was rejected. Refresh and try the operation again."
+    } catch CoreClientError.deliveryOutcomeUnknown {
+      do {
+        apply(try await client.snapshot())
+        errorMessage =
+          "The frame did not confirm display. Its pending delivery is saved; check the frame before sending again."
+      } catch {
+        errorMessage =
+          "The frame did not confirm display. Reconnect and check its delivery state before sending again."
+      }
+    } catch CoreClientError.credentialBrokerUnavailable {
+      errorMessage =
+        "Secure frame credentials are not available on this Mac. Direct send was not started."
+    } catch CoreClientError.deliveryPending {
+      errorMessage =
+        "This frame already has a pending direct delivery. Confirm its display before sending another image."
     } catch {
       errorMessage = "The core command could not be completed."
     }

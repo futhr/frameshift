@@ -8,6 +8,7 @@ defmodule Frameshift.LocalAPI do
   """
 
   alias Frameshift.Digest
+  alias Frameshift.DirectDelivery
   alias Frameshift.Library
   alias Frameshift.MasterPackage
   alias Frameshift.Renderer
@@ -24,9 +25,10 @@ defmodule Frameshift.LocalAPI do
 
   @type result :: {:ok, map()} | {:error, atom()}
 
+  @doc "Builds the menu shell's authoritative snapshot from durable library state."
   @spec snapshot(GenServer.server(), String.t() | nil) :: map()
   def snapshot(library \\ Library, status_message \\ nil) do
-    targets = Enum.map(Library.list_paired_frames(library), &frame_target/1)
+    targets = Enum.map(Library.list_paired_frames(library), &frame_target(library, &1))
     selected_target_id = selected_target_id(library, targets)
 
     %{
@@ -39,16 +41,27 @@ defmodule Frameshift.LocalAPI do
     }
   end
 
+  @doc "Executes a local command that does not require the renderer."
   @spec execute(GenServer.server(), map()) :: result()
   def execute(library \\ Library, command) do
     execute_with_renderer(library, Renderer, command)
   end
 
+  @doc "Executes a local command that may render and queue a frame artifact."
   @spec execute_with_renderer(GenServer.server(), GenServer.server(), map()) :: result()
   def execute_with_renderer(library, renderer, command) do
+    options = Application.get_env(:frameshift_core, :direct_delivery, [])
+    execute_with_delivery(library, renderer, command, options)
+  end
+
+  @doc "Executes a command with an explicit direct-delivery broker configuration."
+  @spec execute_with_delivery(GenServer.server(), GenServer.server(), map(), keyword()) ::
+          result()
+  def execute_with_delivery(library, renderer, command, options) do
     with :ok <- validate_command_shape(command) do
       case command do
-        %{"kind" => "queue"} -> do_queue(library, renderer, command)
+        %{"kind" => "queue"} -> do_queue(library, renderer, command, options)
+        %{"kind" => "reconcileDelivery"} -> do_reconcile_delivery(library, command, options)
         _command -> do_execute(library, command)
       end
     end
@@ -151,11 +164,12 @@ defmodule Frameshift.LocalAPI do
   defp do_queue(
          library,
          renderer,
-         %{"targetID" => target_id, "itemID" => master_digest}
+         %{"targetID" => target_id, "itemID" => master_digest} = command,
+         options
        )
        when is_binary(target_id) and is_binary(master_digest) do
     with {:ok, frame} <- fetch_target(library, target_id),
-         :ok <- validate_pull_target(frame),
+         {:ok, mode} <- delivery_mode(frame, command, options),
          {:ok, master} <- fetch_master(library, master_digest),
          {:ok, compilation} <- RenderProfile.compile(master, frame["capabilities"]),
          {:ok, artifact} <-
@@ -166,20 +180,26 @@ defmodule Frameshift.LocalAPI do
              compilation.job,
              compilation.attributes
            ),
-         {:ok, _manifest} <-
-           Library.queue_outbox(
-             library,
-             target_id,
-             artifact["digest"],
-             compilation.profile["id"]
-           ) do
-      {:ok, snapshot(library, "Queued for #{frame["title"]} • waiting for next contact")}
+         {:ok, status} <-
+           deliver(library, frame, artifact, compilation.profile, command, mode, options) do
+      {:ok, snapshot(library, status)}
     else
       {:error, reason} -> {:error, normalize_queue_error(reason)}
     end
   end
 
-  defp do_queue(_library, _renderer, _command), do: {:error, :invalid_command}
+  defp do_queue(_library, _renderer, _command, _options), do: {:error, :invalid_command}
+
+  defp do_reconcile_delivery(library, %{"targetID" => target_id}, options)
+       when is_binary(target_id) do
+    case DirectDelivery.reconcile(library, target_id, options) do
+      {:ok, :displayed} -> {:ok, snapshot(library, "Display confirmed")}
+      {:ok, :pending} -> {:ok, snapshot(library, "Display confirmation still pending")}
+      {:error, reason} -> {:error, normalize_queue_error(reason)}
+    end
+  end
+
+  defp do_reconcile_delivery(_library, _command, _options), do: {:error, :invalid_command}
 
   defp validate_command_shape(%{"kind" => kind} = command) when is_binary(kind) do
     id = Map.get(command, "id")
@@ -209,6 +229,7 @@ defmodule Frameshift.LocalAPI do
   defp allowed_command_keys("remove"), do: ~w(id kind itemID)
   defp allowed_command_keys("selectTarget"), do: ~w(id kind targetID)
   defp allowed_command_keys("queue"), do: ~w(id kind targetID itemID)
+  defp allowed_command_keys("reconcileDelivery"), do: ~w(id kind targetID)
   defp allowed_command_keys(_kind), do: ~w(id kind)
 
   defp setting(library, key, default) do
@@ -229,7 +250,7 @@ defmodule Frameshift.LocalAPI do
     }
   end
 
-  defp frame_target(frame) do
+  defp frame_target(library, frame) do
     profile_id = selected_profile_id(frame["capabilities"])
 
     %{
@@ -237,8 +258,23 @@ defmodule Frameshift.LocalAPI do
       "name" => frame["title"],
       "medium" => frame["medium"],
       "profileID" => profile_id,
-      "state" => frame["connection_state"]
+      "state" => frame["connection_state"],
+      "directDelivery" => direct_delivery_summary(library, frame["frame_id"])
     }
+  end
+
+  defp direct_delivery_summary(library, frame_id) do
+    case Library.direct_delivery(library, frame_id) do
+      {:ok, delivery} ->
+        %{
+          "status" => delivery["status"],
+          "revision" => delivery["revision"],
+          "desiredDigest" => delivery["desired_digest"]
+        }
+
+      :not_found ->
+        nil
+    end
   end
 
   defp selected_target_id(library, targets) do
@@ -259,8 +295,49 @@ defmodule Frameshift.LocalAPI do
     end
   end
 
-  defp validate_pull_target(%{"capabilities" => %{"transferModes" => transfer_modes}}) do
-    if "pull" in transfer_modes, do: :ok, else: {:error, :compatible_binding_unavailable}
+  defp delivery_mode(%{"capabilities" => %{"transferModes" => modes}}, command, options) do
+    cond do
+      "pull" in modes ->
+        {:ok, :pull}
+
+      "push" in modes and Keyword.has_key?(options, :credential_resolver) and
+          is_binary(Map.get(command, "id")) ->
+        {:ok, :push}
+
+      "push" in modes and not Keyword.has_key?(options, :credential_resolver) ->
+        {:error, :credential_broker_unavailable}
+
+      "push" in modes ->
+        {:error, :invalid_command}
+
+      true ->
+        {:error, :compatible_binding_unavailable}
+    end
+  end
+
+  defp deliver(library, frame, artifact, profile, command, :pull, _options) do
+    case Library.queue_outbox(
+           library,
+           frame["frame_id"],
+           artifact["digest"],
+           profile["id"],
+           nil,
+           command["id"]
+         ) do
+      {:ok, _manifest} ->
+        {:ok, "Queued for #{frame["title"]} • waiting for next contact"}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp deliver(library, frame, artifact, profile, command, :push, options) do
+    case DirectDelivery.push(library, frame, artifact, profile, command["id"], options) do
+      {:ok, :displayed} -> {:ok, "Displayed on #{frame["title"]}"}
+      {:ok, :pending} -> {:ok, "Sent to #{frame["title"]} • refresh pending"}
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   defp fetch_target(library, target_id) do
@@ -286,9 +363,28 @@ defmodule Frameshift.LocalAPI do
               :master_missing,
               :source_dimensions_mismatch,
               :unsupported_source_representation,
-              :artifact_missing
+              :artifact_missing,
+              :credential_broker_unavailable,
+              :invalid_request_id,
+              :invalid_frame_origin,
+              :authentication_required,
+              :request_id_conflict,
+              :direct_delivery_pending,
+              :direct_delivery_not_pending,
+              :direct_delivery_conflict
             ],
        do: reason
+
+  defp normalize_queue_error({:transport, _reason}), do: :delivery_outcome_unknown
+
+  defp normalize_queue_error(:state_unavailable), do: :delivery_outcome_unknown
+
+  defp normalize_queue_error(reason) when reason in [:timeout, :direct_sync_failure],
+    do: :delivery_outcome_unknown
+
+  defp normalize_queue_error(reason)
+       when reason in [:credential_broker_failure, :credential_broker_contract_violation],
+       do: :credential_broker_unavailable
 
   defp normalize_queue_error(_reason), do: :queue_failed
 

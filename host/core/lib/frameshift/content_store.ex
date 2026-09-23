@@ -1,5 +1,11 @@
 defmodule Frameshift.ContentStore do
-  @moduledoc false
+  @moduledoc """
+  Stores immutable content-addressed bytes outside the metadata database.
+
+  Writes use a bounded work area and verified digest placement. Recovery keeps
+  protected and recently removed objects available rather than silently
+  deleting them after an interrupted filesystem move.
+  """
 
   alias Frameshift.Digest
 

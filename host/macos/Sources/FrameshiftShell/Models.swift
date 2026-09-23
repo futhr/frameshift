@@ -20,25 +20,39 @@ public enum FrameConnectionState: String, Codable, Sendable {
   case failed
 }
 
+public struct DirectDelivery: Codable, Equatable, Sendable {
+  public enum Status: String, Codable, Sendable {
+    case pending
+    case displayed
+  }
+
+  public let status: Status
+  public let revision: Int
+  public let desiredDigest: String
+}
+
 public struct FrameTarget: Codable, Equatable, Identifiable, Sendable {
   public let id: String
   public let name: String
   public let medium: FrameMedium
   public let profileID: String
   public var state: FrameConnectionState
+  public var directDelivery: DirectDelivery?
 
   public init(
     id: String,
     name: String,
     medium: FrameMedium,
     profileID: String,
-    state: FrameConnectionState
+    state: FrameConnectionState,
+    directDelivery: DirectDelivery? = nil
   ) {
     self.id = id
     self.name = name
     self.medium = medium
     self.profileID = profileID
     self.state = state
+    self.directDelivery = directDelivery
   }
 }
 
@@ -116,6 +130,7 @@ public struct CoreCommand: Codable, Equatable, Sendable {
     case setPinned
     case remove
     case queue
+    case reconcileDelivery
   }
 
   public let id: UUID

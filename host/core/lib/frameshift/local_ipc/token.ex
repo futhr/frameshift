@@ -1,5 +1,10 @@
 defmodule Frameshift.LocalIPC.Token do
-  @moduledoc false
+  @moduledoc """
+  Consumes the shell-to-core bootstrap challenge exactly once.
+
+  The token file must be a bounded, user-only regular file. After reading, the
+  core removes it before accepting local commands.
+  """
 
   @token_pattern ~r/^[0-9a-f]{64}$/
 

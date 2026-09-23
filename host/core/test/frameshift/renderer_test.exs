@@ -1,4 +1,6 @@
 defmodule Frameshift.RendererTest do
+  @moduledoc false
+
   use ExUnit.Case, async: false
 
   import ExUnit.CaptureLog

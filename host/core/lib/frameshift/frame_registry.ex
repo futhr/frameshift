@@ -24,6 +24,7 @@ defmodule Frameshift.FrameRegistry do
           server_spki_fingerprint: String.t()
         }
 
+  @doc "Validates and prepares a durable frame record from a TD, credential reference, and SPKI pin."
   @spec admit(binary(), String.t(), String.t()) :: {:ok, paired_frame()} | {:error, term()}
   def admit(td_source, credential_ref, server_spki_fingerprint)
       when is_binary(td_source) and is_binary(credential_ref) and
@@ -53,7 +54,7 @@ defmodule Frameshift.FrameRegistry do
   def admit(_td_source, _credential_ref, _server_spki_fingerprint),
     do: {:error, :invalid_pairing_record}
 
-  defp validate_credential_ref(reference) when byte_size(reference) in 1..512, do: :ok
+  defp validate_credential_ref(reference) when byte_size(reference) in 1..1_024, do: :ok
   defp validate_credential_ref(_reference), do: {:error, :invalid_credential_reference}
 
   defp validate_fingerprint(fingerprint) do

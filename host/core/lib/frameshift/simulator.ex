@@ -11,6 +11,7 @@ defmodule Frameshift.Simulator do
 
   alias Frameshift.ContentStore
   alias Frameshift.Digest
+  alias Frameshift.Pairing.{Endpoint, Store, Window}
   alias Frameshift.Protocol.Schema
   alias Frameshift.Simulator.Persistence
   alias Frameshift.Simulator.State
@@ -26,6 +27,7 @@ defmodule Frameshift.Simulator do
 
   @type server :: GenServer.server()
 
+  @doc "Starts a persistent software frame with injected capabilities and optional fault state."
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(options) do
     with {:ok, capabilities} <- Keyword.fetch(options, :capabilities),
@@ -40,46 +42,72 @@ defmodule Frameshift.Simulator do
     end
   end
 
+  @doc "Returns the frame's advertised capabilities."
   @spec capabilities(server()) :: map()
   def capabilities(server \\ __MODULE__), do: GenServer.call(server, :capabilities)
 
+  @doc "Returns current display truth with its strong revision ETag."
   @spec state(server()) :: %{state: map(), etag: String.t()}
   def state(server \\ __MODULE__), do: GenServer.call(server, :state)
 
+  @doc "Injects contact, transfer, storage, display, or power faults for deterministic tests."
   @spec set_faults(server(), map()) :: :ok | {:error, term()}
   def set_faults(server \\ __MODULE__, faults), do: GenServer.call(server, {:set_faults, faults})
 
+  @doc "Verifies and stores one digest addressed artifact under the frame's storage limits."
   @spec put_asset(server(), String.t(), String.t(), binary()) ::
           {:ok, :created | :existing} | {:error, term()}
   def put_asset(server \\ __MODULE__, digest, profile_id, bytes) do
     GenServer.call(server, {:put_asset, digest, profile_id, bytes}, :infinity)
   end
 
+  @doc "Reports whether a verified artifact is present."
   @spec has_asset?(server(), String.t()) :: boolean()
   def has_asset?(server \\ __MODULE__, digest), do: GenServer.call(server, {:has_asset, digest})
 
+  @doc "Checks whether an artifact is already verified for the advertised profile."
+  @spec has_compatible_asset?(server(), String.t(), String.t()) :: boolean()
+  def has_compatible_asset?(server \\ __MODULE__, digest, profile_id),
+    do: GenServer.call(server, {:has_compatible_asset, digest, profile_id})
+
+  @doc "Deletes an unreferenced artifact from simulated storage."
   @spec delete_asset(server(), String.t()) :: :ok | {:error, term()}
   def delete_asset(server \\ __MODULE__, digest),
     do: GenServer.call(server, {:delete_asset, digest})
 
+  @doc "Applies desired state under an ETag precondition and attempts a display transition."
   @spec set_desired(server(), map(), String.t()) :: {:ok, map()} | {:error, term()}
   def set_desired(server \\ __MODULE__, request, precondition) do
     GenServer.call(server, {:set_desired, request, precondition}, :infinity)
   end
 
+  @doc "Retries an interrupted display while preserving the prior known good image."
   @spec retry_display(server()) :: {:ok, map()} | {:error, term()}
   def retry_display(server \\ __MODULE__), do: GenServer.call(server, :retry_display, :infinity)
 
+  @doc "Updates a still playlist under a revision precondition."
   @spec set_playlist(server(), map(), String.t()) :: {:ok, map()} | {:error, term()}
   def set_playlist(server \\ __MODULE__, playlist, precondition) do
     GenServer.call(server, {:set_playlist, playlist, precondition})
   end
 
-  @spec pull_outbox(server(), map(), binary()) ::
+  @doc "Models a sleeping frame's contact, artifact pull, and manifest acknowledgement."
+  @spec pull_outbox(server(), map(), binary() | nil) ::
           {:ok, :no_work | map()} | {:error, term()}
   def pull_outbox(server \\ __MODULE__, manifest, bytes) do
     GenServer.call(server, {:pull_outbox, manifest, bytes}, :infinity)
   end
+
+  @doc "Opens pairing after a physical action; this is never exposed as a network operation."
+  @spec open_pairing(server(), non_neg_integer()) :: :ok | {:error, term()}
+  def open_pairing(server \\ __MODULE__, now_ms),
+    do: GenServer.call(server, {:open_pairing, now_ms})
+
+  @doc "Applies a pre-pair body supplied with the TLS-authenticated peer certificate."
+  @spec pair(server(), binary(), binary(), non_neg_integer()) ::
+          {:ok, Endpoint.response()} | {:error, term()}
+  def pair(server \\ __MODULE__, peer_der, body, now_ms),
+    do: GenServer.call(server, {:pair, peer_der, body, now_ms})
 
   @impl true
   def init(options) do
@@ -89,9 +117,15 @@ defmodule Frameshift.Simulator do
     with :ok <- Schema.validate("capabilities", capabilities),
          :ok <- ContentStore.prepare(data_dir),
          {:ok, state} <- load_state(data_dir, capabilities),
+         {:ok, pairing} <-
+           Store.load_or_create(
+             data_dir,
+             capabilities["deviceId"],
+             Keyword.get(options, :pairing_secret)
+           ),
          :ok <- verify_assets(state),
          {:ok, recovered} <- recover_interrupted(state) do
-      {:ok, recovered}
+      {:ok, %{recovered | pairing: pairing}}
     else
       {:error, reason} -> {:stop, reason}
     end
@@ -99,6 +133,38 @@ defmodule Frameshift.Simulator do
 
   @impl true
   def handle_call(:capabilities, _from, state), do: {:reply, state.capabilities, state}
+
+  def handle_call({:open_pairing, _now_ms}, _from, %{pairing: nil} = state),
+    do: {:reply, {:error, :pairing_not_configured}, state}
+
+  def handle_call({:open_pairing, now_ms}, _from, state) do
+    case Window.open(state.pairing, now_ms) do
+      {:ok, opened} -> {:reply, :ok, %{state | pairing: opened}}
+      {:error, reason} -> {:reply, {:error, reason}, state}
+    end
+  end
+
+  def handle_call({:pair, _peer_der, _body, _now_ms}, _from, %{pairing: nil} = state),
+    do: {:reply, {:error, :pairing_not_configured}, state}
+
+  def handle_call({:pair, peer_der, body, now_ms}, _from, state) do
+    {response, next} = Endpoint.handle(state.pairing, peer_der, body, now_ms)
+
+    if next == state.pairing do
+      {:reply, {:ok, response}, state}
+    else
+      case Store.save(state.data_dir, next) do
+        :ok ->
+          {:reply, {:ok, response}, %{state | pairing: next}}
+
+        {:error, {:commit_uncertain, reason}} ->
+          {:stop, {:pairing_commit_uncertain, reason}, {:error, :pairing_commit_uncertain}, state}
+
+        {:error, reason} ->
+          {:reply, {:error, {:pairing_persistence_failed, reason}}, state}
+      end
+    end
+  end
 
   def handle_call(:state, _from, state) do
     {:reply, %{state: State.public(state), etag: State.etag(state)}, state}
@@ -112,6 +178,10 @@ defmodule Frameshift.Simulator do
 
   def handle_call({:has_asset, digest}, _from, state) do
     {:reply, Map.has_key?(state.assets, digest), state}
+  end
+
+  def handle_call({:has_compatible_asset, digest, profile_id}, _from, state) do
+    {:reply, get_in(state.assets, [digest, "profileId"]) == profile_id, state}
   end
 
   def handle_call({:put_asset, digest, profile_id, bytes}, _from, state) do
@@ -469,10 +539,30 @@ defmodule Frameshift.Simulator do
     end
   end
 
+  defp pull_outbox_record(state, manifest, nil) do
+    case Schema.validate("outbox-manifest", manifest) do
+      :ok -> receive_outbox_manifest(state, manifest, nil)
+      {:error, reason} -> {:error, normalize_schema_error(reason)}
+    end
+  end
+
   defp pull_outbox_record(_state, _manifest, _bytes), do: {:error, :invalid_document}
 
   defp receive_outbox_manifest(state, %{"desiredAsset" => nil}, _bytes),
     do: {:ok, :no_work, state}
+
+  defp receive_outbox_manifest(
+         %{
+           current_asset: digest,
+           desired_profile: profile_id,
+           display_state: "displayed"
+         } = state,
+         %{"desiredAsset" => digest, "artifactProfile" => profile_id} = manifest,
+         _bytes
+       )
+       when is_binary(digest) do
+    outbox_acknowledgement(manifest, :existing, "displayed", state)
+  end
 
   defp receive_outbox_manifest(state, manifest, bytes),
     do: receive_outbox_asset(state, manifest, bytes)
@@ -481,7 +571,18 @@ defmodule Frameshift.Simulator do
     digest = manifest["desiredAsset"]
     profile_id = manifest["artifactProfile"]
 
-    case put_asset_record(state, digest, profile_id, bytes) do
+    installation =
+      case bytes do
+        nil ->
+          if get_in(state.assets, [digest, "profileId"]) == profile_id,
+            do: {:ok, :existing, state},
+            else: {:error, :asset_missing}
+
+        _bytes ->
+          put_asset_record(state, digest, profile_id, bytes)
+      end
+
+    case installation do
       {:ok, disposition, uploaded} -> activate_outbox_asset(uploaded, manifest, disposition)
       {:error, reason} -> {:error, reason}
     end

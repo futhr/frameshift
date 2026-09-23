@@ -25,6 +25,11 @@ swift build \
   --configuration release \
   --product frameshift-menu
 
+swift build \
+  --package-path "$package_root" \
+  --configuration release \
+  --product frameshiftctl
+
 binary_directory=$(
   swift build \
     --package-path "$package_root" \
@@ -46,6 +51,7 @@ trap cleanup EXIT HUP INT TERM
 
 mkdir -p "$stage/Contents/MacOS" "$stage/Contents/Resources"
 install -m 755 "$binary_directory/frameshift-menu" "$stage/Contents/MacOS/Frameshift"
+install -m 755 "$binary_directory/frameshiftctl" "$stage/Contents/MacOS/frameshiftctl"
 install -m 644 "$package_root/App/Info.plist" "$stage/Contents/Info.plist"
 mkdir -p "$stage/Contents/Resources/bin"
 install -m 755 "$renderer_path" "$stage/Contents/Resources/bin/frameshift-raster"

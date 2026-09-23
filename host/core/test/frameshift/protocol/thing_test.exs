@@ -1,4 +1,6 @@
 defmodule Frameshift.Protocol.ThingTest do
+  @moduledoc false
+
   use ExUnit.Case, async: true
 
   alias Frameshift.Protocol.Thing

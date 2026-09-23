@@ -1,4 +1,6 @@
 defmodule Frameshift.DirectSyncTest do
+  @moduledoc false
+
   use ExUnit.Case, async: true
 
   alias Frameshift.Digest
@@ -16,6 +18,7 @@ defmodule Frameshift.DirectSyncTest do
 
   defmodule ScriptedClient do
     @moduledoc false
+
     @behaviour Wotex.Binding.HTTP.Client
 
     @impl true
@@ -145,6 +148,44 @@ defmodule Frameshift.DirectSyncTest do
     assert [{request, true}] = receive_requests(1)
     assert Request.method(request) == "GET"
     refute_receive {:direct_sync_request, _, _}
+  end
+
+  test "read-only observation confirms display without mutating the frame", context do
+    config = scripted_config([state_response(displayed_state(context.artifact), ~s("state-9"))])
+
+    assert {:ok, :displayed} =
+             DirectSync.observe(
+               frame_td(),
+               context.artifact.digest,
+               "original-request",
+               :ephemeral_credential,
+               config,
+               context("original-request")
+             )
+
+    assert [{request, true}] = receive_requests(1)
+    assert Request.method(request) == "GET"
+    refute_receive {:direct_sync_request, _, _}
+  end
+
+  test "read-only observation never adopts another request's pending state", context do
+    config =
+      scripted_config([
+        state_response(pending_state(context.artifact, "another-request"), ~s("state-10"))
+      ])
+
+    assert {:ok, :not_applied} =
+             DirectSync.observe(
+               frame_td(),
+               context.artifact.digest,
+               "original-request",
+               :ephemeral_credential,
+               config,
+               context("original-request")
+             )
+
+    assert [{request, true}] = receive_requests(1)
+    assert Request.method(request) == "GET"
   end
 
   test "returns pending without replaying an accepted desired request", context do
@@ -290,7 +331,16 @@ defmodule Frameshift.DirectSyncTest do
 
   defp scripted_config(responses) do
     {:ok, agent} = Agent.start_link(fn -> responses end)
-    on_exit(fn -> if Process.alive?(agent), do: Agent.stop(agent) end)
+
+    on_exit(fn ->
+      if Process.alive?(agent) do
+        try do
+          Agent.stop(agent)
+        catch
+          :exit, _reason -> :ok
+        end
+      end
+    end)
 
     {:ok, config} =
       HTTP.config(

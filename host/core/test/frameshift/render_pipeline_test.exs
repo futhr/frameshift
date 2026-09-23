@@ -1,4 +1,6 @@
 defmodule Frameshift.RenderPipelineTest do
+  @moduledoc false
+
   use ExUnit.Case, async: false
 
   alias Frameshift.Digest
@@ -8,6 +10,8 @@ defmodule Frameshift.RenderPipelineTest do
   alias Frameshift.Renderer
   alias Frameshift.RenderPipeline
   alias Frameshift.Simulator
+  alias Frameshift.Transport.CredentialResolver
+  alias Frameshift.Transport.KeychainBroker
 
   @frame_id "sim-pipeline-0001"
   @profile_id "urn:frameshift:test:rgb24-v1"
@@ -20,6 +24,36 @@ defmodule Frameshift.RenderPipelineTest do
                    "../../../../protocol/fixtures/valid/thing-description.json",
                    __DIR__
                  )
+
+  defmodule StaticCredentialResolver do
+    @moduledoc false
+
+    @behaviour CredentialResolver
+
+    @impl CredentialResolver
+    def resolve(reference, %{owner: owner}) do
+      send(owner, {:credential_reference, reference})
+      {:ok, %{certificate: <<1, 2, 3>>, private_key: {:rsa, <<4, 5, 6>>}}}
+    end
+  end
+
+  defmodule ConfirmedSynchronizer do
+    @moduledoc false
+
+    @spec sync(term(), term(), term(), term(), term()) :: {:ok, map()}
+    def sync(td, artifact, credential, _config, context) do
+      send(self(), {:direct_delivery, td, artifact, credential, context})
+      {:ok, %{outcome: :displayed}}
+    end
+  end
+
+  defmodule TimedOutSynchronizer do
+    @moduledoc false
+
+    @spec sync(term(), term(), term(), term(), term()) :: {:error, {:transport, :timeout}}
+    def sync(_td, _artifact, _credential, _config, _context),
+      do: {:error, {:transport, :timeout}}
+  end
 
   setup_all do
     {output, status} =
@@ -118,6 +152,137 @@ defmodule Frameshift.RenderPipelineTest do
                Map.delete(mismatched, :rgba),
                artifact_attributes()
              )
+  end
+
+  test "a push-only queue command renders and records confirmed direct delivery", context do
+    {:ok, package} = MasterPackage.encode(@original, @rgba, 2, 1)
+    {:ok, master} = Library.import_master(context.library, package, master_attributes())
+
+    push_td =
+      thing_description()
+      |> Jason.decode!()
+      |> put_in(["frameshift:capabilities", "transferModes"], ["push"])
+      |> Jason.encode!()
+
+    assert {:ok, _frame} =
+             Library.register_paired_frame(
+               context.library,
+               push_td,
+               "keychain:pipeline-direct-frame",
+               "sha256:" <> String.duplicate("d", 64)
+             )
+
+    owner = self()
+
+    broker_transport = fn _path, request ->
+      send(owner, {:keychain_broker_request, request})
+
+      case request["operation"] do
+        "resolve" ->
+          {:ok,
+           %{
+             "ok" => true,
+             "certificate" => Base.encode64(<<1, 2, 3>>),
+             "algorithm" => "ecdsa"
+           }}
+
+        "sign" ->
+          {:ok, %{"ok" => true, "signature" => Base.encode64(<<4, 5, 6>>)}}
+      end
+    end
+
+    assert {:ok, snapshot} =
+             LocalAPI.execute_with_delivery(
+               context.library,
+               context.renderer,
+               %{
+                 "id" => "direct-command-1",
+                 "kind" => "queue",
+                 "targetID" => @frame_id,
+                 "itemID" => master["digest"]
+               },
+               credential_resolver:
+                 {KeychainBroker,
+                  %{
+                    socket_path: "/unused/credential.sock",
+                    token: String.duplicate("a", 64),
+                    transport: broker_transport
+                  }},
+               synchronizer: ConfirmedSynchronizer
+             )
+
+    assert snapshot["statusMessage"] == "Displayed on Pipeline Frame"
+
+    assert_receive {:keychain_broker_request,
+                    %{
+                      "operation" => "resolve",
+                      "reference" => "keychain:pipeline-direct-frame"
+                    }}
+
+    assert_receive {:direct_delivery, _td, artifact, credential, sync_context}
+    assert artifact.bytes == @rgb
+    assert artifact.digest == Digest.sha256(@rgb)
+
+    assert credential.server_spki_sha256 ==
+             Base.decode16!(String.duplicate("d", 64), case: :lower)
+
+    assert :public_key.sign("tls-proof", :sha256, credential.client_private_key) == <<4, 5, 6>>
+
+    assert_receive {:keychain_broker_request,
+                    %{
+                      "operation" => "sign",
+                      "scheme" => "ecdsa-sha256",
+                      "digest" => encoded_digest
+                    }}
+
+    assert Base.decode64!(encoded_digest) == :crypto.hash(:sha256, "tls-proof")
+
+    assert sync_context.request_id == "direct-command-1"
+    assert :empty = Library.outbox_manifest(context.library, @frame_id)
+
+    assert {:ok, %{"status" => "displayed", "desired_digest" => digest}} =
+             Library.direct_delivery(context.library, @frame_id)
+
+    assert digest == artifact.digest
+  end
+
+  test "a push timeout reports unknown outcome without discarding the desired asset", context do
+    {:ok, package} = MasterPackage.encode(@original, @rgba, 2, 1)
+    {:ok, master} = Library.import_master(context.library, package, master_attributes())
+
+    push_td =
+      thing_description()
+      |> Jason.decode!()
+      |> put_in(["frameshift:capabilities", "transferModes"], ["push"])
+      |> Jason.encode!()
+
+    assert {:ok, _frame} =
+             Library.register_paired_frame(
+               context.library,
+               push_td,
+               "keychain:pipeline-timeout-frame",
+               "sha256:" <> String.duplicate("d", 64)
+             )
+
+    assert {:error, :delivery_outcome_unknown} =
+             LocalAPI.execute_with_delivery(
+               context.library,
+               context.renderer,
+               %{
+                 "id" => "direct-timeout-1",
+                 "kind" => "queue",
+                 "targetID" => @frame_id,
+                 "itemID" => master["digest"]
+               },
+               credential_resolver: {StaticCredentialResolver, %{owner: self()}},
+               synchronizer: TimedOutSynchronizer
+             )
+
+    assert {:ok, %{"status" => "pending", "desired_digest" => digest}} =
+             Library.direct_delivery(context.library, @frame_id)
+
+    assert digest == Digest.sha256(@rgb)
+    assert :empty = Library.outbox_manifest(context.library, @frame_id)
   end
 
   defp render_job do

@@ -242,7 +242,7 @@ private struct ResultCard: View {
         .accessibilityLabel("Queue \(item.title)")
 
         Button(action: togglePin) {
-          Image(systemName: item.isPinned ? "pin.fill" : "pin")
+          Image(systemName: item.isPinned ? "bookmark.fill" : "bookmark")
             .frame(width: 30, height: 30)
         }
         .buttonStyle(.borderless)

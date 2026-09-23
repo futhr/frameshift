@@ -32,7 +32,7 @@ defmodule Frameshift.Pairing.HTTP1Test do
         name: nil
       )
 
-    on_exit(fn -> if Process.alive?(frame), do: GenServer.stop(frame) end)
+    on_exit(fn -> stop_if_alive(frame) end)
 
     key = {:rsa, 2048, 65_537}
 
@@ -133,5 +133,11 @@ defmodule Frameshift.Pairing.HTTP1Test do
       "Host: frame.local\r\n" <>
       "Content-Type: application/json\r\n" <>
       "Content-Length: #{byte_size(body)}\r\n\r\n" <> body
+  end
+
+  defp stop_if_alive(process) do
+    if Process.alive?(process), do: GenServer.stop(process)
+  catch
+    :exit, _ -> :ok
   end
 end

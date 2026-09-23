@@ -164,8 +164,15 @@ defmodule Frameshift.Playlist.Store do
   def suspend(connection, frame_id) do
     Exqlite.query!(
       connection,
-      "DELETE FROM frame_playlists WHERE frame_id = ? AND status = 'suspended'",
-      [frame_id]
+      """
+      DELETE FROM frame_playlists
+      WHERE frame_id = ? AND status = 'suspended'
+        AND EXISTS (
+          SELECT 1 FROM frame_playlists
+          WHERE frame_id = ? AND status = 'active'
+        )
+      """,
+      [frame_id, frame_id]
     )
 
     Exqlite.query!(
@@ -207,9 +214,6 @@ defmodule Frameshift.Playlist.Store do
 
       existing == [["pending"]] ->
         {:error, :playlist_pending}
-
-      existing == [["suspended"]] ->
-        {:error, :playlist_suspended}
 
       true ->
         :ok
@@ -392,6 +396,12 @@ defmodule Frameshift.Playlist.Store do
       connection,
       "DELETE FROM frame_playlists WHERE frame_id = ? AND status = 'pending'",
       [frame_id]
+    )
+
+    Exqlite.query!(
+      connection,
+      "DELETE FROM frame_playlists WHERE frame_id = ? AND status = 'suspended' AND revision = ?",
+      [frame_id, revision]
     )
 
     Exqlite.query!(

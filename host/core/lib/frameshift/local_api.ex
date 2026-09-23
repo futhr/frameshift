@@ -549,8 +549,7 @@ defmodule Frameshift.LocalAPI do
               :frame_not_paired,
               :storage_full,
               :already_active,
-              :playlist_pending,
-              :playlist_suspended
+              :playlist_pending
             ],
        do: reason
 

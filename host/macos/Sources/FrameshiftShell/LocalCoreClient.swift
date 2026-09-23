@@ -116,7 +116,7 @@ public actor LocalCoreClient: CoreClient {
     case "delivery_outcome_unknown": .deliveryOutcomeUnknown
     case "direct_delivery_pending": .deliveryPending
     case "import_too_large": .importTooLarge
-    case "already_active", "playlist_suspended": .loopAlreadyActive
+    case "already_active": .loopAlreadyActive
     case "playlist_pending": .loopPending
     case "no_pinned_artwork": .noPinnedArtwork
     case "interval_required", "invalid_interval": .intervalRequired

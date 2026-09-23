@@ -293,6 +293,75 @@ defmodule Frameshift.Outbox.EndpointTest do
              )
   end
 
+  test "a suspended loop can be requeued with the same revision after a single still", context do
+    first = register_playlist_entry!(context.library, @bytes)
+    second = register_playlist_entry!(context.library, @next_bytes)
+    {:ok, frame} = Library.get_paired_frame(context.library, @frame_id)
+
+    {:ok, plan} =
+      Plan.build(
+        frame["capabilities"],
+        [first["artifactDigest"], second["artifactDigest"]],
+        1_000
+      )
+
+    entries = [first, second]
+
+    assert {:ok, initial} =
+             Library.queue_playlist(
+               context.library,
+               @frame_id,
+               @profile_id,
+               plan.playlist,
+               entries
+             )
+
+    assert {:ok, %{status: 200}} =
+             post_ack(context, displayed_ack(initial, first["artifactDigest"]))
+
+    assert %{"status" => "active"} = Library.frame_playlist_status(context.library, @frame_id)
+
+    assert {:ok, single} =
+             Library.queue_outbox(
+               context.library,
+               @frame_id,
+               first["artifactDigest"],
+               @profile_id
+             )
+
+    assert {:ok, %{status: 200}} =
+             post_ack(context, displayed_ack(single, first["artifactDigest"]))
+
+    assert %{"status" => "suspended"} =
+             Library.frame_playlist_status(context.library, @frame_id)
+
+    assert {:ok, another_single} =
+             Library.queue_outbox(
+               context.library,
+               @frame_id,
+               first["artifactDigest"],
+               @profile_id
+             )
+
+    assert {:ok, %{status: 200}} =
+             post_ack(context, displayed_ack(another_single, first["artifactDigest"]))
+
+    assert %{"status" => "suspended"} =
+             Library.frame_playlist_status(context.library, @frame_id)
+
+    assert {:ok, resumed} =
+             Library.queue_playlist(
+               context.library,
+               @frame_id,
+               @profile_id,
+               plan.playlist,
+               entries
+             )
+
+    assert resumed["playlistRevision"] == plan.playlist["revision"]
+    assert %{"status" => "pending"} = Library.frame_playlist_status(context.library, @frame_id)
+  end
+
   test "a duplicate paired SPKI is rejected before it can affect frame resolution", context do
     another_td =
       @thing_fixture
@@ -381,6 +450,16 @@ defmodule Frameshift.Outbox.EndpointTest do
       "application/json",
       body
     )
+  end
+
+  defp displayed_ack(manifest, digest) do
+    %{
+      "manifestRevision" => manifest["revision"],
+      "storage" => "verified",
+      "refresh" => "displayed",
+      "currentAsset" => digest,
+      "lastError" => nil
+    }
   end
 
   defp manifest_path, do: "/v0/outbox/manifest"

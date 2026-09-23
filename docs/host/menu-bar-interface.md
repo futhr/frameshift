@@ -151,9 +151,11 @@ Each visible library card in that frame's selected playlist carries the same
 state, including entries after the first still; the outbox's first desired
 asset alone does not describe the whole loop.
 The core renders the pin set and queues a complete authenticated pull playlist;
-the receiver performs the offline cycle. Set preview, ordering, arbitrary dwell
-entry, and a resume control remain open. A photo or pixel interval is a viewing
-choice, not a measured energy optimization.
+the receiver performs the offline cycle. Repeating **Loop pins** after a single
+still has paused it queues a fresh intent, including when the revision is the
+same. Set preview, ordering, arbitrary dwell entry, and a dedicated resume
+control remain open. A photo or pixel interval is a viewing choice, not a
+measured energy optimization.
 
 ## Progress and failure
 

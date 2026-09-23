@@ -62,6 +62,10 @@ activates only after a matching first-display acknowledgement. The menu's
 explicit **Loop pins** action snapshots the ordered pin set, renders each
 master for the selected profile, and submits this transaction. A single-image
 send supersedes a pending playlist or suspends an active one when confirmed.
+Repeating **Loop pins** after suspension may queue the same canonical revision
+as a fresh pending intent; the previous suspension is replaced atomically.
+Further single-image sends leave a suspended loop record and its protected
+references intact until an explicit new loop is queued.
 The local library projection marks every member of the selected frame's
 pending, active, or suspended revision. It does not infer loop membership from
 the manifest's first `desiredAsset`.

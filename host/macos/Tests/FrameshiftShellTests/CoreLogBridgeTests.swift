@@ -48,4 +48,16 @@ struct CoreLogBridgeTests {
 
     #expect(CoreLogBridge.parse(record)?.attemptID == attemptID)
   }
+
+  @Test("core log queue bounds a slow sink and accounts for dropped records")
+  func boundedEmissionQueue() {
+    var queue = CoreLogBridge.BoundedRecordQueue()
+    let record = Data("FSLOG|{\"event\":\"runtime\",\"level\":\"info\"}".utf8)
+    #expect(queue.append(Array(repeating: record, count: 513)) == 1)
+    #expect(queue.count == 512)
+    #expect(queue.pop() == record)
+    #expect(queue.append([record]) == 0)
+    #expect(queue.clear() == 512)
+    #expect(queue.isEmpty)
+  }
 }

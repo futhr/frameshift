@@ -6,20 +6,49 @@ final class CoreLogBridge: @unchecked Sendable {
   private static let maximumRecordBytes = 8_192
   private static let maximumBatchRecords = 256
   private let lock = NSLock()
+  private let emissionQueue = DispatchQueue(label: "io.frameshift.app.core-log-bridge")
   private let output: FileHandle
   private let error: FileHandle
   private var outputBuffer = Data()
   private var errorBuffer = Data()
   private var discardingOutputLine = false
   private var discardingErrorLine = false
+  private var queuedRecords = BoundedRecordQueue()
+  private var drainScheduled = false
+  private var stopped = false
   private var droppedRecords: UInt64 = 0
 
-  struct Record: Equatable {
+  struct Record: Equatable, Sendable {
     let event: String
     let level: String
     let outcome: String
     let correlationID: String
     let attemptID: String
+  }
+
+  struct BoundedRecordQueue {
+    private static let capacity = 512
+    private var records: [Data] = []
+
+    var count: Int { records.count }
+    var isEmpty: Bool { records.isEmpty }
+
+    mutating func append(_ incoming: [Data]) -> UInt64 {
+      let available = max(0, Self.capacity - records.count)
+      records.append(contentsOf: incoming.prefix(available))
+      return UInt64(max(0, incoming.count - available))
+    }
+
+    mutating func pop() -> Data? {
+      guard !records.isEmpty else { return nil }
+      return records.removeFirst()
+    }
+
+    mutating func clear() -> UInt64 {
+      let discarded = UInt64(records.count)
+      records.removeAll()
+      return discarded
+    }
   }
 
   init(output: Pipe, error: Pipe) {
@@ -39,6 +68,8 @@ final class CoreLogBridge: @unchecked Sendable {
     output.readabilityHandler = nil
     error.readabilityHandler = nil
     lock.lock()
+    stopped = true
+    droppedRecords += queuedRecords.clear()
     try? output.close()
     try? error.close()
     outputBuffer.removeAll()
@@ -93,16 +124,57 @@ final class CoreLogBridge: @unchecked Sendable {
     }
     lock.unlock()
 
-    for record in records where !emit(record) {
-      lock.lock()
-      droppedRecords += 1
+    enqueue(records)
+  }
+
+  private func enqueue(_ records: [Data]) {
+    lock.lock()
+    if stopped {
+      droppedRecords += UInt64(records.count)
       lock.unlock()
+      return
+    }
+
+    droppedRecords += queuedRecords.append(records)
+    let schedule = !drainScheduled && !queuedRecords.isEmpty
+    if schedule { drainScheduled = true }
+    lock.unlock()
+
+    if schedule {
+      emissionQueue.async { [weak self] in self?.drain() }
+    }
+  }
+
+  private func drain() {
+    while true {
+      lock.lock()
+      guard !stopped, !queuedRecords.isEmpty else {
+        drainScheduled = false
+        lock.unlock()
+        return
+      }
+      guard let record = queuedRecords.pop() else {
+        drainScheduled = false
+        lock.unlock()
+        return
+      }
+      lock.unlock()
+
+      if !emit(record) {
+        lock.lock()
+        droppedRecords += 1
+        lock.unlock()
+      }
     }
   }
 
   private func emit(_ record: Data) -> Bool {
     guard let fields = Self.parse(record) else { return false }
+    Self.log(fields)
+    return true
+  }
 
+  private static func log(_ fields: Record) {
     switch fields.level {
     case "error", "critical", "alert", "emergency":
       Self.logger.error(
@@ -122,7 +194,6 @@ final class CoreLogBridge: @unchecked Sendable {
       )
     }
 
-    return true
   }
 
   static func parse(_ record: Data) -> Record? {

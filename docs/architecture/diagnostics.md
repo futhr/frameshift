@@ -78,10 +78,11 @@ marker so missing observations cannot be represented as zero.
 ## Log and audit access
 
 The macOS shell logs with Swift `Logger`. It supervises the bundled core and
-drains its stdout/stderr pipes. A bounded parser forwards only allowlisted,
-structured core records to Apple unified logging under subsystem
+drains its stdout/stderr pipes. A bounded parser and 512-record emission queue
+forward only allowlisted, structured core records to Apple unified logging under subsystem
 `io.frameshift.app`, with stable categories; arbitrary third-party output is
-discarded. The shell records dropped records. Pipe and bridge failure must not
+discarded. The shell counts records dropped when parsing or queue capacity is
+exceeded. Pipe and bridge failure must not
 block a command. A small rotating OTP file captures sanitized critical
 failures when the bridge is unavailable. Console.app and `/usr/bin/log` are the
 macOS log readers; the product does not build a logs UI. Apple controls

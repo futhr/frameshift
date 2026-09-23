@@ -34,6 +34,13 @@ different device ID. Certificate rotation and TD refresh require separate
 authenticated operations with their own transition and pending-delivery rules;
 ordinary admission cannot perform either change implicitly.
 
+Library admission validates a master's source kind and recipe relationship
+before touching the content store. A recipe identity is the digest of its kind,
+canonical parameter JSON, and ordered source digests; map insertion order does
+not change it, while source order does. Source existence is checked by the
+single writer before the recipe is persisted. These are pure Library decisions;
+file placement and SQLite writes remain in the storage owner.
+
 ## Atomicity and effects
 
 1. A command is admitted, canonically identified, and claimed before effects.

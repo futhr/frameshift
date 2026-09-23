@@ -13,6 +13,7 @@ defmodule Frameshift.Library do
   alias Frameshift.Diagnostics.Store, as: DiagnosticsStore
   alias Frameshift.Digest
   alias Frameshift.FrameRegistry
+  alias Frameshift.Library.Identity
   alias Frameshift.Library.Migrations
   alias Frameshift.Protocol.Schema
 
@@ -20,7 +21,6 @@ defmodule Frameshift.Library do
   @type digest :: String.t()
   @maximum_read_bytes 128 * 1024 * 1024
 
-  @required_master_fields ~w(title source_kind width height media_type provenance)a
   @label_provenance ~w(user vision filename metadata)a
   @frame_roles ["desired", "current", "previous-known-good", "queued", "playlist"]
 
@@ -686,8 +686,7 @@ defmodule Frameshift.Library do
   end
 
   defp import_master_record(state, bytes, attributes, parent_digest, recipe_hash) do
-    with :ok <- validate_master_attributes(attributes),
-         :ok <- validate_master_relationship(attributes, parent_digest, recipe_hash),
+    with :ok <- Identity.validate_master(attributes, parent_digest, recipe_hash),
          :ok <- validate_parent_recipe(state, parent_digest, recipe_hash),
          :not_found <- existing_generation(state, recipe_hash),
          {:ok, digest, byte_count, placement} <- ContentStore.put(state.data_dir, bytes) do
@@ -706,40 +705,6 @@ defmodule Frameshift.Library do
     case cached_generation_record(state, recipe_hash) do
       {:ok, master} -> {:cached, master}
       :not_found -> :not_found
-    end
-  end
-
-  defp validate_master_attributes(attributes) when is_map(attributes) do
-    missing = Enum.reject(@required_master_fields, &Map.has_key?(attributes, &1))
-
-    if missing == [],
-      do: validate_master_values(attributes),
-      else: {:error, {:missing_fields, missing}}
-  end
-
-  defp validate_master_attributes(_), do: {:error, :invalid_attributes}
-
-  defp validate_master_relationship(%{source_kind: :import}, nil, nil), do: :ok
-
-  defp validate_master_relationship(%{source_kind: :generated}, _, recipe_hash)
-       when is_binary(recipe_hash),
-       do: :ok
-
-  defp validate_master_relationship(_, _, _),
-    do: {:error, :invalid_master_relationship}
-
-  defp validate_master_values(attributes) do
-    validations = [
-      {attributes.source_kind in [:import, :generated], :invalid_source_kind},
-      {is_integer(attributes.width) and attributes.width > 0, :invalid_width},
-      {is_integer(attributes.height) and attributes.height > 0, :invalid_height},
-      {is_binary(attributes.title) and String.trim(attributes.title) != "", :invalid_title},
-      {is_binary(attributes.media_type), :invalid_media_type}
-    ]
-
-    case Enum.find(validations, fn {valid?, _} -> not valid? end) do
-      nil -> :ok
-      {_, error} -> {:error, error}
     end
   end
 
@@ -866,22 +831,11 @@ defmodule Frameshift.Library do
          do: {:ok, Map.put(master, :placement, placement)}
   end
 
-  defp do_register_recipe(state, kind, parameters, source_digests)
-       when kind in [:generation, :composition] and is_map(parameters) and is_list(source_digests) do
-    with true <- Enum.all?(source_digests, &Digest.valid_sha256?/1),
+  defp do_register_recipe(state, kind, parameters, source_digests) do
+    with :ok <- Identity.validate_recipe_input(kind, parameters, source_digests),
          :ok <- validate_recipe_sources(state, source_digests),
-         {:ok, canonical_json} <- RFC8785.encode(parameters) do
-      kind_string = Atom.to_string(kind)
-
-      hash =
-        Digest.sha256([
-          kind_string,
-          <<0>>,
-          canonical_json,
-          <<0>>,
-          Enum.join(source_digests, <<0>>)
-        ])
-
+         {:ok, hash, kind_string, canonical_json} <-
+           Identity.recipe_identity(kind, parameters, source_digests) do
       result = insert_recipe_transaction(state, hash, kind_string, canonical_json, source_digests)
 
       case result do
@@ -890,14 +844,9 @@ defmodule Frameshift.Library do
         {:error, reason} -> {:error, reason}
       end
     else
-      false -> {:error, :invalid_source_digest}
-      {:error, :source_missing} -> {:error, :source_missing}
-      {:error, reason} -> {:error, {:canonicalization, reason}}
+      {:error, reason} -> {:error, reason}
     end
   end
-
-  defp do_register_recipe(_, _, _, _),
-    do: {:error, :invalid_recipe}
 
   defp insert_recipe_transaction(state, hash, kind, canonical_json, source_digests) do
     transaction(state.connection, fn connection ->

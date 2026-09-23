@@ -71,10 +71,13 @@ profile. It shows one concise state: displayed, sending, refreshing, waiting
 for contact, needs attention, or unpaired. Sleeping frames show the next
 expected contact rather than an alarm-colored offline state.
 
-### Instruction field
+### Instruction editor
 
-One multi-line field accepts the user's generation/edit instruction. The
-selected display profile contributes a versioned base instruction. A small
+One native multiline text editor accepts the user's generation/edit
+instruction, including Return-delimited paragraphs. It has a visible
+placeholder when empty, a bounded height with internal scrolling, and an
+accessible label. Saving preserves embedded newlines. The selected display
+profile contributes a versioned base instruction. A small
 “Paper recipe,” “Photo recipe,” or “Pixel recipe” disclosure opens the full
 effective instruction and allows advanced override; it does not clutter the
 default flow.

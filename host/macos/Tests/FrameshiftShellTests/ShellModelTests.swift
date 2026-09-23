@@ -5,15 +5,15 @@ import Testing
 @Suite("Authoritative shell state")
 @MainActor
 struct ShellModelTests {
-  @Test("Successful commands replace the complete snapshot")
+  @Test("A multiline instruction survives command and snapshot replacement")
   func appliesCommandSnapshot() async {
     let client = RecordingClient()
     let model = ShellModel(client: client)
-    model.draftInstruction = "A quiet geometric still"
+    model.draftInstruction = "A quiet shoreline\nSoft morning light"
 
     await model.saveInstruction()
 
-    #expect(model.snapshot.instruction == "A quiet geometric still")
+    #expect(model.snapshot.instruction == "A quiet shoreline\nSoft morning light")
     #expect(model.errorMessage == nil)
     #expect(await client.commandKinds() == [.updateInstruction])
   }

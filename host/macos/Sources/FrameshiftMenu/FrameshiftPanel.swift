@@ -97,17 +97,35 @@ struct FrameshiftPanel: View {
             .foregroundStyle(.secondary)
         }
       }
-      TextField(
-        "Describe the still image you want to prepare",
-        text: Binding(
-          get: { model.draftInstruction },
-          set: { model.draftInstruction = $0 }
-        ),
-        axis: .vertical
-      )
-      .lineLimit(2...4)
-      .textFieldStyle(.roundedBorder)
-      .accessibilityIdentifier("instruction-field")
+      ZStack(alignment: .topLeading) {
+        TextEditor(
+          text: Binding(
+            get: { model.draftInstruction },
+            set: { model.draftInstruction = $0 }
+          )
+        )
+        .font(.body)
+        .scrollContentBackground(.hidden)
+        .padding(.horizontal, 5)
+        .padding(.vertical, 3)
+        .accessibilityLabel("Instruction")
+        .accessibilityIdentifier("instruction-editor")
+
+        if model.draftInstruction.isEmpty {
+          Text("Describe the still image you want to prepare")
+            .foregroundStyle(.tertiary)
+            .padding(.leading, 10)
+            .padding(.top, 8)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
+      }
+      .frame(height: 104)
+      .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 7))
+      .overlay {
+        RoundedRectangle(cornerRadius: 7)
+          .strokeBorder(.quaternary, lineWidth: 1)
+      }
     }
   }
 

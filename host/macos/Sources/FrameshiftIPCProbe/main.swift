@@ -13,7 +13,7 @@ private struct FrameshiftIPCProbe {
     let initial = try await client.snapshot()
     guard initial.targets.isEmpty else { throw ProbeFailure() }
 
-    let marker = "release-smoke-\(UUID().uuidString.lowercased())"
+    let marker = "release-smoke-\(UUID().uuidString.lowercased())\nsecond line"
     let updated = try await client.send(
       CoreCommand(kind: .updateInstruction, instruction: marker)
     )

@@ -6,6 +6,7 @@ app_bundle=${1:-"$repository_root/host/macos/.build/artifacts/Frameshift.app"}
 app="$app_bundle/Contents/MacOS/Frameshift"
 core="$app_bundle/Contents/Resources/core/bin/frameshift_core"
 renderer="$app_bundle/Contents/Resources/bin/frameshift-raster"
+maintenance="$app_bundle/Contents/Resources/bin/frameshift-maintenance"
 # The broker socket adds a nonce to this path; Darwin's sun_path is 104 bytes.
 runtime_root=$(mktemp -d "/tmp/frameshift-pkg.XXXXXX")
 app_pid=''
@@ -30,6 +31,7 @@ trap cleanup EXIT HUP INT TERM
 test -x "$core"
 test -x "$renderer"
 test -x "$app_bundle/Contents/MacOS/frameshiftctl"
+test -x "$maintenance"
 
 FRAMESHIFT_DATA_DIR="$runtime_root/data" \
 FRAMESHIFT_IPC_TOKEN="$ipc_token" \
@@ -113,6 +115,12 @@ if ! rg -q '"entries"' "$runtime_root/audit.json"; then
   exit 1
 fi
 
+if FRAMESHIFT_DATA_DIR="$runtime_root/data" \
+  "$maintenance" backup "$runtime_root/backup" >"$runtime_root/active-backup.log" 2>&1; then
+  echo "maintenance command accepted a running core" >&2
+  exit 1
+fi
+
 kill "$app_pid"
 wait "$app_pid" 2>/dev/null || true
 app_pid=''
@@ -129,3 +137,23 @@ if kill -0 "$managed_core_pid" 2>/dev/null; then
 fi
 
 managed_core_pid=''
+
+FRAMESHIFT_DATA_DIR="$runtime_root/data" \
+  "$maintenance" backup "$runtime_root/backup" >"$runtime_root/backup.log"
+
+"$maintenance" verify "$runtime_root/backup" >"$runtime_root/verify.log"
+"$maintenance" restore "$runtime_root/backup" "$runtime_root/restored" \
+  >"$runtime_root/restore.log"
+
+test -f "$runtime_root/restored/metadata.sqlite"
+if "$maintenance" restore "$runtime_root/backup" "$runtime_root/restored" \
+  >"$runtime_root/duplicate-restore.log" 2>&1; then
+  echo "maintenance command replaced an existing destination" >&2
+  exit 1
+fi
+
+printf 'damage' >>"$runtime_root/backup/metadata.sqlite"
+if "$maintenance" verify "$runtime_root/backup" >"$runtime_root/corrupt-verify.log" 2>&1; then
+  echo "maintenance command accepted a corrupted backup" >&2
+  exit 1
+fi

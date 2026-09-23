@@ -38,6 +38,30 @@ Failures leave the destination absent and the source backup untouched. Restore
 does not assert that a frame displayed a queued image or transfer Keychain
 private keys to another Mac; a moved installation requires re-pairing.
 
+## Packaged maintenance command
+
+The packaged macOS app exposes `Contents/Resources/bin/frameshift-maintenance` with
+`backup DESTINATION`, `verify BACKUP`, and `restore BACKUP DESTINATION` commands.
+`backup` reads the configured `FRAMESHIFT_DATA_DIR` (or the normal per-user
+Frameshift data directory). The app and its core must be stopped before backup:
+the command refuses a live core or a socket whose ownership cannot be proved.
+An abandoned Unix socket with a refused connection is tolerated after an
+unclean shutdown; a listening socket or a non-socket at that path is refused.
+It also requires an existing `metadata.sqlite` so a typo cannot silently create
+an empty library. The command starts the single-writer library solely for the
+export, then stops it. That startup may apply pending schema migrations, so
+maintenance should use a release compatible with the library.
+
+`verify` reads only the named backup. `restore` installs into the explicit,
+absent destination data directory and refuses a live core at that destination.
+The command never replaces a running or existing library. Operators can first
+restore to a separate location and test it using `FRAMESHIFT_DATA_DIR`; choosing
+to replace an installation is a separate, deliberate filesystem operation.
+Each command prints one result and exits nonzero on failure. User paths are
+passed as data to a fixed release entrypoint, never interpolated into Elixir
+source. Packaged-app tests exercise backup, verification, corrupted input,
+active-core refusal, and restore through this public command.
+
 APFS, supported Linux filesystems, Pi storage, full-disk behavior, and
 power-interruption durability require target-specific qualification before a
 release claim. This contract does not authorize repository visibility changes.

@@ -23,6 +23,7 @@ check_policy() {
     "$repository_root/scripts/check-core-release" \
     "$repository_root/scripts/check-packaged-app" \
     "$repository_root/scripts/format" \
+    "$repository_root/scripts/frameshift-maintenance" \
     "$repository_root/scripts/index" \
     "$repository_root/scripts/launch-bundled-core" \
     "$repository_root/scripts/package-macos" \
@@ -76,6 +77,7 @@ check_macos() {
   test -x "$app_bundle/Contents/MacOS/Frameshift"
   test -x "$app_bundle/Contents/MacOS/frameshiftctl"
   test -x "$app_bundle/Contents/Resources/bin/frameshift-raster"
+  test -x "$app_bundle/Contents/Resources/bin/frameshift-maintenance"
   test -x "$app_bundle/Contents/Resources/bin/launch-bundled-core"
   test -x "$app_bundle/Contents/Resources/core/bin/frameshift_core"
   test -s "$app_bundle/Contents/Resources/FrameshiftLight.icns"

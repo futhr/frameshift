@@ -57,6 +57,9 @@ install -m 644 "$package_root/App/Info.plist" "$stage/Contents/Info.plist"
 "$repository_root/scripts/build-macos-icons" "$stage/Contents/Resources"
 
 mkdir -p "$stage/Contents/Resources/bin"
+install -m 755 \
+  "$repository_root/scripts/frameshift-maintenance" \
+  "$stage/Contents/Resources/bin/frameshift-maintenance"
 install -m 755 "$renderer_path" "$stage/Contents/Resources/bin/frameshift-raster"
 install -m 755 \
   "$repository_root/scripts/launch-bundled-core" \

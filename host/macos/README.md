@@ -35,8 +35,8 @@ mutual-TLS frame exchange are still required for end-to-end acceptance.
 The packaged app embeds and supervises the production OTP release and Zig
 renderer. It is deliberately usable without a generation provider. Frame
 pairing and identity provisioning, Keychain-backed local/session identity,
-exact target previews, live direct push interoperability, Vision metadata, Service Management
-registration, Developer ID signing, hardened runtime, and notarization remain
+exact target previews, live direct push interoperability, Vision metadata,
+Developer ID signing, hardened runtime, and notarization remain
 tracked product gates.
 
 The shell forwards sanitized core records to Apple unified logging. Read them
@@ -59,6 +59,20 @@ The read-only socket checks the kernel-reported peer UID. It uses a separate
 authorization path from the one-use mutation token. The CLI needs the core
 running; the current bundled core stops with the menu process. Background
 service registration remains a separate product gate.
+
+The packaged offline maintenance command backs up, verifies, and restores a
+library without the menu UI. Quit Frameshift before backup. Restore always
+targets an absent directory; it does not replace the current library:
+
+```sh
+Frameshift.app/Contents/Resources/bin/frameshift-maintenance backup /path/to/backup
+Frameshift.app/Contents/Resources/bin/frameshift-maintenance verify /path/to/backup
+Frameshift.app/Contents/Resources/bin/frameshift-maintenance restore /path/to/backup /path/to/restored-data
+```
+
+Set `FRAMESHIFT_DATA_DIR` to back up a separate installation. See
+[the backup contract](../../docs/architecture/library-backup.md) for the
+manifest, checks, and migration behavior.
 
 Build and test with the system Swift 6 toolchain:
 

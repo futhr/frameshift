@@ -32,18 +32,12 @@ struct FrameshiftPanel: View {
   }
 
   private var header: some View {
-    HStack(alignment: .firstTextBaseline) {
-      VStack(alignment: .leading, spacing: 2) {
-        Text("Frameshift")
-          .font(.title2.weight(.semibold))
-        Text("Still artwork, prepared for one frame")
-          .font(.caption)
-          .foregroundStyle(.secondary)
-      }
-      Spacer()
-      Image(systemName: "circle.grid.cross")
+    VStack(alignment: .leading, spacing: 2) {
+      Text("Frameshift")
+        .font(.title2.weight(.semibold))
+      Text("Still artwork, prepared for one frame")
+        .font(.caption)
         .foregroundStyle(.secondary)
-        .accessibilityLabel("Frameshift core")
     }
   }
 
@@ -237,27 +231,32 @@ private struct ResultCard: View {
 
       Spacer()
 
-      Button(action: queue) {
-        Image(systemName: "paperplane")
-      }
-      .buttonStyle(.borderless)
-      .disabled(!canQueue)
-      .help("Queue this still for \(targetName)")
-      .accessibilityLabel("Queue \(item.title)")
+      HStack(spacing: 4) {
+        Button(action: queue) {
+          Image(systemName: "paperplane")
+            .frame(width: 30, height: 30)
+        }
+        .buttonStyle(.borderless)
+        .disabled(!canQueue)
+        .help("Queue this still for \(targetName)")
+        .accessibilityLabel("Queue \(item.title)")
 
-      Button(action: togglePin) {
-        Image(systemName: item.isPinned ? "pin.fill" : "pin")
-      }
-      .buttonStyle(.borderless)
-      .help(item.isPinned ? "Unpin" : "Pin")
-      .accessibilityLabel(item.isPinned ? "Unpin \(item.title)" : "Pin \(item.title)")
+        Button(action: togglePin) {
+          Image(systemName: item.isPinned ? "pin.fill" : "pin")
+            .frame(width: 30, height: 30)
+        }
+        .buttonStyle(.borderless)
+        .help(item.isPinned ? "Unpin" : "Pin")
+        .accessibilityLabel(item.isPinned ? "Unpin \(item.title)" : "Pin \(item.title)")
 
-      Button(role: .destructive, action: remove) {
-        Image(systemName: "trash")
+        Button(role: .destructive, action: remove) {
+          Image(systemName: "trash")
+            .frame(width: 30, height: 30)
+        }
+        .buttonStyle(.borderless)
+        .help("Remove from the library")
+        .accessibilityLabel("Remove \(item.title)")
       }
-      .buttonStyle(.borderless)
-      .help("Remove from the library")
-      .accessibilityLabel("Remove \(item.title)")
     }
     .padding(10)
     .background(.background.secondary, in: RoundedRectangle(cornerRadius: 11))

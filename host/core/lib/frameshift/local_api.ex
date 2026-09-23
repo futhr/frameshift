@@ -32,12 +32,13 @@ defmodule Frameshift.LocalAPI do
   def snapshot(library \\ Library, status_message \\ nil) do
     targets = Enum.map(Library.list_paired_frames(library), &frame_target(library, &1))
     selected_target_id = selected_target_id(library, targets)
+    membership = playlist_membership(library, selected_target_id)
 
     %{
       "targets" => targets,
       "selectedTargetID" => selected_target_id,
       "instruction" => setting(library, @instruction_key, ""),
-      "items" => Enum.map(Library.search(library, "", limit: 100), &library_item/1),
+      "items" => Enum.map(Library.search(library, "", limit: 100), &library_item(&1, membership)),
       "generationAvailability" => "notConfigured",
       "statusMessage" => status_message || default_status(targets)
     }
@@ -390,15 +391,27 @@ defmodule Frameshift.LocalAPI do
     end
   end
 
-  defp library_item(master) do
+  defp playlist_membership(_, nil), do: nil
+
+  defp playlist_membership(library, frame_id),
+    do: Library.frame_playlist_members(library, frame_id)
+
+  defp library_item(master, membership) do
     %{
       "id" => master["digest"],
       "title" => master["title"],
       "digest" => master["digest"],
       "isPinned" => master["pinned"],
-      "queuedTargetID" => master["queued_target_id"]
+      "queuedTargetID" => master["queued_target_id"],
+      "loopStatus" => loop_status(master["digest"], membership)
     }
   end
+
+  defp loop_status(digest, %{"status" => state, "masterDigests" => members}) do
+    if digest in members, do: state, else: nil
+  end
+
+  defp loop_status(_, _), do: nil
 
   defp frame_target(library, frame) do
     profile_id = selected_profile_id(frame["capabilities"])

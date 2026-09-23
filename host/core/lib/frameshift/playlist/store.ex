@@ -93,6 +93,29 @@ defmodule Frameshift.Playlist.Store do
     end
   end
 
+  @doc "Returns the chosen pending or active loop's source masters for local presentation."
+  @spec members(pid(), String.t()) :: map() | nil
+  def members(connection, frame_id) do
+    case status(connection, frame_id) do
+      nil ->
+        nil
+
+      %{"status" => state, "revision" => revision} ->
+        masters =
+          Exqlite.query!(
+            connection,
+            """
+            SELECT master_digest FROM frame_playlist_entries
+            WHERE frame_id = ? AND revision = ? ORDER BY ordinal
+            """,
+            [frame_id, revision]
+          ).rows
+          |> Enum.map(&hd/1)
+
+        %{"status" => state, "masterDigests" => masters}
+    end
+  end
+
   @doc "Activates a confirmed pending revision while retaining only its protected assets."
   @spec confirm(pid(), String.t(), String.t() | nil) :: :ok | {:error, :playlist_missing}
   def confirm(_, _, nil), do: :ok

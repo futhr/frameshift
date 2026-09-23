@@ -144,6 +144,16 @@ defmodule Frameshift.RenderPipelineTest do
     {:ok, package} = MasterPackage.encode(@original, @rgba, 2, 1)
     {:ok, master} = Library.import_master(context.library, package, master_attributes())
     :ok = Library.pin(context.library, master["digest"])
+    other_rgba = <<10, 20, 30, 255, 40, 50, 60, 255>>
+    {:ok, other_package} = MasterPackage.encode(@original <> "-other", other_rgba, 2, 1)
+
+    {:ok, other} =
+      Library.import_master(context.library, other_package, %{
+        master_attributes()
+        | title: "Second canonical fixture"
+      })
+
+    :ok = Library.pin(context.library, other["digest"])
 
     assert {:ok, _} =
              Library.register_paired_frame(
@@ -163,7 +173,8 @@ defmodule Frameshift.RenderPipelineTest do
     assert {:ok, snapshot} =
              LocalAPI.execute_with_renderer(context.library, context.renderer, command)
 
-    assert [%{"playlist" => %{"status" => "pending", "entryCount" => 1}}] = snapshot["targets"]
+    assert [%{"playlist" => %{"status" => "pending", "entryCount" => 2}}] = snapshot["targets"]
+    assert Enum.all?(snapshot["items"], &(&1["loopStatus"] == "pending"))
     assert {:ok, manifest} = Library.outbox_manifest(context.library, @frame_id)
     assert is_binary(manifest["playlistRevision"])
 
@@ -171,7 +182,12 @@ defmodule Frameshift.RenderPipelineTest do
              Library.outbox_playlist(context.library, @frame_id, manifest["playlistRevision"])
 
     {:ok, document} = RFC8785.decode(body)
-    assert document["entries"] == [%{"assetDigest" => Digest.sha256(@rgb), "dwellMs" => 1_000}]
+
+    assert MapSet.new(document["entries"]) ==
+             MapSet.new([
+               %{"assetDigest" => Digest.sha256(@rgb), "dwellMs" => 1_000},
+               %{"assetDigest" => Digest.sha256(<<10, 20, 30, 40, 50, 60>>), "dwellMs" => 1_000}
+             ])
   end
 
   test "a missing interval fails before pinned artwork is rendered", context do

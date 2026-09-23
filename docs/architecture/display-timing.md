@@ -62,6 +62,9 @@ activates only after a matching first-display acknowledgement. The menu's
 explicit **Loop pins** action snapshots the ordered pin set, renders each
 master for the selected profile, and submits this transaction. A single-image
 send supersedes a pending playlist or suspends an active one when confirmed.
+The local library projection marks every member of the selected frame's
+pending, active, or suspended revision. It does not infer loop membership from
+the manifest's first `desiredAsset`.
 The compact menu currently offers fixed intervals above the receiver minimum;
 review and reordering of the included set, per-frame interval persistence,
 resume, and profile-change warnings remain implementation work. Physical RTC

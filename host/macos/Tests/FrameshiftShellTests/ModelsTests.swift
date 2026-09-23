@@ -75,6 +75,19 @@ struct ModelsTests {
     #expect(decoded == command)
   }
 
+  @Test("Every playlist member can carry its pending state in the library")
+  func libraryLoopMembership() throws {
+    let data = Data(
+      """
+      {"id":"master-2","title":"Warm study","digest":"master-2","isPinned":true,"queuedTargetID":null,"loopStatus":"pending"}
+      """.utf8
+    )
+
+    let item = try JSONDecoder().decode(LibraryItem.self, from: data)
+    #expect(item.loopStatus == .pending)
+    #expect(item.queuedTargetID == nil)
+  }
+
   @Test("Disconnected state never invents device or generation availability")
   func disconnectedState() {
     let snapshot = CoreSnapshot.disconnected

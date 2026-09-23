@@ -147,6 +147,9 @@ active states. See [display timing](../architecture/display-timing.md).
 The current compact menu exposes this as **Loop pins** with a provisional
 suggestion when advertised and fixed choices filtered by the receiver minimum.
 It shows pending, active, or suspended state from the durable core snapshot.
+Each visible library card in that frame's selected playlist carries the same
+state, including entries after the first still; the outbox's first desired
+asset alone does not describe the whole loop.
 The core renders the pin set and queues a complete authenticated pull playlist;
 the receiver performs the offline cycle. Set preview, ordering, arbitrary dwell
 entry, and a resume control remain open. A photo or pixel interval is a viewing

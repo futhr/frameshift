@@ -384,6 +384,12 @@ defmodule Frameshift.Library do
     GenServer.call(server, {:frame_playlist_status, frame_id})
   end
 
+  @doc "Returns the selected loop's source masters for the local library view."
+  @spec frame_playlist_members(server(), String.t()) :: map() | nil
+  def frame_playlist_members(server \\ __MODULE__, frame_id) do
+    GenServer.call(server, {:frame_playlist_members, frame_id})
+  end
+
   @doc "Checks a frame acknowledgement and advances retained references only on a match."
   @spec acknowledge_outbox(server(), String.t(), map()) ::
           :ok | {:ok, :pending} | {:error, term()}
@@ -849,6 +855,10 @@ defmodule Frameshift.Library do
 
   def handle_call({:frame_playlist_status, frame_id}, _, state) do
     {:reply, PlaylistStore.status(state.connection, frame_id), state}
+  end
+
+  def handle_call({:frame_playlist_members, frame_id}, _, state) do
+    {:reply, PlaylistStore.members(state.connection, frame_id), state}
   end
 
   def handle_call({:acknowledge_outbox, frame_id, acknowledgement}, _, state) do

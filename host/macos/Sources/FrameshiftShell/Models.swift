@@ -90,19 +90,22 @@ public struct LibraryItem: Codable, Equatable, Identifiable, Sendable {
   public let digest: String
   public var isPinned: Bool
   public var queuedTargetID: String?
+  public var loopStatus: FramePlaylist.Status?
 
   public init(
     id: String,
     title: String,
     digest: String,
     isPinned: Bool = false,
-    queuedTargetID: String? = nil
+    queuedTargetID: String? = nil,
+    loopStatus: FramePlaylist.Status? = nil
   ) {
     self.id = id
     self.title = title
     self.digest = digest
     self.isPinned = isPinned
     self.queuedTargetID = queuedTargetID
+    self.loopStatus = loopStatus
   }
 }
 

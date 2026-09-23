@@ -334,7 +334,7 @@ private struct ResultCard: View {
         Text(item.title)
           .font(.headline)
           .lineLimit(1)
-        Text(item.queuedTargetID == nil ? "Ready to queue" : "Queued for \(targetName)")
+        Text(itemStatus)
           .font(.caption)
           .foregroundStyle(.secondary)
       }
@@ -371,6 +371,15 @@ private struct ResultCard: View {
     .padding(10)
     .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 11))
     .accessibilityElement(children: .contain)
+  }
+
+  private var itemStatus: String {
+    switch item.loopStatus {
+    case .pending: "In queued loop"
+    case .active: "In active loop"
+    case .suspended: "In paused loop"
+    case nil: item.queuedTargetID == nil ? "Ready to queue" : "Queued for \(targetName)"
+    }
   }
 }
 

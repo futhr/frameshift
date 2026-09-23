@@ -1,6 +1,6 @@
 defmodule Frameshift.Diagnostics.Store do
   @moduledoc """
-  Read-only diagnostic projections and bounded rollup persistence.
+  Audit persistence, read projections, and bounded metric rollups.
 
   Called only by the library's single SQLite owner. This module does not own
   a connection or expose it to IPC clients.
@@ -11,6 +11,36 @@ defmodule Frameshift.Diagnostics.Store do
   @maximum_rows 20_000
 
   alias Frameshift.Diagnostics.Catalog
+  alias Frameshift.Digest
+
+  @doc "Writes a redacted audit fact under the caller's domain transaction."
+  @spec record_audit(pid(), String.t(), String.t() | nil, map()) :: :ok
+  def record_audit(connection, operation, subject_digest, details) do
+    correlation_id =
+      case Map.get(details, "commandId") || Map.get(details, "requestId") do
+        value when is_binary(value) -> Digest.sha256(value)
+        _ -> nil
+      end
+
+    Exqlite.query!(
+      connection,
+      """
+      INSERT INTO audit_entries(
+        operation, subject_digest, detail_json, occurred_at_ms, correlation_id, attempt_id
+      ) VALUES (?, ?, ?, ?, ?, ?)
+      """,
+      [
+        operation,
+        subject_digest,
+        details |> Map.take(@audit_detail_keys) |> RFC8785.encode!(),
+        System.os_time(:millisecond),
+        correlation_id,
+        Map.get(details, "attemptId")
+      ]
+    )
+
+    :ok
+  end
 
   @doc "Rejects malformed or unbounded metric batches before opening a write transaction."
   @spec validate_rollups(term()) :: :ok | {:error, :invalid_metric_batch}

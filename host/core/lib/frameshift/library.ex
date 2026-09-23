@@ -790,7 +790,10 @@ defmodule Frameshift.Library do
         )
       end
 
-      audit(connection, "master.imported", digest, %{"sourceKind" => source_kind})
+      DiagnosticsStore.record_audit(connection, "master.imported", digest, %{
+        "sourceKind" => source_kind
+      })
+
       :ok
     end)
     |> case do
@@ -861,7 +864,7 @@ defmodule Frameshift.Library do
         )
       end)
 
-      audit(connection, "recipe.registered", hash, %{"kind" => kind})
+      DiagnosticsStore.record_audit(connection, "recipe.registered", hash, %{"kind" => kind})
       hash
     end)
   end
@@ -938,7 +941,9 @@ defmodule Frameshift.Library do
             ]
           )
 
-          audit(connection, "artifact.registered", digest, %{"profileId" => attributes.profile_id})
+          DiagnosticsStore.record_audit(connection, "artifact.registered", digest, %{
+            "profileId" => attributes.profile_id
+          })
 
           :ok
         end)
@@ -1109,7 +1114,10 @@ defmodule Frameshift.Library do
 
     case inserted.rows do
       [[^command_id]] ->
-        audit(connection, "command.claimed", nil, %{"commandId" => command_id})
+        DiagnosticsStore.record_audit(connection, "command.claimed", nil, %{
+          "commandId" => command_id
+        })
+
         :execute
 
       [] ->
@@ -1193,7 +1201,7 @@ defmodule Frameshift.Library do
 
     case updated.rows do
       [[^command_id]] ->
-        audit(connection, "command.completed", nil, %{
+        DiagnosticsStore.record_audit(connection, "command.completed", nil, %{
           "commandId" => command_id,
           "kind" => status
         })
@@ -1283,7 +1291,7 @@ defmodule Frameshift.Library do
           ]
         )
 
-        audit(connection, "frame.paired", nil, %{
+        DiagnosticsStore.record_audit(connection, "frame.paired", nil, %{
           "frameId" => frame.frame_id,
           "thingId" => frame.thing_id
         })
@@ -1380,7 +1388,8 @@ defmodule Frameshift.Library do
           [frame_id]
         )
 
-        audit(connection, "frame.forgotten", nil, %{"frameId" => frame_id})
+        DiagnosticsStore.record_audit(connection, "frame.forgotten", nil, %{"frameId" => frame_id})
+
         :ok
       end)
 
@@ -1615,7 +1624,7 @@ defmodule Frameshift.Library do
             [frame_id, digest]
           )
 
-          audit(connection, "outbox.queued", digest, %{
+          DiagnosticsStore.record_audit(connection, "outbox.queued", digest, %{
             "frameId" => frame_id,
             "revision" => revision,
             "commandId" => command_id
@@ -1748,7 +1757,7 @@ defmodule Frameshift.Library do
 
         Exqlite.query!(connection, "DELETE FROM frame_outboxes WHERE frame_id = ?", [frame_id])
 
-        audit(connection, "outbox.acknowledged", digest, %{
+        DiagnosticsStore.record_audit(connection, "outbox.acknowledged", digest, %{
           "frameId" => frame_id,
           "commandId" => command_id
         })
@@ -1844,7 +1853,7 @@ defmodule Frameshift.Library do
           [frame_id, digest, profile_id, request_id, now_ms()]
         )
 
-        audit(connection, "direct.desired", digest, %{
+        DiagnosticsStore.record_audit(connection, "direct.desired", digest, %{
           "frameId" => frame_id,
           "requestId" => request_id
         })
@@ -1948,7 +1957,7 @@ defmodule Frameshift.Library do
           [now_ms(), frame_id]
         )
 
-        audit(connection, "direct.displayed", digest, %{
+        DiagnosticsStore.record_audit(connection, "direct.displayed", digest, %{
           "frameId" => frame_id,
           "requestId" => delivery["request_id"]
         })
@@ -2047,33 +2056,6 @@ defmodule Frameshift.Library do
         {:error, reason} -> {:halt, {:error, reason}}
       end
     end)
-  end
-
-  defp audit(connection, operation, subject_digest, details) do
-    correlation_id =
-      case Map.get(details, "commandId") || Map.get(details, "requestId") do
-        value when is_binary(value) -> Digest.sha256(value)
-        _ -> nil
-      end
-
-    redacted_details = Map.drop(details, ~w(commandId requestId frameId))
-
-    Exqlite.query!(
-      connection,
-      """
-      INSERT INTO audit_entries(
-        operation, subject_digest, detail_json, occurred_at_ms, correlation_id, attempt_id
-      ) VALUES (?, ?, ?, ?, ?, ?)
-      """,
-      [
-        operation,
-        subject_digest,
-        RFC8785.encode!(redacted_details),
-        now_ms(),
-        correlation_id,
-        Map.get(details, "attemptId")
-      ]
-    )
   end
 
   defp escape_like(value) do

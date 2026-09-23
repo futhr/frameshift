@@ -251,6 +251,33 @@ defmodule Frameshift.Library.Migrations do
     {9,
      [
        "CREATE UNIQUE INDEX paired_frames_server_spki_unique ON paired_frames(server_spki_fingerprint)"
+     ]},
+    {10,
+     [
+       """
+       CREATE TABLE qualified_bindings (
+         digest TEXT PRIMARY KEY CHECK (
+           length(digest) = 71 AND
+           substr(digest, 1, 7) = 'sha256:' AND
+           substr(digest, 8) NOT GLOB '*[^0-9a-f]*'
+         ),
+         frame_id TEXT NOT NULL,
+         profile_id TEXT NOT NULL,
+         manifest_json TEXT NOT NULL,
+         status TEXT NOT NULL CHECK (status IN ('candidate', 'admitted', 'retired')),
+         evidence_json TEXT,
+         created_at_ms INTEGER NOT NULL,
+         admitted_at_ms INTEGER
+       ) STRICT
+       """,
+       "CREATE INDEX qualified_bindings_frame ON qualified_bindings(frame_id, status)",
+       """
+       CREATE TABLE active_qualifications (
+         frame_id TEXT PRIMARY KEY REFERENCES paired_frames(frame_id) ON DELETE CASCADE,
+         binding_digest TEXT NOT NULL REFERENCES qualified_bindings(digest) ON DELETE RESTRICT,
+         activated_at_ms INTEGER NOT NULL
+       ) STRICT
+       """
      ]}
   ]
 

@@ -106,6 +106,7 @@ defmodule FrameshiftCore.MixProject do
           {"../../docs/architecture/system.md", title: "System architecture"},
           {"../../docs/architecture/host-core.md", title: "Portable host core"},
           {"../../docs/architecture/domain-map.md", title: "Host domain map"},
+          {"../../docs/architecture/qualified-generations.md", title: "Qualified generations"},
           {"../../docs/architecture/diagnostics.md", title: "Host diagnostics"},
           {"../../docs/architecture/frame-protocol.md", title: "Frame protocol"},
           {"../../docs/architecture/verification.md", title: "Verification map"},

@@ -16,6 +16,7 @@ defmodule Frameshift.Qualification.Identity do
   )
   @work_keys ~w(bindingDigest masterDigest recipeDigest schemaVersion)
   @result_keys ~w(artifactDigest byteCount mediaType schemaVersion workDigest)
+  @evidence_keys ~w(outcome schemaVersion scope suiteDigest)
 
   @type identity :: %{digest: String.t(), canonical_json: String.t(), document: map()}
 
@@ -83,6 +84,23 @@ defmodule Frameshift.Qualification.Identity do
       error -> error
     end
   end
+
+  @doc "Validates a bounded software conformance record before local admission."
+  @spec software_evidence(map()) :: {:ok, String.t()} | {:error, atom()}
+  def software_evidence(document) when is_map(document) do
+    with :ok <- exact_keys(document, @evidence_keys),
+         :ok <- version(document),
+         true <- document["scope"] == "software_reference",
+         true <- document["outcome"] == "passed",
+         true <- Digest.valid_sha256?(document["suiteDigest"]),
+         {:ok, canonical} <- RFC8785.encode(document) do
+      {:ok, canonical}
+    else
+      _ -> {:error, :invalid_qualification_evidence}
+    end
+  end
+
+  def software_evidence(_), do: {:error, :invalid_qualification_evidence}
 
   defp exact_keys(document, keys) do
     if Enum.sort(Map.keys(document)) == keys,

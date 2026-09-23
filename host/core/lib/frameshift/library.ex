@@ -16,6 +16,7 @@ defmodule Frameshift.Library do
   alias Frameshift.Library.Identity
   alias Frameshift.Library.Migrations
   alias Frameshift.Protocol.Schema
+  alias Frameshift.Qualification.Store, as: QualificationStore
 
   @type server :: GenServer.server()
   @type digest :: String.t()
@@ -186,6 +187,36 @@ defmodule Frameshift.Library do
   @spec forget_paired_frame(server(), String.t()) :: :ok | {:error, term()}
   def forget_paired_frame(server \\ __MODULE__, frame_id) do
     GenServer.call(server, {:forget_paired_frame, frame_id})
+  end
+
+  @doc "Registers a reusable qualification candidate for an exact paired frame contract."
+  @spec register_qualification(server(), map()) :: {:ok, digest()} | {:error, term()}
+  def register_qualification(server \\ __MODULE__, manifest) do
+    GenServer.call(server, {:register_qualification, manifest})
+  end
+
+  @doc "Admits a candidate against a bounded software conformance record."
+  @spec admit_qualification(server(), digest(), map()) :: :ok | {:error, term()}
+  def admit_qualification(server \\ __MODULE__, digest, evidence) do
+    GenServer.call(server, {:admit_qualification, digest, evidence})
+  end
+
+  @doc "Selects one admitted binding for future work on a frame."
+  @spec activate_qualification(server(), String.t(), digest()) :: :ok | {:error, term()}
+  def activate_qualification(server \\ __MODULE__, frame_id, digest) do
+    GenServer.call(server, {:activate_qualification, frame_id, digest})
+  end
+
+  @doc "Reads one durable qualification, including its admission status."
+  @spec get_qualification(server(), digest()) :: {:ok, map()} | :not_found
+  def get_qualification(server \\ __MODULE__, digest) do
+    GenServer.call(server, {:get_qualification, digest})
+  end
+
+  @doc "Reads the selected qualification for future work on one frame."
+  @spec active_qualification(server(), String.t()) :: {:ok, map()} | :not_found
+  def active_qualification(server \\ __MODULE__, frame_id) do
+    GenServer.call(server, {:active_qualification, frame_id})
   end
 
   @doc "Pins an active master so library collection cannot remove it."
@@ -488,6 +519,26 @@ defmodule Frameshift.Library do
 
   def handle_call({:forget_paired_frame, frame_id}, _, state) do
     {:reply, forget_paired_frame_record(state, frame_id), state}
+  end
+
+  def handle_call({:register_qualification, manifest}, _, state) do
+    {:reply, QualificationStore.register(state.connection, manifest), state}
+  end
+
+  def handle_call({:admit_qualification, digest, evidence}, _, state) do
+    {:reply, QualificationStore.admit(state.connection, digest, evidence), state}
+  end
+
+  def handle_call({:activate_qualification, frame_id, digest}, _, state) do
+    {:reply, QualificationStore.activate(state.connection, frame_id, digest), state}
+  end
+
+  def handle_call({:get_qualification, digest}, _, state) do
+    {:reply, QualificationStore.get(state.connection, digest), state}
+  end
+
+  def handle_call({:active_qualification, frame_id}, _, state) do
+    {:reply, QualificationStore.active(state.connection, frame_id), state}
   end
 
   def handle_call({:pin, digest}, _, state) do

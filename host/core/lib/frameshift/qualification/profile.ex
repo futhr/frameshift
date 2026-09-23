@@ -33,4 +33,28 @@ defmodule Frameshift.Qualification.Profile do
   end
 
   def digest(_, _), do: {:error, :unsupported_profile}
+
+  @doc "Identifies the exact admitted TD and connector revision used for one transfer mode."
+  @spec binding_digest(String.t(), String.t(), String.t()) ::
+          {:ok, String.t()} | {:error, :invalid_binding}
+  def binding_digest(td_json, mode, connector_revision)
+      when is_binary(td_json) and mode in ["push", "pull"] and
+             is_binary(connector_revision) and byte_size(connector_revision) in 1..128 do
+    if String.valid?(connector_revision),
+      do: encode_binding(td_json, mode, connector_revision),
+      else: {:error, :invalid_binding}
+  end
+
+  def binding_digest(_, _, _), do: {:error, :invalid_binding}
+
+  defp encode_binding(td_json, mode, connector_revision) do
+    case RFC8785.encode(%{
+           "thingDescriptionDigest" => Digest.sha256(td_json),
+           "transferMode" => mode,
+           "connectorRevision" => connector_revision
+         }) do
+      {:ok, canonical} -> {:ok, Digest.sha256(canonical)}
+      {:error, _} -> {:error, :invalid_binding}
+    end
+  end
 end

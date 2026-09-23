@@ -48,6 +48,7 @@ artwork digests, provider inputs, and network addresses are forbidden labels.
 | Metric family | Measurement | Source of truth |
 | --- | --- | --- |
 | Command | completed/replayed/unknown count and completion duration | IPC admission and durable receipt |
+| Qualification | candidate, admission, activation, cohort, work, and result decision counts by succeeded/refused outcome | Single SQLite writer after each qualification command |
 | Render | duration, cache hit, timeout, worker restart | Rendering job lifecycle |
 | Delivery | intent count, pending age, confirmation duration, retry/reconcile and unknown count | Durable Delivery state and frame confirmation |
 | Storage | transaction duration/busy result, object bytes, WAL bytes | SQLite owner and filesystem sampling |

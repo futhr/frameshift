@@ -24,8 +24,10 @@ Frameshift.app
   FrameshiftCore (Elixir/OTP per-user process)
        |-- metadata store
        |-- content-addressed files
+       |-- bounded metric collector and read-only diagnostics IPC
        |-- job/outbox supervisors
        |-- WoT Consumer/ExposedThing runtime + binding clients/servers
+       |-- supervised Apple unified-log bridge
        `-- frameshift-raster (supervised Zig executable)
 ```
 
@@ -97,6 +99,12 @@ import, and refreshed-snapshot round trips and reject missing or wrong tokens.
 
 The message schema includes no raw private key material. Large image bytes move
 through app-owned files/file descriptors rather than base64 JSON.
+
+The diagnostic CLI uses a separate read-only local transport and verifies the
+connecting peer and private socket directory. It never borrows the shell's
+in-memory mutation token. Health, metric rollups, and audit are paginated and
+size-limited; the CLI never opens the database. See the
+[diagnostics contract](../architecture/diagnostics.md).
 
 The implemented import boundary admits one still image with Image I/O, rejects
 multi-image containers and inputs above 128 MiB or 16,777,011 decoded pixels,
@@ -197,6 +205,8 @@ Cloud labeling is a separate explicit opt-in and is disabled by default.
   names a cloud provider.
 - Logs contain digests and typed operation IDs, not artwork bytes, prompts,
   tokens, bootstrap secrets, Wi-Fi credentials, or private filesystem paths.
+- The shell and core write operational logs to Apple unified logging for
+  Console.app and `/usr/bin/log`; persisted audit and metrics remain separate.
 - Imported metadata is parsed as untrusted input.
 - Frames can access only rendered outbox artifacts addressed to their identity,
   not the general host library.

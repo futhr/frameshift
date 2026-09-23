@@ -18,6 +18,9 @@ protocol branches.
 
 - [Product definition and completion contract](product-definition.md)
 - [System architecture](architecture/system.md)
+- [Portable host core](architecture/host-core.md)
+- [Host domain map](architecture/domain-map.md)
+- [Host diagnostics contract](architecture/diagnostics.md)
 - [Frame Protocol](architecture/frame-protocol.md)
 - [Capability model](architecture/capabilities.md)
 - [Content pipeline](architecture/content-pipeline.md)
@@ -46,6 +49,7 @@ protocol branches.
 - [Hardware platforms and power feasibility](research/hardware-platforms.md)
 - [Software stack](research/software-stack.md)
 - [SQLite and Elixir boundary](research/sqlite-elixir-boundary.md)
+- [Host diagnostics research](research/host-diagnostics.md)
 - [AI image generation](research/ai-image-generation.md)
 - [Protocol foundations](research/protocol-foundations.md)
 - [Prior art and libraries](research/prior-art-and-libraries.md)

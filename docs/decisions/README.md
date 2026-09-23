@@ -141,3 +141,29 @@ evidence, but it must change explicitly.
   display effects.
 - **Detail:** [Protocol foundations](../research/protocol-foundations.md) and
   [Universal Frame Protocol](../architecture/frame-protocol.md)
+
+## D-012 — Portable domain boundaries
+
+- **State:** accepted as a software design; platform qualification remains
+- **Decision:** Organize the host as a modular monolith with Library, Frames,
+  Delivery, Rendering, and Generation domain boundaries. Diagnostics supports
+  them all. Delivery owns desired, confirmed displayed, and previous-known-good
+  transitions; Frames exposes their read projection. One SQLite writer retains
+  the cross-boundary atomic invariants.
+- **Consequence:** A context is not a separate process, database, or generic
+  repository interface. Domain decisions are independent of storage and IPC
+  representations. D-010 remains in force while an Ecto candidate is measured.
+- **Detail:** [Host domain map](../architecture/domain-map.md)
+
+## D-013 — Local diagnostic signals and OS log readers
+
+- **State:** accepted as a software design; installed/platform evidence remains
+- **Decision:** Store audit facts with domain mutations, aggregate bounded
+  local metrics from named telemetry events, and send operational logs to
+  native OS logging. Console.app and `/usr/bin/log` are the macOS log readers;
+  a read-only authenticated CLI exposes health, metric rollups, and audit.
+- **Consequence:** Logs and metrics are not authoritative display state. The
+  Mac's privileged local log-store API is not an application diagnostic
+  dependency. No diagnostic UI or remote telemetry service is required.
+- **Detail:** [Diagnostics contract](../architecture/diagnostics.md) and
+  [host diagnostics research](../research/host-diagnostics.md)

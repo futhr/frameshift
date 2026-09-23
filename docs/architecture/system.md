@@ -7,8 +7,15 @@
 
 Frameshift turns a source or generated master into persistent physical artwork
 on displays with radically different color, power, and refresh behavior. The
-Mac performs expensive work. A frame performs only secure transfer, validation,
+host performs expensive work. A frame performs only secure transfer, validation,
 retention, scheduling, and its exact display update.
+
+The portable host core is specified in [Portable Host Core](host-core.md).
+macOS is the first shell; Linux and Raspberry Pi-class Linux hosts reuse the
+same core and frame semantics through platform adapters.
+The [domain map](domain-map.md) assigns host transition ownership. The
+[diagnostics contract](diagnostics.md) defines audit, logs, metrics, and
+read-only access independently of the shell UI.
 
 ## Topology
 
@@ -16,7 +23,7 @@ retention, scheduling, and its exact display update.
 User
   |
   v
-SwiftUI MenuBarExtra ─── Apple Vision / Core Image / Keychain
+Host shell ───────────── platform UI / media / credential adapters
   | local authenticated IPC
   v
 Elixir/OTP Core ─────── content-addressed library + metadata database
@@ -41,17 +48,20 @@ Elixir/OTP Core ─────── content-addressed library + metadata datab
 
 ## Component ownership
 
-### Swift shell
+### Host shell
 
-Owns presentation and Apple-only APIs: the menu-bar icon/popover, drag/drop,
-file import, Vision labels and similarity features, Keychain identity, native
-notifications, and MediaGenerationKit. It does not own durable domain state.
+Owns presentation and platform APIs. On macOS the Swift shell provides the
+menu-bar UI, file import, Vision, Keychain, native notifications, and optional
+MediaGenerationKit. A Linux shell provides its own adapters. Neither owns
+durable domain state.
 
 ### Elixir core
 
 Owns the library, generation recipes, render jobs, provider selection, frame
 registry, schedules, outboxes, synchronization, retries that are explicitly
-safe, and the audit trail. Its state survives the UI process.
+safe, the audit trail, and bounded metric rollups. Its state survives the UI
+process. Native operational logs remain readable through the host OS without
+opening the menu-bar UI.
 
 It also owns the Frameshift W3C WoT consumer/exposed-Thing policy: bounded TD
 and Thing Model admission, deterministic Form selection, authorization,
@@ -106,7 +116,8 @@ across transports. Loss of the host or network never blanks current artwork.
 3. `desiredAsset` and `currentAsset` are different states.
 4. `currentAsset` advances only after the display adapter reports success.
 5. The last current and previous-known-good assets cannot be garbage-collected.
-6. Provider credentials never leave the Mac.
+6. Provider credentials stay in the host's platform credential store and are
+   released only to the explicitly selected provider transport.
 7. A frame never fetches an arbitrary artwork URL supplied by another LAN peer.
 8. No hidden redirect, retry, model download, provider switch, or cloud upload.
 9. Still-image playlists switch discretely; there is no motion pipeline.
@@ -116,7 +127,7 @@ across transports. Loss of the host or network never blanks current artwork.
 
 | Failure | Required outcome |
 | --- | --- |
-| Mac sleeps or quits | Frame continues showing current artwork. |
+| Host sleeps or quits | Frame continues showing current artwork. |
 | Network disappears | Current artwork remains; pending work waits. |
 | Upload interrupted | Inactive temporary bytes are discarded or resumed; current is untouched. |
 | Digest mismatch | Candidate is rejected and never becomes desired/current. |
@@ -127,7 +138,7 @@ across transports. Loss of the host or network never blanks current artwork.
 
 ## Security boundary
 
-The Mac is trusted to create artwork for paired frames. The LAN is untrusted.
+The paired host is trusted to create artwork for frames. The LAN is untrusted.
 Discovery reveals minimal metadata; exploration and all mutations require a
 paired identity. The frame verifies content size, type, digest, dimensions,
 profile, and authorization before storage or activation.

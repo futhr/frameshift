@@ -29,13 +29,24 @@ or Linux hardware inside a frame.
 ### H1 — Library core
 
 - OTP application and supervision tree;
-- content-addressed store and metadata migrations;
+- portable domain boundaries and platform adapter contracts from
+  [Portable Host Core](host-core.md);
+- content-addressed store and direct Exqlite/SQLite metadata migrations under
+  D-010; measure Ecto as a candidate before changing the persistence boundary;
 - import, pin, recoverable remove, labels, and search;
 - immutable recipe/variant relationships;
+- single-writer transactions, replay receipts, atomic audit writes, and
+  read-only paginated diagnostics through authenticated local IPC;
+- named telemetry events, bounded persistent metric rollups, native macOS
+  unified logging and Linux logging adapters, and a diagnostic CLI;
 - test-only CLI or local harness.
 
 **Exit:** crash and restart preserve committed masters; identical recipes reuse
-cache; removal cannot collect referenced/pinned content.
+cache; removal cannot collect referenced/pinned content; Mac and Linux/Pi host
+contract tests preserve the same domain and protocol behavior. A failed update
+is reconstructable from command through display confirmation or pending state
+without opening the UI or exposing secrets. Metric and log storage bounds are
+measured on both host platforms.
 
 ### H2 — Deterministic renderer
 

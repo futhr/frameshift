@@ -2,14 +2,15 @@
 
 **Research date:** 2026-09-22
 
-**Outcome:** use Elixir/OTP on the Mac, a thin SwiftUI shell, and isolated Zig
-executables/firmware. Nerves is optional outside the physical frame, not its
-default runtime. Do not use Membrane. Do not add Python.
+**Outcome:** use a portable Elixir/OTP host core, a thin SwiftUI shell on macOS,
+and isolated Zig executables/firmware. Linux and Raspberry Pi-class Linux hosts
+use platform adapters around the same core. Nerves is optional for Linux-based
+roles, not the MCU frame's default runtime. Do not use Membrane or Python.
 
 ## Recommended topology
 
 ```text
-macOS menu-bar app (SwiftUI)
+macOS menu-bar app (SwiftUI; first host shell)
   | Apple APIs: MenuBarExtra, Vision, Core Image, Keychain, ServiceManagement
   | local authenticated IPC
   v
@@ -34,14 +35,17 @@ Thin Frame Agent (MCU-class; Zig reference direction)
 
 This is one product with explicit process boundaries, not a collection of
 microservices. The boundaries isolate native crashes, protect secrets, and let
-the Swift shell restart without interrupting queued work.
+the platform shell restart without interrupting queued work.
+On Linux, a native shell and platform adapters replace Apple-only facilities;
+the core, renderer wire contract, and frame protocol remain shared.
 
 ## Elixir/OTP host core
 
 Elixir owns state machines, supervision, job cancellation, bounded concurrency,
-frame coordination, and protocol semantics. The first implementation should be
-an OTP release run as a per-user process. It should expose only a local Unix
-domain socket to the Swift shell; it must not open a general LAN control port.
+frame coordination, and protocol semantics. The first implementation is an OTP
+release run as a per-user process. It exposes a local Unix domain socket to the
+Mac shell. Linux hosts retain the authenticated local boundary; the host must
+not open a general LAN control port.
 
 Selected libraries and bounded candidates are tracked independently:
 
@@ -51,7 +55,7 @@ Selected libraries and bounded candidates are tracked independently:
 | WoT HTTP mapping | Pinned `wotex_binding_http` plus a Frameshift-owned client | JSON Property/Action and SSE mapping only. It is not the binary artifact binding, TLS policy, HTTP server, or physical-effect proof. |
 | HTTP client | `Mint` one-shot connections | Keep client certificates and keys inside one caller-owned callback; resolve and authorize every destination, disable pooling/proxies/redirects/retries, pin the frame SPKI, and enforce an absolute operation deadline plus incremental response bounds. |
 | HTTP server for simulator/optional Nerves bridge | `Plug` + `Bandit` | Small explicit router; not a dependency of MCU firmware. |
-| Metadata database | `Exqlite`/SQLite | Host only; single owning process and migrations. A native upstream dependency is acceptable, but custom native code remains Zig. |
+| Metadata database | Direct Exqlite/SQLite under D-010; Ecto + `ecto_sqlite3` remains a measured candidate | Host only; one writer, durable transactions, database-enforced invariants, and content-store reconciliation. An Ecto adoption must explicitly supersede D-010; see the [portable host core](../architecture/host-core.md). |
 | Host JSON | `Jason` or OTP-native equivalent available at implementation time | Bounded decode; reject duplicate/unknown required fields; preserve TD extensions. MCU parsing is a separate Zig selection. |
 | Discovery | macOS Network framework/Bonjour through Swift; `mdns_lite` on Nerves | Advertise only the privacy-minimal introduction record. |
 
@@ -73,6 +77,9 @@ restarted without loading native code into the BEAM. See the current [Mint docum
 [Elixir Port documentation](https://elixir.hexdocs.pm/Port.html).
 
 ### Host persistence
+
+The normative domain boundaries, persistence choice, platform ports, and
+qualification gates are in [Portable Host Core](../architecture/host-core.md).
 
 The database stores metadata, never the only copy of artwork bytes. Masters and
 derivatives live in a content-addressed directory. Database rows point to
@@ -173,7 +180,7 @@ It submits commands and subscribes to snapshots from the Elixir core.
 
 Custom native code is Zig. Two distinct artifacts are anticipated:
 
-1. `frameshift-raster`, a macOS executable that accepts a length-framed binary
+1. `frameshift-raster`, a host-platform executable that accepts a length-framed binary
    protocol on stdin/stdout and never receives credentials;
 2. frame firmware, including a non-Raspberry timed-parallel/DMA Pixel
    controller if a validation spike proves its Zig toolchain, networking,

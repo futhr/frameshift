@@ -40,7 +40,11 @@ core and sends commands; it does not create a second source of truth.
 The packaged app runs as a menu-bar agent. Its dropdown is the sole shell
 control surface and remains available after it is dismissed. The selected
 white perspective-frame mark appears on a navy Finder tile in both system
-appearances, with a monochrome silhouette in the menu bar.
+appearances, with a monochrome silhouette in the menu bar. A small labeled
+power control in the dropdown header and Command-Q quit the agent and its
+bundled core; relaunch reads the durable library again. The header repeats the
+selected mark beside the name, while a native behind-window material gives the
+dropdown a translucent backdrop that follows macOS accessibility settings.
 
 ### Elixir core
 

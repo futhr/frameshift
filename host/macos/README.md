@@ -8,7 +8,10 @@ remain owned by the bundled Elixir core.
 The packaged app runs as a menu-bar agent. The dropdown is its only control
 surface; dismissing it leaves the process and bundled core running. Its Finder
 icon uses the selected white perspective-frame mark on navy, and the menu bar
-uses the matching monochrome silhouette.
+uses the matching monochrome silhouette. The labeled power icon in the
+dropdown header and Command-Q quit the agent and its bundled core.
+The dropdown header also shows the approved Finder mark; its translucent
+backdrop uses a native macOS visual-effect material.
 `scripts/build-macos-icons` generates the packaged `.icns` and menu-bar PNG
 resources from the committed SVG sources.
 

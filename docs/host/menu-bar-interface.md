@@ -14,10 +14,9 @@ Frameshift is a quiet menu-bar utility, not a dashboard. The primary flow is:
 open -> choose frame -> describe or choose image -> generate/render -> send
 ```
 
-The macOS app has a Dock presence. Opening it from the Dock presents the same
-authoritative artwork and frame controls as the menu-bar entry. The navy and
-white mark appears in the Dock and its unboxed silhouette appears in the menu
-bar.
+The packaged macOS app runs as a menu-bar agent. Its dropdown is the sole
+control surface and stays available after dismissal. The navy and white mark
+appears in Finder, and its unboxed silhouette appears in the menu bar.
 
 Advanced provider, model, storage, pairing, and hardware details live in
 Settings. The popover shows only information needed to choose artwork and know
@@ -30,6 +29,9 @@ whether it reached the selected frame.
   20 points; keep the menu-bar rendering unboxed.
 - Accessibility label: “Frameshift.”
 - Primary click toggles the window-style popover.
+- A small, keyboard-focusable power icon in the dropdown header quits the app.
+  Its help text and accessibility label say “Quit Frameshift”; Command-Q also
+  works while the dropdown has focus. Quitting stops the bundled core.
 - No animated menu-bar icon. Busy state uses a subtle static badge/dot or text
   inside the popover.
 
@@ -41,10 +43,15 @@ Apple explicitly positions window style for richer popover-like content:
 
 Target a compact width in the 360–420 point range and let content scroll before
 growing into a large editor.
+The approved Finder mark sits beside the app name and short purpose line at the
+top, with the labeled Quit icon opposite it. The backdrop uses an active native
+behind-window material so desktop color shows through; system Reduce
+Transparency may make it opaque. Cards use a lighter material while retaining
+text contrast.
 
 ```text
 ┌──────────────────────────────────────┐
-│ Paper — Hallway               status │
+│ Paper — Hallway             status ⏻ │
 │                                      │
 │ What should this frame show?         │
 │ ┌──────────────────────────────────┐ │
@@ -59,7 +66,7 @@ growing into a large editor.
 │ └─────────┘ └─────────┘ └─────────┘ │
 │                                      │
 │ Waiting for next contact · 18:00     │
-│ Settings…                       Quit │
+│ Settings…                         │
 └──────────────────────────────────────┘
 ```
 
@@ -76,8 +83,9 @@ expected contact rather than an alarm-colored offline state.
 
 One native multiline text editor accepts the user's generation/edit
 instruction, including Return-delimited paragraphs. It has a visible
-placeholder when empty, a bounded height with internal scrolling, and an
-accessible label. Saving preserves embedded newlines. The selected display
+placeholder aligned with the insertion text inset when empty, a bounded height
+with internal scrolling and an accessible label. Saving preserves embedded
+newlines. The selected display
 profile contributes a versioned base instruction. A small
 “Paper recipe,” “Photo recipe,” or “Pixel recipe” disclosure opens the full
 effective instruction and allows advanced override; it does not clutter the
@@ -90,6 +98,8 @@ never blocks normal image import/render.
 ### Image source and search
 
 - **Image** opens file/photo selection and accepts drag/drop or paste.
+- Import and save controls use flat native buttons with clear photo-add and
+  checkmark symbols; labels remain visible alongside their symbols.
 - **Library** reveals a single search field and recent/pinned results.
 - Search matches titles, user labels, local Vision labels, selected frame,
   source/provider, and pinned state.
@@ -102,6 +112,9 @@ or machine labels remain editable in the full library/settings view.
 ### Result strip/grid
 
 Each card is one immutable master or generated variant with a target preview.
+The library results own the remaining dropdown height and scroll independently
+when cards exceed it; the target and instruction controls stay visible. An
+unpaired target reads “No frame paired” beneath the Target heading.
 The card exposes exactly three compact actions:
 
 | Symbol | Action | Behavior |
@@ -173,5 +186,7 @@ Settings contains:
 4. Queue one still for each configured frame class without exposing
    video/animation controls.
 5. Complete every action with keyboard and VoiceOver.
-6. Understand whether bytes are queued, transferred, refreshing, or physically
+6. Quit from the dropdown or Command-Q, observe the bundled core stop, and
+   relaunch the menu-bar agent without losing durable artwork.
+7. Understand whether bytes are queued, transferred, refreshing, or physically
    displayed from the compact status alone.

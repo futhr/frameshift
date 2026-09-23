@@ -62,12 +62,17 @@ private struct AppIconAppearance: ViewModifier {
 }
 
 @MainActor
-private enum AppIcon {
-  static func apply(_ appearance: ColorScheme) {
+enum AppIcon {
+  static func image(for appearance: ColorScheme) -> NSImage? {
     let name = appearance == .dark ? "FrameshiftDark" : "FrameshiftLight"
     guard let url = Bundle.main.url(forResource: name, withExtension: "icns"),
       let image = NSImage(contentsOf: url)
-    else { return }
+    else { return nil }
+    return image
+  }
+
+  static func apply(_ appearance: ColorScheme) {
+    guard let image = image(for: appearance) else { return }
     NSApplication.shared.applicationIconImage = image
   }
 }
@@ -84,7 +89,7 @@ private final class FrameshiftAppDelegate: NSObject, NSApplicationDelegate {
   func applicationWillTerminate(_ notification: Notification) {
     _ = notification
     let stopped = DispatchSemaphore(value: 0)
-    Task {
+    Task.detached {
       await LocalCoreClient.shutdownBundledCore()
       stopped.signal()
     }

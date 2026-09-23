@@ -4,6 +4,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct FrameshiftPanel: View {
+  @Environment(\.colorScheme) private var colorScheme
   let model: ShellModel
 
   var body: some View {
@@ -17,6 +18,7 @@ struct FrameshiftPanel: View {
     }
     .padding(16)
     .frame(width: 420, height: 560)
+    .background(MenuBackdrop())
     .task { await model.refresh() }
     .alert(
       "Frameshift could not complete that action",
@@ -32,12 +34,38 @@ struct FrameshiftPanel: View {
   }
 
   private var header: some View {
-    VStack(alignment: .leading, spacing: 2) {
-      Text("Frameshift")
-        .font(.title2.weight(.semibold))
-      Text("Still artwork, prepared for one frame")
-        .font(.caption)
-        .foregroundStyle(.secondary)
+    HStack(alignment: .top) {
+      if let icon = AppIcon.image(for: colorScheme) {
+        Image(nsImage: icon)
+          .resizable()
+          .interpolation(.high)
+          .frame(width: 38, height: 38)
+          .clipShape(RoundedRectangle(cornerRadius: 9))
+          .accessibilityHidden(true)
+      }
+
+      VStack(alignment: .leading, spacing: 2) {
+        Text("Frameshift")
+          .font(.title2.weight(.semibold))
+        Text("Still artwork, prepared for one frame")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
+
+      Spacer()
+
+      Button {
+        NSApplication.shared.terminate(nil)
+      } label: {
+        Image(systemName: "power")
+          .frame(width: 28, height: 28)
+      }
+      .buttonStyle(.plain)
+      .foregroundStyle(.secondary)
+      .help("Quit Frameshift")
+      .accessibilityLabel("Quit Frameshift")
+      .accessibilityIdentifier("quit-app")
+      .keyboardShortcut("q", modifiers: .command)
     }
   }
 
@@ -61,7 +89,7 @@ struct FrameshiftPanel: View {
         .labelsHidden()
         .accessibilityIdentifier("target-picker")
       } else {
-        LabeledContent("Frame", value: "No paired frame")
+        Text("No frame paired")
           .foregroundStyle(.secondary)
       }
       if model.snapshot.selectedTarget?.directDelivery?.status == .pending {
@@ -107,9 +135,10 @@ struct FrameshiftPanel: View {
 
         if model.draftInstruction.isEmpty {
           Text("Describe the still image you want to prepare")
+            .font(.body)
             .foregroundStyle(.tertiary)
             .padding(.leading, 10)
-            .padding(.top, 8)
+            .padding(.top, 1)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
         }
@@ -128,13 +157,17 @@ struct FrameshiftPanel: View {
       Button {
         chooseImage()
       } label: {
-        Label("Import image", systemImage: "square.and.arrow.down")
+        Label("Import image", systemImage: "photo.badge.plus")
       }
+      .buttonStyle(FlatActionButtonStyle())
       .keyboardShortcut("i", modifiers: .command)
 
-      Button("Save instruction") {
+      Button {
         Task { await model.saveInstruction() }
+      } label: {
+        Label("Save instruction", systemImage: "checkmark")
       }
+      .buttonStyle(FlatActionButtonStyle())
       .disabled(model.isBusy)
 
       Spacer()
@@ -197,6 +230,9 @@ struct FrameshiftPanel: View {
           }
         }
       }
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .scrollIndicators(.visible)
+      .accessibilityIdentifier("library-scroll-view")
     }
   }
 }
@@ -259,7 +295,41 @@ private struct ResultCard: View {
       }
     }
     .padding(10)
-    .background(.background.secondary, in: RoundedRectangle(cornerRadius: 11))
+    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 11))
     .accessibilityElement(children: .contain)
+  }
+}
+
+private struct MenuBackdrop: NSViewRepresentable {
+  func makeNSView(context: Context) -> NSVisualEffectView {
+    let view = TransparentEffectView()
+    view.material = .popover
+    view.blendingMode = .behindWindow
+    view.state = .active
+    return view
+  }
+
+  func updateNSView(_ view: NSVisualEffectView, context: Context) {}
+}
+
+private final class TransparentEffectView: NSVisualEffectView {
+  override func viewDidMoveToWindow() {
+    super.viewDidMoveToWindow()
+    window?.isOpaque = false
+    window?.backgroundColor = .clear
+  }
+}
+
+private struct FlatActionButtonStyle: ButtonStyle {
+  func makeBody(configuration: Configuration) -> some View {
+    configuration.label
+      .font(.callout.weight(.medium))
+      .padding(.horizontal, 10)
+      .padding(.vertical, 7)
+      .background(
+        .primary.opacity(configuration.isPressed ? 0.12 : 0.05),
+        in: RoundedRectangle(cornerRadius: 7)
+      )
+      .contentShape(RoundedRectangle(cornerRadius: 7))
   }
 }

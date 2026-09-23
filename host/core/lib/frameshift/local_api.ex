@@ -344,7 +344,7 @@ defmodule Frameshift.LocalAPI do
       else: targets |> List.first() |> then(&if(&1, do: &1["id"], else: nil))
   end
 
-  defp default_status([]), do: "Core connected • no paired frame"
+  defp default_status([]), do: "Core connected • library ready"
   defp default_status(_), do: "Core connected • paired frames ready"
 
   defp selected_profile_id(capabilities) do

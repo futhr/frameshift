@@ -16,6 +16,7 @@ defmodule Frameshift.Library do
   alias Frameshift.Library.Identity
   alias Frameshift.Library.Migrations
   alias Frameshift.Library.Writer
+  alias Frameshift.Playlist.Store, as: PlaylistStore
   alias Frameshift.Protocol.Schema
   alias Frameshift.Qualification.Store, as: QualificationStore
   alias Frameshift.Qualification.WorkStore
@@ -126,6 +127,12 @@ defmodule Frameshift.Library do
   @spec search(server(), String.t(), keyword()) :: [map()]
   def search(server \\ __MODULE__, query, options \\ []) do
     GenServer.call(server, {:search, query, options})
+  end
+
+  @doc "Lists active pinned masters in stable pin order, with an explicit caller bound."
+  @spec list_pinned_masters(server(), pos_integer()) :: [map()]
+  def list_pinned_masters(server \\ __MODULE__, limit) do
+    GenServer.call(server, {:list_pinned_masters, limit})
   end
 
   @doc "Reads a durable local setting by key."
@@ -341,6 +348,42 @@ defmodule Frameshift.Library do
     GenServer.call(server, {:outbox_manifest, frame_id})
   end
 
+  @doc "Queues a complete pre-rendered still playlist and its outbox manifest atomically."
+  @spec queue_playlist(server(), String.t(), String.t(), map(), [map()], String.t() | nil) ::
+          {:ok, map()} | {:error, term()}
+  def queue_playlist(
+        server \\ __MODULE__,
+        frame_id,
+        profile_id,
+        playlist,
+        entries,
+        command_id \\ nil
+      ) do
+    GenServer.call(
+      server,
+      {:queue_playlist, frame_id, profile_id, playlist, entries, command_id},
+      :infinity
+    )
+  end
+
+  @doc "Returns the exact current pending playlist for a paired outbox caller."
+  @spec outbox_playlist(server(), String.t(), String.t()) :: {:ok, binary()} | :not_found
+  def outbox_playlist(server \\ __MODULE__, frame_id, revision) do
+    GenServer.call(server, {:outbox_playlist, frame_id, revision})
+  end
+
+  @doc "Checks whether the current pending playlist authorizes a cached artifact pull."
+  @spec outbox_playlist_asset?(server(), String.t(), String.t()) :: boolean()
+  def outbox_playlist_asset?(server \\ __MODULE__, frame_id, digest) do
+    GenServer.call(server, {:outbox_playlist_asset?, frame_id, digest})
+  end
+
+  @doc "Returns pending, active, or suspended loop status for one paired frame."
+  @spec frame_playlist_status(server(), String.t()) :: map() | nil
+  def frame_playlist_status(server \\ __MODULE__, frame_id) do
+    GenServer.call(server, {:frame_playlist_status, frame_id})
+  end
+
   @doc "Checks a frame acknowledgement and advances retained references only on a match."
   @spec acknowledge_outbox(server(), String.t(), map()) ::
           :ok | {:ok, :pending} | {:error, term()}
@@ -551,6 +594,28 @@ defmodule Frameshift.Library do
     {:reply, search_records(state, query, options), state}
   end
 
+  def handle_call({:list_pinned_masters, limit}, _, state)
+      when is_integer(limit) and limit in 1..10_000 do
+    sql = """
+    SELECT m.digest FROM pins p JOIN masters m ON m.digest = p.object_digest
+    WHERE m.removed_at_ms IS NULL
+    ORDER BY p.pinned_at_ms, m.digest LIMIT ?
+    """
+
+    masters =
+      state.connection
+      |> Exqlite.query!(sql, [limit])
+      |> Map.fetch!(:rows)
+      |> Enum.map(fn [digest] ->
+        {:ok, master} = get_master_record(state, digest)
+        master
+      end)
+
+    {:reply, masters, state}
+  end
+
+  def handle_call({:list_pinned_masters, _}, _, state), do: {:reply, [], state}
+
   def handle_call({:get_setting, key}, _, state) do
     {:reply, get_setting_record(state, key), state}
   end
@@ -755,6 +820,35 @@ defmodule Frameshift.Library do
 
   def handle_call({:outbox_manifest, frame_id}, _, state) do
     {:reply, outbox_manifest_record(state, frame_id), state}
+  end
+
+  def handle_call(
+        {:queue_playlist, frame_id, profile_id, playlist, entries, command_id},
+        _,
+        state
+      ) do
+    result =
+      case get_paired_frame_record(state, frame_id) do
+        {:ok, frame} ->
+          PlaylistStore.queue(state.connection, frame, profile_id, playlist, entries, command_id)
+
+        :not_found ->
+          {:error, :frame_not_paired}
+      end
+
+    {:reply, result, state}
+  end
+
+  def handle_call({:outbox_playlist, frame_id, revision}, _, state) do
+    {:reply, PlaylistStore.pending_body(state.connection, frame_id, revision), state}
+  end
+
+  def handle_call({:outbox_playlist_asset?, frame_id, digest}, _, state) do
+    {:reply, PlaylistStore.pending_asset?(state.connection, frame_id, digest), state}
+  end
+
+  def handle_call({:frame_playlist_status, frame_id}, _, state) do
+    {:reply, PlaylistStore.status(state.connection, frame_id), state}
   end
 
   def handle_call({:acknowledge_outbox, frame_id, acknowledgement}, _, state) do
@@ -1839,6 +1933,7 @@ defmodule Frameshift.Library do
            ) do
       result =
         transaction(state.connection, fn connection ->
+          PlaylistStore.cancel_pending(connection, frame_id)
           revision = next_outbox_revision(connection, frame_id)
 
           Exqlite.query!(
@@ -1979,6 +2074,21 @@ defmodule Frameshift.Library do
   defp commit_outbox_acknowledgement(state, frame_id, manifest) do
     digest = manifest["desiredAsset"]
 
+    with :ok <- require_pending_playlist(state.connection, frame_id, manifest) do
+      do_commit_outbox_acknowledgement(state, frame_id, manifest, digest)
+    end
+  end
+
+  defp require_pending_playlist(_, _, %{"playlistRevision" => nil}), do: :ok
+
+  defp require_pending_playlist(connection, frame_id, %{"playlistRevision" => revision}) do
+    case PlaylistStore.pending_body(connection, frame_id, revision) do
+      {:ok, _} -> :ok
+      :not_found -> {:error, :playlist_missing}
+    end
+  end
+
+  defp do_commit_outbox_acknowledgement(state, frame_id, manifest, digest) do
     result =
       transaction(state.connection, fn connection ->
         {:ok, custody} =
@@ -2026,6 +2136,12 @@ defmodule Frameshift.Library do
           """,
           [frame_id, digest, custody["work_digest"], custody["qualification_digest"]]
         )
+
+        if manifest["playlistRevision"] do
+          :ok = PlaylistStore.confirm(connection, frame_id, manifest["playlistRevision"])
+        else
+          :ok = PlaylistStore.suspend(connection, frame_id)
+        end
 
         Exqlite.query!(connection, "DELETE FROM frame_outboxes WHERE frame_id = ?", [frame_id])
 

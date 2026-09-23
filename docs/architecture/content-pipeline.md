@@ -128,6 +128,12 @@ The frame, not the host, advances cached artwork at a confirmed-display-based
 deadline. [Display timing](display-timing.md) defines the pinned-artwork loop,
 energy evidence, and failure behavior.
 
+The implemented host command snapshots pinned masters, renders exact artifacts,
+checks capacity, and writes a complete pull playlist with protected references.
+The receiver fetches the body and all missing assets before the first display
+acknowledgement activates the revision. Physical persistence and RTC behavior
+still require validation on exact frame hardware.
+
 ## Cache behavior
 
 - Identical work digests reuse existing artifacts after exact byte verification.

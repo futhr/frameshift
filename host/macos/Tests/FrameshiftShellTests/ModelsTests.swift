@@ -57,6 +57,24 @@ struct ModelsTests {
     #expect(decoded.id == id)
   }
 
+  @Test("Profile timing and pending loop survive the core snapshot boundary")
+  func playlistSnapshotRoundTrip() throws {
+    let source = Data(
+      """
+      {"targets":[{"id":"paper-1","name":"Hallway","medium":"paper","profileID":"paper-v1","state":"waitingForContact","minimumDwellMs":180000,"recommendedDwellMs":21600000,"recommendationBasis":"provisional-profile","recommendationRevision":"frameshift-paper-e6-v1","playlist":{"status":"pending","revision":"sha256:fixture","entryCount":2,"dwellMs":21600000}}],"selectedTargetID":"paper-1","instruction":"","items":[],"generationAvailability":"notConfigured","statusMessage":"Waiting for frame"}
+      """.utf8
+    )
+
+    let snapshot = try JSONDecoder().decode(CoreSnapshot.self, from: source)
+    #expect(snapshot.selectedTarget?.minimumDwellMs == 180_000)
+    #expect(snapshot.selectedTarget?.recommendedDwellMs == 21_600_000)
+    #expect(snapshot.selectedTarget?.playlist?.status == .pending)
+
+    let command = CoreCommand(kind: .loopPinned, targetID: "paper-1", dwellMs: 21_600_000)
+    let decoded = try JSONDecoder().decode(CoreCommand.self, from: JSONEncoder().encode(command))
+    #expect(decoded == command)
+  }
+
   @Test("Disconnected state never invents device or generation availability")
   func disconnectedState() {
     let snapshot = CoreSnapshot.disconnected

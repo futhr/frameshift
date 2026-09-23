@@ -140,6 +140,64 @@ defmodule Frameshift.RenderPipelineTest do
     assert :ok = Library.acknowledge_outbox(context.library, @frame_id, acknowledgement)
   end
 
+  test "an explicit pinned-loop command renders a still and queues a durable playlist", context do
+    {:ok, package} = MasterPackage.encode(@original, @rgba, 2, 1)
+    {:ok, master} = Library.import_master(context.library, package, master_attributes())
+    :ok = Library.pin(context.library, master["digest"])
+
+    assert {:ok, _} =
+             Library.register_paired_frame(
+               context.library,
+               thing_description(),
+               "keychain:pipeline-frame",
+               "sha256:" <> String.duplicate("d", 64)
+             )
+
+    command = %{
+      "id" => "pinned-loop-test",
+      "kind" => "loopPinned",
+      "targetID" => @frame_id,
+      "dwellMs" => 1_000
+    }
+
+    assert {:ok, snapshot} =
+             LocalAPI.execute_with_renderer(context.library, context.renderer, command)
+
+    assert [%{"playlist" => %{"status" => "pending", "entryCount" => 1}}] = snapshot["targets"]
+    assert {:ok, manifest} = Library.outbox_manifest(context.library, @frame_id)
+    assert is_binary(manifest["playlistRevision"])
+
+    assert {:ok, body} =
+             Library.outbox_playlist(context.library, @frame_id, manifest["playlistRevision"])
+
+    {:ok, document} = RFC8785.decode(body)
+    assert document["entries"] == [%{"assetDigest" => Digest.sha256(@rgb), "dwellMs" => 1_000}]
+  end
+
+  test "a missing interval fails before pinned artwork is rendered", context do
+    {:ok, package} = MasterPackage.encode(@original, @rgba, 2, 1)
+    {:ok, master} = Library.import_master(context.library, package, master_attributes())
+    :ok = Library.pin(context.library, master["digest"])
+
+    assert {:ok, _} =
+             Library.register_paired_frame(
+               context.library,
+               thing_description(),
+               "keychain:pipeline-frame",
+               "sha256:" <> String.duplicate("d", 64)
+             )
+
+    GenServer.stop(context.renderer)
+
+    assert {:error, :interval_required} =
+             LocalAPI.execute_with_renderer(context.library, context.renderer, %{
+               "kind" => "loopPinned",
+               "targetID" => @frame_id
+             })
+
+    assert :empty = Library.outbox_manifest(context.library, @frame_id)
+  end
+
   test "metadata that disagrees with the durable canonical representation is rejected", context do
     {:ok, package} = MasterPackage.encode(@original, @rgba, 2, 1)
     {:ok, master} = Library.import_master(context.library, package, master_attributes())

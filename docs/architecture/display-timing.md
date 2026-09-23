@@ -56,6 +56,17 @@ under its single writer. A sleeping frame fetches the playlist body by revision
 at contact after all assets, verifies it, and acknowledges installation; a
 manifest containing only a revision is not sufficient to execute a loop.
 
+The host outbox persists and serves a complete playlist created from rendered
+artifacts. It protects active and pending references through replacement and
+activates only after a matching first-display acknowledgement. The menu's
+explicit **Loop pins** action snapshots the ordered pin set, renders each
+master for the selected profile, and submits this transaction. A single-image
+send supersedes a pending playlist or suspends an active one when confirmed.
+The compact menu currently offers fixed intervals above the receiver minimum;
+review and reordering of the included set, per-frame interval persistence,
+resume, and profile-change warnings remain implementation work. Physical RTC
+and whole-frame energy qualification remain hardware release gates.
+
 ## Receiver clock and failure behavior
 
 The receiver owns relative dwell timing and cycles cached stills even when the

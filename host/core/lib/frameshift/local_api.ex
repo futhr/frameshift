@@ -11,6 +11,7 @@ defmodule Frameshift.LocalAPI do
   alias Frameshift.DirectDelivery
   alias Frameshift.Library
   alias Frameshift.MasterPackage
+  alias Frameshift.Playlist.Plan
   alias Frameshift.Renderer
   alias Frameshift.Renderer.Protocol, as: RendererProtocol
   alias Frameshift.RenderPipeline
@@ -22,6 +23,7 @@ defmodule Frameshift.LocalAPI do
   @maximum_pixels RendererProtocol.maximum_source_pixels()
   @instruction_key "generation.instruction"
   @selected_target_key "frame.selected"
+  @maximum_loop_items 64
 
   @type result :: {:ok, map()} | {:error, atom()}
 
@@ -61,6 +63,7 @@ defmodule Frameshift.LocalAPI do
     with :ok <- validate_command_shape(command) do
       case command do
         %{"kind" => "queue"} -> do_queue(library, renderer, command, options)
+        %{"kind" => "loopPinned"} -> do_loop_pinned(library, renderer, command)
         %{"kind" => "reconcileDelivery"} -> do_reconcile_delivery(library, command, options)
         _ -> do_execute(library, command)
       end
@@ -186,6 +189,93 @@ defmodule Frameshift.LocalAPI do
 
   defp do_queue(_, _, _, _), do: {:error, :invalid_command}
 
+  defp do_loop_pinned(library, renderer, %{"targetID" => target_id} = command)
+       when is_binary(target_id) do
+    with {:ok, frame} <- fetch_target(library, target_id),
+         :ok <- require_pull_loop(frame),
+         {:ok, binding} <- queue_binding(library, target_id),
+         :ok <- require_pull_binding(binding),
+         {:ok, pinned} <- pinned_for_loop(library, frame),
+         {:ok, _, _, _} <- Plan.resolve_dwell(frame["capabilities"], Map.get(command, "dwellMs")),
+         {:ok, rendered} <- render_pinned(library, renderer, frame, binding, pinned),
+         {:ok, plan} <-
+           Plan.build(
+             frame["capabilities"],
+             Enum.map(rendered, & &1["artifactDigest"]),
+             Map.get(command, "dwellMs")
+           ),
+         {:ok, _} <-
+           Library.queue_playlist(
+             library,
+             target_id,
+             binding_profile_id(binding) || selected_profile_id(frame["capabilities"]),
+             plan.playlist,
+             rendered,
+             Map.get(command, "id")
+           ) do
+      {:ok, snapshot(library, "Pinned artwork loop queued for #{frame["title"]}")}
+    else
+      {:error, reason} -> {:error, normalize_queue_error(reason)}
+    end
+  end
+
+  defp do_loop_pinned(_, _, _), do: {:error, :invalid_command}
+
+  defp require_pull_loop(%{"capabilities" => %{"transferModes" => modes}}) do
+    if "pull" in modes, do: :ok, else: {:error, :pull_not_supported}
+  end
+
+  defp require_pull_binding(nil), do: :ok
+
+  defp require_pull_binding(%{"manifest" => %{"transferMode" => "pull"}}), do: :ok
+  defp require_pull_binding(_), do: {:error, :compatible_binding_unavailable}
+
+  defp pinned_for_loop(library, frame) do
+    limit = min(frame["capabilities"]["storage"]["maximumPlaylistLength"], @maximum_loop_items)
+    pinned = Library.list_pinned_masters(library, limit + 1)
+
+    cond do
+      pinned == [] -> {:error, :no_pinned_artwork}
+      length(pinned) > limit -> {:error, :playlist_too_long}
+      true -> {:ok, pinned}
+    end
+  end
+
+  defp render_pinned(library, renderer, frame, binding, masters) do
+    Enum.reduce_while(masters, {:ok, []}, fn master, {:ok, entries} ->
+      case render_pinned_master(library, renderer, frame, binding, master) do
+        {:ok, entry} -> {:cont, {:ok, [entry | entries]}}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+    |> then(fn
+      {:ok, entries} -> {:ok, Enum.reverse(entries)}
+      error -> error
+    end)
+  end
+
+  defp render_pinned_master(library, renderer, frame, binding, master) do
+    with {:ok, compilation} <-
+           RenderProfile.compile(master, frame["capabilities"], binding_profile_id(binding)),
+         {:ok, artifact} <-
+           render_for_queue(
+             library,
+             renderer,
+             frame,
+             :pull,
+             master["digest"],
+             compilation,
+             binding
+           ) do
+      {:ok,
+       %{
+         "masterDigest" => master["digest"],
+         "artifactDigest" => artifact["digest"],
+         "workDigest" => Map.get(artifact, :work_digest)
+       }}
+    end
+  end
+
   defp queue_binding(library, frame_id) do
     case Library.active_qualification(library, frame_id) do
       {:ok, binding} -> {:ok, binding}
@@ -288,6 +378,7 @@ defmodule Frameshift.LocalAPI do
   defp allowed_command_keys("remove"), do: ~w(id kind itemID)
   defp allowed_command_keys("selectTarget"), do: ~w(id kind targetID)
   defp allowed_command_keys("queue"), do: ~w(id kind targetID itemID)
+  defp allowed_command_keys("loopPinned"), do: ~w(id kind targetID dwellMs)
   defp allowed_command_keys("reconcileDelivery"), do: ~w(id kind targetID)
   defp allowed_command_keys(_), do: ~w(id kind)
 
@@ -318,6 +409,11 @@ defmodule Frameshift.LocalAPI do
       "medium" => frame["medium"],
       "profileID" => profile_id,
       "state" => frame["connection_state"],
+      "minimumDwellMs" => frame["capabilities"]["refresh"]["minimumDwellMs"],
+      "recommendedDwellMs" => frame["capabilities"]["refresh"]["recommendedDwellMs"],
+      "recommendationBasis" => frame["capabilities"]["refresh"]["recommendationBasis"],
+      "recommendationRevision" => frame["capabilities"]["refresh"]["recommendationRevision"],
+      "playlist" => Library.frame_playlist_status(library, frame["frame_id"]),
       "directDelivery" => direct_delivery_summary(library, frame["frame_id"])
     }
   end
@@ -431,7 +527,17 @@ defmodule Frameshift.LocalAPI do
               :request_id_conflict,
               :direct_delivery_pending,
               :direct_delivery_not_pending,
-              :direct_delivery_conflict
+              :direct_delivery_conflict,
+              :no_pinned_artwork,
+              :playlist_too_long,
+              :interval_required,
+              :invalid_interval,
+              :pull_not_supported,
+              :frame_not_paired,
+              :storage_full,
+              :already_active,
+              :playlist_pending,
+              :playlist_suspended
             ],
        do: reason
 

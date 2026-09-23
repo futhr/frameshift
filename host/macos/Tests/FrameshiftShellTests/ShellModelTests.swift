@@ -78,6 +78,32 @@ struct ShellModelTests {
     #expect(await client.sendCount() == 1)
     #expect(model.snapshot.selectedTarget?.directDelivery?.status == .pending)
   }
+
+  @Test("A loop without pinned artwork explains the next action")
+  func reportsMissingLoopPins() async {
+    let target = FrameTarget(
+      id: "paper-1",
+      name: "Hallway",
+      medium: .paper,
+      profileID: "paper-profile",
+      state: .waitingForContact
+    )
+    let initial = CoreSnapshot(
+      targets: [target],
+      selectedTargetID: target.id,
+      statusMessage: "Ready"
+    )
+    let model = ShellModel(client: MissingLoopPinsClient(), initialSnapshot: initial)
+
+    await model.loopPinned(dwellMs: 21_600_000)
+
+    #expect(model.errorMessage == "Pin artwork in the library before starting a loop.")
+  }
+}
+
+private struct MissingLoopPinsClient: CoreClient {
+  func snapshot() -> CoreSnapshot { .disconnected }
+  func send(_: CoreCommand) throws -> CoreSnapshot { throw CoreClientError.noPinnedArtwork }
 }
 
 private struct PendingDeliveryClient: CoreClient {

@@ -14,6 +14,7 @@ struct FrameshiftPanel: View {
       instructionEditor
       actionRow
       status
+      loopControls
       library
     }
     .padding(16)
@@ -206,6 +207,74 @@ struct FrameshiftPanel: View {
   }
 
   @ViewBuilder
+  private var loopControls: some View {
+    if let target = model.snapshot.selectedTarget {
+      HStack {
+        Menu {
+          if let suggested = target.recommendedDwellMs {
+            Button(suggestedLabel(for: target, milliseconds: suggested)) {
+              Task { await model.loopPinned(dwellMs: nil) }
+            }
+          }
+
+          ForEach(intervalChoices(for: target), id: \.milliseconds) { choice in
+            Button("Every \(choice.label)") {
+              Task { await model.loopPinned(dwellMs: choice.milliseconds) }
+            }
+          }
+        } label: {
+          Label("Loop pins", systemImage: "arrow.triangle.2.circlepath")
+        }
+        .buttonStyle(FlatActionButtonStyle())
+        .disabled(model.isBusy)
+        .help("Cycle the current pinned artwork on \(target.name)")
+        .accessibilityIdentifier("loop-pinned-menu")
+
+        Spacer()
+
+        if let playlist = target.playlist {
+          Text(playlistStatus(playlist))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .accessibilityIdentifier("playlist-status")
+        }
+      }
+    }
+  }
+
+  private func intervalChoices(for target: FrameTarget) -> [IntervalChoice] {
+    let floor = target.minimumDwellMs ?? 1
+    let choices = [
+      IntervalChoice(label: "15 minutes", milliseconds: 900_000),
+      IntervalChoice(label: "1 hour", milliseconds: 3_600_000),
+      IntervalChoice(label: "6 hours", milliseconds: 21_600_000),
+      IntervalChoice(label: "24 hours", milliseconds: 86_400_000),
+    ].filter { $0.milliseconds >= floor }
+    return choices.isEmpty
+      ? [IntervalChoice(label: intervalLabel(floor), milliseconds: floor)] : choices
+  }
+
+  private func suggestedLabel(for target: FrameTarget, milliseconds: Int) -> String {
+    let basis = target.recommendationBasis == "provisional-profile" ? " (provisional)" : ""
+    return "Suggested · \(intervalLabel(milliseconds))\(basis)"
+  }
+
+  private func intervalLabel(_ milliseconds: Int) -> String {
+    if milliseconds % 3_600_000 == 0 {
+      return "\(milliseconds / 3_600_000) hours"
+    }
+    return "\(milliseconds / 60_000) minutes"
+  }
+
+  private func playlistStatus(_ playlist: FramePlaylist) -> String {
+    switch playlist.status {
+    case .pending: "Waiting for frame"
+    case .active: "Looping \(playlist.entryCount) stills"
+    case .suspended: "Loop paused"
+    }
+  }
+
+  @ViewBuilder
   private var library: some View {
     if model.snapshot.items.isEmpty {
       ContentUnavailableView {
@@ -235,6 +304,11 @@ struct FrameshiftPanel: View {
       .accessibilityIdentifier("library-scroll-view")
     }
   }
+}
+
+private struct IntervalChoice {
+  let label: String
+  let milliseconds: Int
 }
 
 private struct ResultCard: View {

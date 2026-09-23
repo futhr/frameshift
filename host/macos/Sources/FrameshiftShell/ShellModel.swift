@@ -58,6 +58,11 @@ public final class ShellModel {
     )
   }
 
+  public func loopPinned(dwellMs: Int?) async {
+    guard let selectedTargetID = snapshot.selectedTargetID else { return }
+    await send(CoreCommand(kind: .loopPinned, targetID: selectedTargetID, dwellMs: dwellMs))
+  }
+
   public func reconcileDelivery() async {
     guard let selectedTargetID = snapshot.selectedTargetID else { return }
     await send(CoreCommand(kind: .reconcileDelivery, targetID: selectedTargetID))
@@ -101,6 +106,18 @@ public final class ShellModel {
     } catch CoreClientError.deliveryPending {
       errorMessage =
         "This frame already has a pending direct delivery. Confirm its display before sending another image."
+    } catch CoreClientError.noPinnedArtwork {
+      errorMessage = "Pin artwork in the library before starting a loop."
+    } catch CoreClientError.intervalRequired {
+      errorMessage = "Choose a loop interval for this frame."
+    } catch CoreClientError.loopUnavailable {
+      errorMessage = "Frame cannot cycle artwork offline. Check its pairing and transfer mode."
+    } catch CoreClientError.loopStorageFull {
+      errorMessage = "This frame cannot hold the pinned set. Remove pins or free frame storage."
+    } catch CoreClientError.loopPending {
+      errorMessage = "This loop is already queued. Wait for the frame to confirm it."
+    } catch CoreClientError.loopAlreadyActive {
+      errorMessage = "Loop is already on this frame. Change pins or interval to queue another."
     } catch let error as CoreClientError {
       Self.logger.error("core command failed: \(String(describing: error), privacy: .public)")
       errorMessage = "The core command could not be completed."

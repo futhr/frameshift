@@ -8,6 +8,7 @@ defmodule Frameshift.Outbox.EndpointTest do
   alias Frameshift.Outbox.Endpoint
   alias Frameshift.Outbox.HTTP1
   alias Frameshift.Outbox.TLSServer
+  alias Frameshift.Playlist.Plan
   alias Frameshift.Protocol.JSON
   alias Frameshift.Transport.SPKIPin
 
@@ -171,6 +172,127 @@ defmodule Frameshift.Outbox.EndpointTest do
              )
   end
 
+  test "a paired receiver fetches only its pending complete playlist and referenced assets",
+       context do
+    first = register_playlist_entry!(context.library, @bytes)
+    second = register_playlist_entry!(context.library, @next_bytes)
+    {:ok, frame} = Library.get_paired_frame(context.library, @frame_id)
+
+    assert {:ok, plan} =
+             Plan.build(
+               frame["capabilities"],
+               [first["artifactDigest"], second["artifactDigest"]],
+               1_000
+             )
+
+    assert {:ok, manifest} =
+             Library.queue_playlist(
+               context.library,
+               @frame_id,
+               @profile_id,
+               plan.playlist,
+               [first, second],
+               "playlist-test"
+             )
+
+    revision = plan.playlist["revision"]
+    assert manifest["playlistRevision"] == revision
+    assert manifest["desiredAsset"] == first["artifactDigest"]
+    path = "/v0/outbox/playlists/sha256/" <> Digest.hex!(revision)
+
+    assert {:ok, %{status: 200, body: body, headers: headers}} = request(context, "GET", path)
+    assert body == RFC8785.encode!(plan.playlist)
+    assert headers["content-digest"] == "sha-256=:#{Base.encode64(:crypto.hash(:sha256, body))}:"
+
+    second_path = "/v0/outbox/assets/sha256/" <> Digest.hex!(second["artifactDigest"])
+    assert {:ok, %{status: 200, body: @next_bytes}} = request(context, "GET", second_path)
+
+    assert {:error, :not_found} =
+             request(context, "GET", "/v0/outbox/playlists/sha256/" <> String.duplicate("f", 64))
+
+    assert {:ok, %{status: 200}} =
+             post_ack(context, %{
+               "manifestRevision" => manifest["revision"],
+               "storage" => "verified",
+               "refresh" => "displayed",
+               "currentAsset" => first["artifactDigest"],
+               "lastError" => nil
+             })
+
+    assert :empty = Library.outbox_manifest(context.library, @frame_id)
+    assert {:error, :not_found} = request(context, "GET", path)
+    assert {:error, :not_found} = request(context, "GET", second_path)
+
+    assert {:error, :already_active} =
+             Library.queue_playlist(
+               context.library,
+               @frame_id,
+               @profile_id,
+               plan.playlist,
+               [first, second]
+             )
+
+    assert :ok = Library.remove_master(context.library, second["masterDigest"])
+    assert {:ok, []} = Library.collect_removed(context.library)
+  end
+
+  test "invalid and superseded playlist intents never expose stale assets", context do
+    first = register_playlist_entry!(context.library, @bytes)
+    second = register_playlist_entry!(context.library, @next_bytes)
+    {:ok, frame} = Library.get_paired_frame(context.library, @frame_id)
+
+    assert {:ok, plan} =
+             Plan.build(
+               frame["capabilities"],
+               [first["artifactDigest"], second["artifactDigest"]],
+               1_000
+             )
+
+    wrong =
+      Map.put(plan.playlist, "entries", [
+        %{"assetDigest" => second["artifactDigest"], "dwellMs" => 1_000}
+      ])
+
+    assert {:error, _} =
+             Library.queue_playlist(context.library, @frame_id, @profile_id, wrong, [first])
+
+    assert :empty = Library.outbox_manifest(context.library, @frame_id)
+
+    assert {:ok, manifest} =
+             Library.queue_playlist(context.library, @frame_id, @profile_id, plan.playlist, [
+               first,
+               second
+             ])
+
+    path = "/v0/outbox/playlists/sha256/" <> Digest.hex!(plan.playlist["revision"])
+    assert {:ok, %{status: 200}} = request(context, "GET", path)
+
+    assert {:error, :playlist_pending} =
+             Library.queue_playlist(context.library, @frame_id, @profile_id, plan.playlist, [
+               first,
+               second
+             ])
+
+    assert {:ok, newer} =
+             Library.queue_outbox(
+               context.library,
+               @frame_id,
+               first["artifactDigest"],
+               @profile_id
+             )
+
+    assert newer["revision"] > manifest["revision"]
+    assert newer["playlistRevision"] == nil
+    assert {:error, :not_found} = request(context, "GET", path)
+
+    assert {:error, :not_found} =
+             request(
+               context,
+               "GET",
+               "/v0/outbox/assets/sha256/" <> Digest.hex!(second["artifactDigest"])
+             )
+  end
+
   test "a duplicate paired SPKI is rejected before it can affect frame resolution", context do
     another_td =
       @thing_fixture
@@ -289,5 +411,14 @@ defmodule Frameshift.Outbox.EndpointTest do
       })
 
     artifact["digest"]
+  end
+
+  defp register_playlist_entry!(library, bytes) do
+    digest = register_artifact!(library, bytes)
+
+    %{
+      "masterDigest" => Digest.sha256("master-#{Digest.sha256(bytes)}"),
+      "artifactDigest" => digest
+    }
   end
 end

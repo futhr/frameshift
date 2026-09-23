@@ -65,8 +65,9 @@ defmodule Frameshift.Outbox.Endpoint do
     digest = "sha256:" <> hex
 
     with true <- Digest.valid_sha256?(digest),
-         {:ok, %{"desiredAsset" => ^digest, "artifactProfile" => profile_id}} <-
+         {:ok, %{"artifactProfile" => profile_id} = manifest} <-
            Library.outbox_manifest(library, frame["frame_id"]),
+         true <- authorized_asset?(library, frame["frame_id"], manifest, digest),
          {:ok, ceiling} <- artifact_ceiling(frame, profile_id),
          {:ok, %{"bytes" => bytes}} <- Library.read_object(library, digest, ceiling) do
       headers = %{
@@ -85,6 +86,23 @@ defmodule Frameshift.Outbox.Endpoint do
     end
   end
 
+  defp route(library, frame, "GET", "/v0/outbox/playlists/sha256/" <> hex, _, <<>>)
+       when byte_size(hex) == 64 do
+    revision = "sha256:" <> hex
+
+    with true <- Digest.valid_sha256?(revision),
+         {:ok, body} <- Library.outbox_playlist(library, frame["frame_id"], revision) do
+      headers = %{
+        "content-type" => "application/json",
+        "content-digest" => "sha-256=:#{Base.encode64(:crypto.hash(:sha256, body))}:"
+      }
+
+      {:ok, response(200, headers, body)}
+    else
+      _ -> {:error, :not_found}
+    end
+  end
+
   defp route(library, frame, "POST", "/v0/outbox/ack", "application/json", body) do
     with {:ok, acknowledgement} <- JSON.decode_control(body, "outbox-ack"),
          {:ok, status} <- acknowledge(library, frame["frame_id"], acknowledgement) do
@@ -97,6 +115,11 @@ defmodule Frameshift.Outbox.Endpoint do
 
   defp route(_, _, _, _, _, _),
     do: {:error, :invalid_request}
+
+  defp authorized_asset?(library, frame_id, manifest, digest) do
+    manifest["desiredAsset"] == digest or
+      Library.outbox_playlist_asset?(library, frame_id, digest)
+  end
 
   defp paired_pull_frame(library, peer_certificate_der) do
     with {:ok, fingerprint} <- SPKIPin.fingerprint_der(peer_certificate_der) do

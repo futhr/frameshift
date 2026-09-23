@@ -20,7 +20,7 @@ defmodule Frameshift.Playlist.Plan do
   @spec build(map(), [String.t()], pos_integer() | nil) :: {:ok, plan()} | {:error, atom()}
   def build(capabilities, artifact_digests, requested_dwell \\ nil) do
     with :ok <- validate_artifacts(capabilities, artifact_digests),
-         {:ok, dwell, source, revision} <- choose_dwell(capabilities, requested_dwell) do
+         {:ok, dwell, source, revision} <- resolve_dwell(capabilities, requested_dwell) do
       entries =
         Enum.map(artifact_digests, &%{"assetDigest" => &1, "dwellMs" => dwell})
 
@@ -50,17 +50,20 @@ defmodule Frameshift.Playlist.Plan do
 
   defp validate_artifacts(_, _), do: {:error, :invalid_artifact}
 
-  defp choose_dwell(capabilities, nil) do
+  @doc "Resolves an operator interval or the profile suggestion before rendering."
+  @spec resolve_dwell(map(), pos_integer() | nil) ::
+          {:ok, pos_integer(), :profile | :override, String.t() | nil} | {:error, atom()}
+  def resolve_dwell(capabilities, nil) do
     case DisplayTiming.recommendation(capabilities) do
       nil -> {:error, :interval_required}
       %{dwell_ms: dwell, revision: revision} -> {:ok, dwell, :profile, revision}
     end
   end
 
-  defp choose_dwell(capabilities, dwell) when is_integer(dwell) and dwell > 0 do
+  def resolve_dwell(capabilities, dwell) when is_integer(dwell) and dwell > 0 do
     clamped = DisplayTiming.clamp_dwell(capabilities, dwell)
     {:ok, clamped, :override, nil}
   end
 
-  defp choose_dwell(_, _), do: {:error, :invalid_interval}
+  def resolve_dwell(_, _), do: {:error, :invalid_interval}
 end

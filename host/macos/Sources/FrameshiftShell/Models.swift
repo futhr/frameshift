@@ -31,6 +31,19 @@ public struct DirectDelivery: Codable, Equatable, Sendable {
   public let desiredDigest: String
 }
 
+public struct FramePlaylist: Codable, Equatable, Sendable {
+  public enum Status: String, Codable, Sendable {
+    case pending
+    case active
+    case suspended
+  }
+
+  public let status: Status
+  public let revision: String
+  public let entryCount: Int
+  public let dwellMs: Int
+}
+
 public struct FrameTarget: Codable, Equatable, Identifiable, Sendable {
   public let id: String
   public let name: String
@@ -38,6 +51,11 @@ public struct FrameTarget: Codable, Equatable, Identifiable, Sendable {
   public let profileID: String
   public var state: FrameConnectionState
   public var directDelivery: DirectDelivery?
+  public let minimumDwellMs: Int?
+  public let recommendedDwellMs: Int?
+  public let recommendationBasis: String?
+  public let recommendationRevision: String?
+  public let playlist: FramePlaylist?
 
   public init(
     id: String,
@@ -45,7 +63,12 @@ public struct FrameTarget: Codable, Equatable, Identifiable, Sendable {
     medium: FrameMedium,
     profileID: String,
     state: FrameConnectionState,
-    directDelivery: DirectDelivery? = nil
+    directDelivery: DirectDelivery? = nil,
+    minimumDwellMs: Int? = nil,
+    recommendedDwellMs: Int? = nil,
+    recommendationBasis: String? = nil,
+    recommendationRevision: String? = nil,
+    playlist: FramePlaylist? = nil
   ) {
     self.id = id
     self.name = name
@@ -53,6 +76,11 @@ public struct FrameTarget: Codable, Equatable, Identifiable, Sendable {
     self.profileID = profileID
     self.state = state
     self.directDelivery = directDelivery
+    self.minimumDwellMs = minimumDwellMs
+    self.recommendedDwellMs = recommendedDwellMs
+    self.recommendationBasis = recommendationBasis
+    self.recommendationRevision = recommendationRevision
+    self.playlist = playlist
   }
 }
 
@@ -130,6 +158,7 @@ public struct CoreCommand: Codable, Equatable, Sendable {
     case setPinned
     case remove
     case queue
+    case loopPinned
     case reconcileDelivery
   }
 
@@ -147,6 +176,7 @@ public struct CoreCommand: Codable, Equatable, Sendable {
   public let importColorProfile: String?
   public let importCanonicalPath: String?
   public let importCanonicalDigest: String?
+  public let dwellMs: Int?
 
   public init(
     id: UUID = UUID(),
@@ -162,7 +192,8 @@ public struct CoreCommand: Codable, Equatable, Sendable {
     importOrientation: Int? = nil,
     importColorProfile: String? = nil,
     importCanonicalPath: String? = nil,
-    importCanonicalDigest: String? = nil
+    importCanonicalDigest: String? = nil,
+    dwellMs: Int? = nil
   ) {
     self.id = id
     self.kind = kind
@@ -178,6 +209,7 @@ public struct CoreCommand: Codable, Equatable, Sendable {
     self.importColorProfile = importColorProfile
     self.importCanonicalPath = importCanonicalPath
     self.importCanonicalDigest = importCanonicalDigest
+    self.dwellMs = dwellMs
   }
 
   func withDecodedImport(_ decoded: DecodedImport) -> CoreCommand {
@@ -196,7 +228,8 @@ public struct CoreCommand: Codable, Equatable, Sendable {
       importOrientation: metadata.orientation,
       importColorProfile: metadata.colorProfile,
       importCanonicalPath: decoded.canonicalURL.path,
-      importCanonicalDigest: decoded.canonicalDigest
+      importCanonicalDigest: decoded.canonicalDigest,
+      dwellMs: dwellMs
     )
   }
 }

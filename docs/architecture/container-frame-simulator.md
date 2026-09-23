@@ -25,12 +25,16 @@ Pixel scenarios test discrete framebuffer swaps and do not infer energy saving
 from longer dwell. The [display timing contract](display-timing.md) defines
 deadline, acknowledgement, and failure behavior.
 
-The current container fixture exposes the timing profile and tests a locally
-installed complete playlist with deterministic RTC ticks in separate receiver
-processes. It rejects missing/corrupt assets, a short dwell, and a mismatched
-revision; a failed update retains the previous current asset. Protocol-driven
-installation through the host outbox, host-side pinned-artwork preparation, and
-physical RTC qualification remain separate release gates.
+The current container fixture exposes the timing profile and tests both local
+playlist installation and authenticated host-outbox installation with
+deterministic RTC ticks in separate receiver processes. The host stores the
+pending canonical body and protected assets in one transaction; the receiver
+fetches the body and every missing still, verifies them, and confirms the first
+display before the host marks the playlist active. It rejects a short dwell,
+wrong revision, or missing/corrupt asset; a failed update retains the previous
+current image and playlist. The per-frame pinned-artwork command is connected
+to this path through the native menu. Physical RTC and whole-frame energy
+qualification remain separate release gates.
 
 ## Default manufacturer baselines
 

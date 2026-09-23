@@ -80,6 +80,9 @@ defmodule Frameshift.Outbox.HTTP1 do
   defp route_name(%{method: "GET", path: "/v0/outbox/assets/sha256/" <> _}),
     do: :asset
 
+  defp route_name(%{method: "GET", path: "/v0/outbox/playlists/sha256/" <> _}),
+    do: :playlist
+
   defp route_name(_), do: :invalid
 
   defp emit_exchange(route, status, started) do

@@ -24,6 +24,7 @@ protocol branches.
 - [Frame Protocol](architecture/frame-protocol.md)
 - [Networked frame simulator and manufacturer baselines](architecture/container-frame-simulator.md)
 - [Capability model](architecture/capabilities.md)
+- [Display timing and pinned artwork loops](architecture/display-timing.md)
 - [Content pipeline](architecture/content-pipeline.md)
 - [Qualified render and transfer generations](architecture/qualified-generations.md)
 - [Implementation plan](architecture/implementation-plan.md)

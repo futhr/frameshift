@@ -116,6 +116,13 @@ public actor LocalCoreClient: CoreClient {
     case "delivery_outcome_unknown": .deliveryOutcomeUnknown
     case "direct_delivery_pending": .deliveryPending
     case "import_too_large": .importTooLarge
+    case "already_active", "playlist_suspended": .loopAlreadyActive
+    case "playlist_pending": .loopPending
+    case "no_pinned_artwork": .noPinnedArtwork
+    case "interval_required", "invalid_interval": .intervalRequired
+    case "pull_not_supported", "frame_not_paired", "compatible_binding_unavailable":
+      .loopUnavailable
+    case "playlist_too_long", "storage_full": .loopStorageFull
     case "import_unreadable", "import_not_regular", "import_changed",
       "invalid_canonical_image", "canonical_digest_mismatch":
       .importUnreadable

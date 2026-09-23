@@ -368,6 +368,41 @@ defmodule Frameshift.Library.Migrations do
        FROM artifacts
        """,
        "CREATE INDEX artifact_recipe_links_digest ON artifact_recipe_links(artifact_digest)"
+     ]},
+    {14,
+     [
+       """
+       CREATE TABLE frame_playlists (
+         frame_id TEXT NOT NULL REFERENCES paired_frames(frame_id) ON DELETE CASCADE,
+         revision TEXT NOT NULL CHECK (
+           length(revision) = 71 AND substr(revision, 1, 7) = 'sha256:' AND
+           substr(revision, 8) NOT GLOB '*[^0-9a-f]*'
+         ),
+         status TEXT NOT NULL CHECK (status IN ('pending', 'active', 'suspended')),
+         profile_id TEXT NOT NULL,
+         canonical_json TEXT NOT NULL,
+         command_id TEXT,
+         created_at_ms INTEGER NOT NULL,
+         confirmed_at_ms INTEGER,
+         PRIMARY KEY (frame_id, revision),
+         UNIQUE (frame_id, status)
+       ) STRICT
+       """,
+       """
+       CREATE TABLE frame_playlist_entries (
+         frame_id TEXT NOT NULL,
+         revision TEXT NOT NULL,
+         ordinal INTEGER NOT NULL CHECK (ordinal >= 0),
+         master_digest TEXT NOT NULL REFERENCES masters(digest) ON DELETE RESTRICT,
+         artifact_digest TEXT NOT NULL REFERENCES artifacts(digest) ON DELETE RESTRICT,
+         work_digest TEXT REFERENCES qualified_work(digest) ON DELETE RESTRICT,
+         qualification_digest TEXT REFERENCES qualified_bindings(digest) ON DELETE RESTRICT,
+         PRIMARY KEY (frame_id, revision, ordinal),
+         FOREIGN KEY (frame_id, revision) REFERENCES frame_playlists(frame_id, revision)
+           ON DELETE CASCADE
+       ) STRICT
+       """,
+       "CREATE INDEX frame_playlist_entries_asset ON frame_playlist_entries(artifact_digest)"
      ]}
   ]
 

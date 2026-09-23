@@ -15,6 +15,12 @@ public enum CoreClientError: Error, Equatable, Sendable {
   case importTooLarge
   case importUnreadable
   case invalidCommand
+  case loopAlreadyActive
+  case loopPending
+  case noPinnedArtwork
+  case intervalRequired
+  case loopUnavailable
+  case loopStorageFull
   case itemNotFound
   case protocolFailure
   case targetNotFound

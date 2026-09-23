@@ -194,6 +194,17 @@ defmodule FrameshiftContainerReceiver do
   end
 
   defp validate_playlist!(config, playlist) when is_map(playlist) do
+    validate_playlist_structure!(config, playlist)
+
+    Enum.each(playlist["entries"], fn entry ->
+      unless verified_asset?(config.data_dir, entry["assetDigest"], config.artifact_bytes),
+        do: raise("invalid playlist entry or uncached asset")
+    end)
+  end
+
+  defp validate_playlist!(_, _), do: raise("invalid playlist document")
+
+  defp validate_playlist_structure!(config, playlist) when is_map(playlist) do
     entries = Map.get(playlist, "entries")
 
     unless Map.keys(playlist) |> Enum.sort() == ["entries", "mode", "revision"] and
@@ -202,27 +213,26 @@ defmodule FrameshiftContainerReceiver do
       raise "invalid playlist document"
     end
 
-    Enum.each(entries, &validate_playlist_entry!(config, &1))
+    Enum.each(entries, &validate_playlist_entry_shape!(config, &1))
 
     if playlist["revision"] != canonical_playlist_revision(playlist),
       do: raise("playlist revision mismatch")
   end
 
-  defp validate_playlist!(_, _), do: raise("invalid playlist document")
+  defp validate_playlist_structure!(_, _), do: raise("invalid playlist document")
 
-  defp validate_playlist_entry!(config, entry) when is_map(entry) do
+  defp validate_playlist_entry_shape!(config, entry) when is_map(entry) do
     digest = entry["assetDigest"]
     dwell = entry["dwellMs"]
 
     unless Map.keys(entry) |> Enum.sort() == ["assetDigest", "dwellMs"] and
              valid_digest?(digest) and is_integer(dwell) and
-             dwell >= config.timing_profile.minimumDwellMs and dwell <= 31_536_000_000 and
-             verified_asset?(config.data_dir, digest, config.artifact_bytes) do
-      raise "invalid playlist entry or uncached asset"
+             dwell >= config.timing_profile.minimumDwellMs and dwell <= 31_536_000_000 do
+      raise "invalid playlist entry"
     end
   end
 
-  defp validate_playlist_entry!(_, _), do: raise("invalid playlist entry")
+  defp validate_playlist_entry_shape!(_, _), do: raise("invalid playlist entry")
 
   defp canonical_playlist_revision(playlist) do
     entries =
@@ -336,9 +346,143 @@ defmodule FrameshiftContainerReceiver do
     end
 
     cond do
-      is_nil(digest) -> %{outcome: "no_work", state: state}
-      not valid_digest?(digest) -> raise "invalid manifest digest"
-      true -> apply_manifest!(config, state, digest, revision)
+      is_nil(digest) ->
+        %{outcome: "no_work", state: state}
+
+      not valid_digest?(digest) ->
+        raise "invalid manifest digest"
+
+      is_binary(manifest["playlistRevision"]) ->
+        apply_playlist_manifest!(config, state, manifest)
+
+      true ->
+        apply_manifest!(config, state, digest, revision)
+    end
+  end
+
+  defp apply_playlist_manifest!(config, state, manifest) do
+    revision = manifest["playlistRevision"]
+    unless valid_digest?(revision), do: raise("invalid playlist revision")
+
+    response =
+      exchange!(
+        config,
+        "GET",
+        "/v0/outbox/playlists/sha256/#{String.slice(revision, 7, 64)}",
+        nil
+      )
+
+    if response.status != 200, do: raise("playlist request failed")
+    verify_playlist_response!(response)
+    playlist = decode_json(response.body)
+    validate_playlist_structure!(config, playlist)
+
+    unless playlist["revision"] == revision and
+             hd(playlist["entries"])["assetDigest"] == manifest["desiredAsset"] do
+      raise "playlist manifest mismatch"
+    end
+
+    if config.fault == "storage_full" and missing_playlist_asset?(config, playlist) do
+      acknowledge_failure!(
+        config,
+        state,
+        manifest["revision"],
+        "failed",
+        "not-requested",
+        "storage-full"
+      )
+    else
+      install_pulled_playlist!(config, state, manifest, playlist)
+    end
+  end
+
+  defp verify_playlist_response!(response) do
+    expected = "sha-256=:#{Base.encode64(:crypto.hash(:sha256, response.body))}:"
+
+    unless byte_size(response.body) <= @maximum_control_bytes and
+             response.headers["content-type"] == "application/json" and
+             response.headers["content-digest"] == expected do
+      raise "playlist digest mismatch"
+    end
+  end
+
+  defp missing_playlist_asset?(config, playlist) do
+    Enum.any?(playlist["entries"], fn entry ->
+      not verified_asset?(config.data_dir, entry["assetDigest"], config.artifact_bytes)
+    end)
+  end
+
+  defp install_pulled_playlist!(config, state, manifest, playlist) do
+    Enum.each(playlist["entries"], &fetch_playlist_asset!(config, &1["assetDigest"]))
+    validate_playlist!(config, playlist)
+
+    cond do
+      config.fault == "power_loss_after_download" ->
+        System.halt(23)
+
+      config.fault == "display_failure" ->
+        acknowledge_failure!(
+          config,
+          state,
+          manifest["revision"],
+          "verified",
+          "failed",
+          "display-failed"
+        )
+
+      config.class == "paper" and (config.temperature_c < 0 or config.temperature_c > 40) ->
+        acknowledge_failure!(
+          config,
+          state,
+          manifest["revision"],
+          "verified",
+          "failed",
+          "temperature-out-of-range"
+        )
+
+      true ->
+        complete_pulled_playlist!(config, state, manifest, playlist)
+    end
+  end
+
+  defp fetch_playlist_asset!(config, digest) do
+    unless verified_asset?(config.data_dir, digest, config.artifact_bytes) do
+      response =
+        exchange!(config, "GET", "/v0/outbox/assets/sha256/#{String.slice(digest, 7, 64)}", nil)
+
+      if response.status != 200, do: raise("playlist asset request failed")
+      verify_asset_response!(response, digest, config.fault, config.artifact_bytes)
+      durable_write!(asset_path!(config.data_dir, digest), response.body)
+    end
+  end
+
+  defp complete_pulled_playlist!(config, state, manifest, playlist) do
+    first = hd(playlist["entries"])
+    digest = first["assetDigest"]
+    if state["currentAsset"] != digest, do: Process.sleep(config.refresh_delay_ms)
+    completion_ms = config.now_ms + config.refresh_delay_ms
+    due = if playlist["mode"] == "cycle", do: completion_ms + first["dwellMs"], else: nil
+
+    installed =
+      Map.merge(state, %{
+        "currentAsset" => digest,
+        "desiredAsset" => digest,
+        "playlist" => playlist,
+        "playlistIndex" => 0,
+        "playlistClockMs" => completion_ms,
+        "playlistDueMs" => due,
+        "playlistRetryAtMs" => nil,
+        "playlistSuspended" => false
+      })
+
+    durable_state!(config.data_dir, installed)
+    ack = acknowledgement(manifest["revision"], "verified", "displayed", digest, nil)
+    response = exchange!(config, "POST", "/v0/outbox/ack", encode_json(ack))
+
+    case response.status do
+      200 -> %{outcome: "playlist_displayed", state: installed}
+      409 -> %{outcome: "ack_conflict", state: installed}
+      _ -> raise "playlist acknowledgement failed"
     end
   end
 

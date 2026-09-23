@@ -6,12 +6,14 @@ defmodule Frameshift.ContainerReceiverTest do
   alias Frameshift.Digest
   alias Frameshift.Library
   alias Frameshift.Outbox.TLSServer
+  alias Frameshift.Playlist.Plan
   alias Frameshift.Transport.SPKIPin
 
   @moduletag :container
   @image "frameshift-frame-receiver:local"
   @fixture Path.expand("../../../../protocol/fixtures/valid/thing-description.json", __DIR__)
   @container_context Path.expand("../../../../simulator/container", __DIR__)
+  @fixture_root Path.expand("../../../../.build/container-fixtures", __DIR__)
 
   @classes %{
     "paper" => %{
@@ -139,6 +141,46 @@ defmodule Frameshift.ContainerReceiverTest do
 
     assert output =~ "playlist revision mismatch"
     assert stored_state(context)["playlist"] == document
+  end
+
+  for class <- ["paper", "photo", "pixel"] do
+    test "#{class} installs an authenticated outbox playlist and then cycles offline" do
+      context = start_fixture!(unquote(class))
+      on_exit(fn -> stop_fixture(context) end)
+      first = queue_artifact!(context, 41)
+      assert %{"outcome" => "displayed"} = run_receiver!(context)
+      second = queue_artifact!(context, 42)
+      {:ok, frame} = Library.get_paired_frame(context.library, context.frame_id)
+      dwell = context.profile.minimum_dwell_ms
+      assert {:ok, plan} = Plan.build(frame["capabilities"], [first, second], dwell)
+
+      entries = [
+        %{"masterDigest" => Digest.sha256("master-41"), "artifactDigest" => first},
+        %{"masterDigest" => Digest.sha256("master-42"), "artifactDigest" => second}
+      ]
+
+      assert {:ok, manifest} =
+               Library.queue_playlist(
+                 context.library,
+                 context.frame_id,
+                 context.profile_id,
+                 plan.playlist,
+                 entries,
+                 "container-playlist"
+               )
+
+      assert manifest["playlistRevision"] == plan.playlist["revision"]
+
+      assert %{"outcome" => "playlist_displayed", "state" => %{"currentAsset" => ^first}} =
+               run_receiver!(context)
+
+      assert :empty == Library.outbox_manifest(context.library, context.frame_id)
+      assert File.regular?(asset_path(context, second))
+      assert stored_state(context)["playlist"] == plan.playlist
+
+      assert %{"outcome" => "playlist_displayed", "state" => %{"currentAsset" => ^second}} =
+               run_action!(context, "tick", %{"FS_NOW_MS" => Integer.to_string(dwell)})
+    end
   end
 
   for class <- ["paper", "photo", "pixel"] do
@@ -305,11 +347,7 @@ defmodule Frameshift.ContainerReceiverTest do
   defp start_fixture!(class) do
     profile = Map.fetch!(@classes, class)
 
-    root =
-      Path.join(
-        System.tmp_dir!(),
-        "frameshift-container-#{class}-#{System.unique_integer([:positive])}"
-      )
+    root = Path.join(@fixture_root, "#{class}-#{System.unique_integer([:positive])}")
 
     File.mkdir_p!(Path.join(root, "data"))
     File.mkdir_p!(Path.join(root, "certs"))

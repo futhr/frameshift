@@ -386,6 +386,16 @@ HTTPS Forms use the paths shown, but a frame consumes the advertised Forms.
 | `GET /v0/outbox/playlists/sha256/{digest}` | Fetch the complete canonical playlist whose digest is in the manifest |
 | `POST /v0/outbox/ack` | Report verified storage, refresh outcome, and current digest |
 
+When `playlistRevision` is present, the receiver fetches that exact complete
+playlist before acknowledgement, verifies its canonical revision and every
+referenced cached or newly fetched asset, and installs it atomically. The
+manifest `desiredAsset` is its first entry. The host authorizes all entries of
+only the current pending revision to the authenticated frame. A failed body,
+asset, or display step leaves the old active playlist and current image intact;
+the host retains the pending intent. After confirmed display of the first entry,
+one matching acknowledgement activates the pending playlist and releases the
+old playlist references. A single-image desired update suspends the prior loop.
+
 The frame first compares the manifest digest with local desired/current state.
 It downloads only missing bytes. The host keeps a manifest until a confirmed
 ack or the user supersedes it. If the host is absent, authentication fails, or

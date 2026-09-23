@@ -57,8 +57,10 @@ displayed.
 
 Named `:telemetry` events are the portable instrumentation boundary.
 `Telemetry.Metrics` definitions require a real reporter. Handler work is
-constant and nonblocking: enqueue a bounded message to a supervised collector,
-never perform SQL, network, or log formatting in the caller. The collector
+bounded and nonblocking: project only catalog-approved scalar measurements and
+enum dimensions into a bounded message for a supervised collector. Raw event
+metadata never enters its mailbox; the handler performs no SQL, network, or
+log formatting in the caller. The collector
 maintains fixed-size histograms and bounded enum dimensions, batches rollups
 through the existing single writer, and reports its own dropped-event count.
 The versioned diagnostic read exposes metric units, histogram upper bounds,

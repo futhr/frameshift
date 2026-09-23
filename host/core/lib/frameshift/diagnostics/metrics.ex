@@ -2,8 +2,9 @@ defmodule Frameshift.Diagnostics.Metrics do
   @moduledoc """
   Bounded local reporter for Frameshift telemetry events.
 
-  The synchronous telemetry handler only sends a message. Aggregation and
-  SQLite writes happen in this supervised process, never in the emitter.
+  The synchronous telemetry handler projects events to bounded catalog samples
+  before sending a message. Aggregation and SQLite writes happen in this
+  supervised process, never in the emitter.
   """
 
   use GenServer
@@ -89,14 +90,20 @@ defmodule Frameshift.Diagnostics.Metrics do
   @doc "Telemetry callback: sends bounded work to the supervised reporter."
   @spec handle_event(list(atom()), map(), map(), map()) :: :ok
   def handle_event(event, measurements, metadata, %{target: target, dropped: dropped}) do
-    case Process.info(target, :message_queue_len) do
-      {:message_queue_len, length} when length < @queue_limit ->
-        send(target, {:sample, event, measurements, metadata})
+    case Catalog.samples(event, measurements, metadata) do
+      [] ->
         :ok
 
-      _ ->
-        :atomics.add(dropped, 1, 1)
-        :ok
+      samples ->
+        case Process.info(target, :message_queue_len) do
+          {:message_queue_len, length} when length < @queue_limit ->
+            send(target, {:samples, samples})
+            :ok
+
+          _ ->
+            :atomics.add(dropped, 1, 1)
+            :ok
+        end
     end
   end
 
@@ -119,13 +126,13 @@ defmodule Frameshift.Diagnostics.Metrics do
   end
 
   @impl true
-  def handle_info({:sample, event, measurements, metadata}, state) do
+  def handle_info({:samples, samples}, state) do
     now_ms = System.os_time(:millisecond)
 
     next =
-      event
-      |> Catalog.samples(measurements, metadata)
-      |> Enum.reduce(state, fn sample, accumulator -> add_sample(accumulator, sample, now_ms) end)
+      Enum.reduce(samples, state, fn sample, accumulator ->
+        add_sample(accumulator, sample, now_ms)
+      end)
 
     {:noreply, %{next | last_event_at_ms: now_ms}}
   end

@@ -1346,10 +1346,42 @@ defmodule Frameshift.Library do
   defp search_records(state, query, options) do
     limit = options |> Keyword.get(:limit, 50) |> min(100) |> max(1)
     pinned_only = Keyword.get(options, :pinned, false)
-    escaped = escape_like(String.trim(query))
-    pattern = "%#{escaped}%"
 
-    pin_clause = if pinned_only, do: "AND p.object_digest IS NOT NULL", else: ""
+    case search_match(query) do
+      {:ok, match} -> query_search(state, match, pinned_only, limit)
+      :invalid -> []
+    end
+  end
+
+  defp search_match(query) when is_binary(query) and byte_size(query) <= 512 do
+    trimmed = String.trim(query)
+
+    cond do
+      trimmed == "" -> {:ok, nil}
+      true -> search_prefixes(trimmed)
+    end
+  end
+
+  defp search_match(_), do: :invalid
+
+  defp search_prefixes(query) do
+    terms =
+      ~r/[\p{L}\p{N}\p{M}]+/u
+      |> Regex.scan(query)
+      |> Enum.map(fn [term] -> term end)
+
+    cond do
+      terms == [] or length(terms) > 8 -> :invalid
+      Enum.any?(terms, &(String.length(&1) > 32)) -> :invalid
+      true -> {:ok, Enum.map_join(terms, " AND ", &~s("#{&1}"*))}
+    end
+  end
+
+  defp query_search(state, match, pinned_only, limit) do
+    join = if match, do: "JOIN master_search ON master_search.rowid = m.rowid", else: ""
+    filter = if match, do: "AND master_search MATCH ?", else: ""
+    pin_filter = if pinned_only, do: "AND p.object_digest IS NOT NULL", else: ""
+    parameters = if match, do: [match, limit], else: [limit]
 
     sql = """
     SELECT DISTINCT m.digest, m.title, m.source_kind, m.width, m.height,
@@ -1364,17 +1396,17 @@ defmodule Frameshift.Library do
              LIMIT 1
            ) AS queued_target_id
     FROM masters m
-    LEFT JOIN labels l ON l.master_digest = m.digest
+    #{join}
     LEFT JOIN pins p ON p.object_digest = m.digest
     WHERE m.removed_at_ms IS NULL
-      AND (? = '' OR m.title LIKE ? ESCAPE '\\' OR l.label LIKE ? ESCAPE '\\')
-      #{pin_clause}
+      #{filter}
+      #{pin_filter}
     ORDER BY pinned DESC, m.title COLLATE NOCASE, m.digest
     LIMIT ?
     """
 
     state.connection
-    |> Exqlite.query!(sql, [String.trim(query), pattern, pattern, limit])
+    |> Exqlite.query!(sql, parameters)
     |> rows_to_maps()
     |> Enum.map(&decode_master_row/1)
   end
@@ -2696,13 +2728,6 @@ defmodule Frameshift.Library do
         {:error, reason} -> {:halt, {:error, reason}}
       end
     end)
-  end
-
-  defp escape_like(value) do
-    value
-    |> String.replace("\\", "\\\\")
-    |> String.replace("%", "\\%")
-    |> String.replace("_", "\\_")
   end
 
   defp qualification_reply(state, stage, result) do

@@ -403,6 +403,72 @@ defmodule Frameshift.Library.Migrations do
        ) STRICT
        """,
        "CREATE INDEX frame_playlist_entries_asset ON frame_playlist_entries(artifact_digest)"
+     ]},
+    {15,
+     [
+       "CREATE VIRTUAL TABLE master_search USING fts5(title, labels, tokenize = 'unicode61 remove_diacritics 2', prefix = '2 3')",
+       """
+       INSERT INTO master_search(rowid, title, labels)
+       SELECT m.rowid, m.title,
+              COALESCE((SELECT group_concat(label, ' ') FROM labels WHERE master_digest = m.digest), '')
+       FROM masters m WHERE m.removed_at_ms IS NULL
+       """,
+       """
+       CREATE TRIGGER master_search_insert AFTER INSERT ON masters
+       WHEN NEW.removed_at_ms IS NULL
+       BEGIN
+         INSERT INTO master_search(rowid, title, labels)
+         VALUES (NEW.rowid, NEW.title, '');
+       END
+       """,
+       """
+       CREATE TRIGGER master_search_update AFTER UPDATE OF title, removed_at_ms ON masters
+       BEGIN
+         DELETE FROM master_search WHERE rowid = OLD.rowid;
+         INSERT INTO master_search(rowid, title, labels)
+         SELECT NEW.rowid, NEW.title,
+                COALESCE((SELECT group_concat(label, ' ') FROM labels
+                          WHERE master_digest = NEW.digest), '')
+         WHERE NEW.removed_at_ms IS NULL;
+       END
+       """,
+       """
+       CREATE TRIGGER master_search_delete AFTER DELETE ON masters
+       BEGIN
+         DELETE FROM master_search WHERE rowid = OLD.rowid;
+       END
+       """,
+       """
+       CREATE TRIGGER master_search_label_insert AFTER INSERT ON labels
+       BEGIN
+         UPDATE master_search
+         SET labels = COALESCE((SELECT group_concat(label, ' ') FROM labels
+                                WHERE master_digest = NEW.master_digest), '')
+         WHERE rowid = (SELECT rowid FROM masters WHERE digest = NEW.master_digest);
+       END
+       """,
+       """
+       CREATE TRIGGER master_search_label_update AFTER UPDATE ON labels
+       BEGIN
+         UPDATE master_search
+         SET labels = COALESCE((SELECT group_concat(label, ' ') FROM labels
+                                WHERE master_digest = OLD.master_digest), '')
+         WHERE rowid = (SELECT rowid FROM masters WHERE digest = OLD.master_digest);
+         UPDATE master_search
+         SET labels = COALESCE((SELECT group_concat(label, ' ') FROM labels
+                                WHERE master_digest = NEW.master_digest), '')
+         WHERE rowid = (SELECT rowid FROM masters WHERE digest = NEW.master_digest);
+       END
+       """,
+       """
+       CREATE TRIGGER master_search_label_delete AFTER DELETE ON labels
+       BEGIN
+         UPDATE master_search
+         SET labels = COALESCE((SELECT group_concat(label, ' ') FROM labels
+                                WHERE master_digest = OLD.master_digest), '')
+         WHERE rowid = (SELECT rowid FROM masters WHERE digest = OLD.master_digest);
+       END
+       """
      ]}
   ]
 

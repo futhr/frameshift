@@ -566,6 +566,58 @@ defmodule Frameshift.LibraryTest do
              |> Enum.reject(& &1["pinned"])
   end
 
+  test "FTS search treats operators as text and follows remove and restore", %{library: library} do
+    {:ok, master} =
+      Library.import_master(library, "cafe image", master_attributes(%{title: "Café Study"}))
+
+    digest = master["digest"]
+    :ok = Library.add_label(library, digest, "blue-forest", :user)
+
+    assert [%{"digest" => ^digest}] = Library.search(library, "cafe")
+    assert [%{"digest" => ^digest}] = Library.search(library, "blu for")
+    assert [] = Library.search(library, "OR")
+    assert [] = Library.search(library, "%")
+    assert [] = Library.search(library, String.duplicate("a", 513))
+    assert [] = Library.search(library, String.duplicate("word ", 9))
+    assert [] = Library.search(library, String.duplicate("a", 33))
+
+    :ok = Library.remove_master(library, digest)
+    assert [] = Library.search(library, "cafe")
+    assert [] = Library.search(library, "blue")
+
+    :ok = Library.restore_master(library, digest)
+    assert [%{"digest" => ^digest}] = Library.search(library, "blue")
+  end
+
+  test "FTS index backfills titles and labels when an existing library upgrades", %{
+    library: library,
+    data_dir: data_dir
+  } do
+    {:ok, master} =
+      Library.import_master(library, "indexed image", master_attributes(%{title: "Old Portrait"}))
+
+    digest = master["digest"]
+    :ok = Library.add_label(library, digest, "copper", :user)
+    GenServer.stop(library)
+
+    {:ok, database} = Exqlite.start_link(database: Path.join(data_dir, "metadata.sqlite"))
+
+    for trigger <-
+          ~w(master_search_insert master_search_update master_search_delete
+                      master_search_label_insert master_search_label_update master_search_label_delete) do
+      Exqlite.query!(database, "DROP TRIGGER #{trigger}")
+    end
+
+    Exqlite.query!(database, "DROP TABLE master_search")
+    Exqlite.query!(database, "DELETE FROM schema_migrations WHERE version = 15")
+    GenServer.stop(database)
+
+    {:ok, upgraded} = Library.start_link(data_dir: data_dir, name: nil)
+    assert [%{"digest" => ^digest}] = Library.search(upgraded, "copp")
+    assert [%{"digest" => ^digest}] = Library.search(upgraded, "portr")
+    GenServer.stop(upgraded)
+  end
+
   defp master_attributes(overrides \\ %{}) do
     Map.merge(
       %{

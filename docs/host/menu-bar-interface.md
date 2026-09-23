@@ -106,6 +106,14 @@ never blocks normal image import/render.
 - A “similar” action may use local Vision feature prints; the UI identifies
   similarity results rather than pretending they are text matches.
 
+The core's title and label search uses a SQLite FTS5 projection maintained in
+the same transaction as those rows. Text input is treated as literal Unicode
+word prefixes, with a bounded number of terms and results; FTS operators are
+never accepted from the search field. Empty search keeps pinned-first library
+ordering. The index is rebuildable from masters and labels and excludes
+removed masters. Frame, source, and pin filters are separate facets of the
+full library view.
+
 Auto-labeling runs in the background and does not interrupt import. Generated
 or machine labels remain editable in the full library/settings view.
 

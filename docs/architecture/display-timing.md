@@ -72,9 +72,10 @@ references intact until an explicit new loop is queued.
 The local library projection marks every member of the selected frame's
 pending, active, or suspended revision. It does not infer loop membership from
 the manifest's first `desiredAsset`.
-The compact menu currently offers fixed intervals above the receiver minimum;
-review and reordering of the included set, per-frame interval persistence,
-resume, and profile-change warnings remain implementation work. Physical RTC
+The compact menu offers fixed intervals and a whole-minute custom interval
+above the receiver minimum, bounded to one year. Review and reordering of the
+included set, per-frame interval persistence, a dedicated resume action, and
+profile-change warnings remain implementation work. Physical RTC
 and whole-frame energy qualification remain hardware release gates.
 
 ## Receiver clock and failure behavior

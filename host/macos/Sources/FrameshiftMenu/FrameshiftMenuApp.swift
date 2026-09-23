@@ -5,6 +5,7 @@ import SwiftUI
 @MainActor
 private enum ShellSession {
   static let model = ShellModel(client: LocalCoreClient())
+  static let panelState = PanelState()
 }
 
 @main
@@ -13,7 +14,7 @@ struct FrameshiftMenuApp: App {
 
   var body: some Scene {
     MenuBarExtra {
-      FrameshiftPanel(model: ShellSession.model)
+      FrameshiftPanel(model: ShellSession.model, panelState: ShellSession.panelState)
         .modifier(AppIconAppearance())
     } label: {
       Image(nsImage: MenuBarIcon.image)

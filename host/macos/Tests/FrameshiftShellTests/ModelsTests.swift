@@ -100,6 +100,22 @@ struct ModelsTests {
     #expect(playlist.replacingActive == true)
   }
 
+  @Test("Custom interval rounds a receiver minimum up to a whole minute")
+  func customIntervalMinimum() {
+    #expect(LoopIntervalInput.minimumMinutes(minimumDwellMs: 180_001) == 4)
+    #expect(LoopIntervalInput.dwellMilliseconds("3", minimumDwellMs: 180_001) == nil)
+    #expect(LoopIntervalInput.dwellMilliseconds(" 4 ", minimumDwellMs: 180_001) == 240_000)
+  }
+
+  @Test("Custom interval rejects malformed and out-of-range input")
+  func customIntervalBounds() {
+    #expect(LoopIntervalInput.dwellMilliseconds("1.5", minimumDwellMs: nil) == nil)
+    #expect(LoopIntervalInput.dwellMilliseconds("-3", minimumDwellMs: nil) == nil)
+    #expect(LoopIntervalInput.dwellMilliseconds("525601", minimumDwellMs: nil) == nil)
+    #expect(
+      LoopIntervalInput.dwellMilliseconds("525600", minimumDwellMs: nil) == 31_536_000_000)
+  }
+
   @Test("Disconnected state never invents device or generation availability")
   func disconnectedState() {
     let snapshot = CoreSnapshot.disconnected

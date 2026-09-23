@@ -1,11 +1,13 @@
 import AppKit
 import FrameshiftShell
+import Observation
 import SwiftUI
 import UniformTypeIdentifiers
 
 struct FrameshiftPanel: View {
   @Environment(\.colorScheme) private var colorScheme
   let model: ShellModel
+  let panelState: PanelState
 
   var body: some View {
     VStack(alignment: .leading, spacing: 14) {
@@ -209,37 +211,87 @@ struct FrameshiftPanel: View {
   @ViewBuilder
   private var loopControls: some View {
     if let target = model.snapshot.selectedTarget {
-      HStack {
-        Menu {
-          if let suggested = target.recommendedDwellMs {
-            Button(suggestedLabel(for: target, milliseconds: suggested)) {
-              Task { await model.loopPinned(dwellMs: nil) }
+      VStack(alignment: .leading, spacing: 7) {
+        HStack {
+          Menu {
+            if let suggested = target.recommendedDwellMs {
+              Button(suggestedLabel(for: target, milliseconds: suggested)) {
+                Task { await model.loopPinned(dwellMs: nil) }
+              }
             }
-          }
 
-          ForEach(intervalChoices(for: target), id: \.milliseconds) { choice in
-            Button("Every \(choice.label)") {
-              Task { await model.loopPinned(dwellMs: choice.milliseconds) }
+            ForEach(intervalChoices(for: target), id: \.milliseconds) { choice in
+              Button("Every \(choice.label)") {
+                Task { await model.loopPinned(dwellMs: choice.milliseconds) }
+              }
             }
+
+            Divider()
+            Button("Custom interval…") {
+              panelState.customIntervalShown = true
+            }
+          } label: {
+            Label("Loop pins", systemImage: "arrow.triangle.2.circlepath")
           }
-        } label: {
-          Label("Loop pins", systemImage: "arrow.triangle.2.circlepath")
+          .buttonStyle(FlatActionButtonStyle())
+          .disabled(model.isBusy)
+          .help("Cycle the current pinned artwork on \(target.name)")
+          .accessibilityIdentifier("loop-pinned-menu")
+
+          Spacer()
+
+          if let playlist = target.playlist {
+            Text(playlistStatus(playlist))
+              .font(.caption)
+              .foregroundStyle(.secondary)
+              .accessibilityIdentifier("playlist-status")
+          }
         }
-        .buttonStyle(FlatActionButtonStyle())
-        .disabled(model.isBusy)
-        .help("Cycle the current pinned artwork on \(target.name)")
-        .accessibilityIdentifier("loop-pinned-menu")
 
-        Spacer()
+        if panelState.customIntervalShown {
+          HStack(spacing: 8) {
+            TextField(
+              "Minutes",
+              text: Binding(
+                get: { panelState.customIntervalMinutes },
+                set: { panelState.customIntervalMinutes = $0 }
+              )
+            )
+            .textFieldStyle(.roundedBorder)
+            .frame(width: 85)
+            .accessibilityLabel("Custom loop interval in minutes")
+            .accessibilityIdentifier("custom-loop-minutes")
+            .onSubmit { queueCustomInterval(for: target) }
 
-        if let playlist = target.playlist {
-          Text(playlistStatus(playlist))
+            Text(
+              "At least \(LoopIntervalInput.minimumMinutes(minimumDwellMs: target.minimumDwellMs)) min"
+            )
             .font(.caption)
             .foregroundStyle(.secondary)
-            .accessibilityIdentifier("playlist-status")
+
+            Spacer()
+
+            Button("Queue loop") { queueCustomInterval(for: target) }
+              .disabled(customDwellMs(for: target) == nil || model.isBusy)
+              .accessibilityIdentifier("queue-custom-loop")
+
+            Button("Cancel") { panelState.customIntervalShown = false }
+              .buttonStyle(.plain)
+          }
         }
       }
     }
+  }
+
+  private func customDwellMs(for target: FrameTarget) -> Int? {
+    LoopIntervalInput.dwellMilliseconds(
+      panelState.customIntervalMinutes, minimumDwellMs: target.minimumDwellMs)
+  }
+
+  private func queueCustomInterval(for target: FrameTarget) {
+    guard let dwellMs = customDwellMs(for: target), !model.isBusy else { return }
+    panelState.customIntervalShown = false
+    Task { await model.loopPinned(dwellMs: dwellMs) }
   }
 
   private func intervalChoices(for target: FrameTarget) -> [IntervalChoice] {
@@ -310,6 +362,13 @@ struct FrameshiftPanel: View {
 private struct IntervalChoice {
   let label: String
   let milliseconds: Int
+}
+
+@MainActor
+@Observable
+final class PanelState {
+  var customIntervalShown = false
+  var customIntervalMinutes = ""
 }
 
 private struct ResultCard: View {

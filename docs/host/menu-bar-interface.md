@@ -144,8 +144,11 @@ minimum. Photo and Pixel present interval as a viewing preference, without an
 energy-saving claim. The UI separates prepared, pending, and frame-confirmed
 active states. See [display timing](../architecture/display-timing.md).
 
-The current compact menu exposes this as **Loop pins** with a provisional
-suggestion when advertised and fixed choices filtered by the receiver minimum.
+The compact menu exposes this as **Loop pins** with a provisional suggestion
+when advertised, fixed choices filtered by the receiver minimum, and a custom
+whole-minute interval field. The custom control validates the receiver minimum
+and a one-year upper bound before submission; the core applies the receiver
+minimum again.
 It shows pending, active, or suspended state from the durable core snapshot.
 For a pending replacement it says that the current loop continues until the
 frame confirms the new revision.
@@ -155,7 +158,7 @@ asset alone does not describe the whole loop.
 The core renders the pin set and queues a complete authenticated pull playlist;
 the receiver performs the offline cycle. Repeating **Loop pins** after a single
 still has paused it queues a fresh intent, including when the revision is the
-same. Set preview, ordering, arbitrary dwell entry, and a dedicated resume
+same. Set preview, ordering, sub-minute dwell entry, and a dedicated resume
 control remain open. A photo or pixel interval is a viewing choice, not a
 measured energy optimization.
 

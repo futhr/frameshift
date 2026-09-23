@@ -23,7 +23,13 @@ network I/O. It records the terminal attempt outcome afterward; a crash can
 leave only the started fact and a pending intent. A confirmed display fact
 carries the exact attempt ID that observed it. Native logs carry the same
 allowlisted attempt ID, while the attempt-count metric uses only mode and
-outcome dimensions. Sleeping pull attempts still need this trace.
+outcome dimensions. A sleeping pull contact spans separate manifest, asset, and
+acknowledgement requests. Frame Protocol v0.1 has no contact ID echoed in the
+acknowledgement, so revision and frame identity alone cannot attribute a
+confirmation to one contact attempt. A versioned protocol change must carry
+the host-issued random attempt ID from manifest to acknowledgement, reject an
+unknown or mismatched ID, and keep an interrupted contact pending. Until that
+round trip is implemented, pull attempts remain an explicit correlation gap.
 
 Default diagnostic fields are enum outcome, stable operation name, safe error
 code, revision, duration, byte count, and random correlation ID. No tokens,

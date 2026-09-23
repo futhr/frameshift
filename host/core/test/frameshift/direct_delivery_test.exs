@@ -341,6 +341,16 @@ defmodule Frameshift.DirectDeliveryTest do
                :failed
              )
 
+    assert {:error, :unknown_direct_attempt} =
+             Library.record_direct_attempt(
+               context.library,
+               @frame_id,
+               "timed-out-push",
+               started["attemptId"],
+               :reconcile,
+               :failed
+             )
+
     assert [{"desired", ^digest}] = references(context.data_dir)
   end
 

@@ -1958,7 +1958,7 @@ defmodule Frameshift.Library do
   defp persist_direct_attempt(state, frame_id, request_id, attempt_id, mode, phase) do
     with {:ok, %{"request_id" => ^request_id}} <- direct_delivery_record(state, frame_id),
          :ok <- require_pending_attempt(state, frame_id, phase),
-         :ok <- require_started_attempt(state.connection, request_id, attempt_id, phase) do
+         :ok <- require_started_attempt(state.connection, request_id, attempt_id, mode, phase) do
       persist_direct_attempt_audit(state.connection, request_id, attempt_id, mode, phase)
     else
       :not_found -> {:error, :direct_delivery_missing}
@@ -1996,20 +1996,32 @@ defmodule Frameshift.Library do
 
   defp require_pending_attempt(_, _, _), do: :ok
 
-  defp require_started_attempt(_, _, _, :started), do: :ok
+  defp require_started_attempt(_, _, _, _, :started), do: :ok
 
-  defp require_started_attempt(connection, request_id, attempt_id, _) do
+  defp require_started_attempt(connection, request_id, attempt_id, mode, _) do
     case query_one(
            connection,
            """
-           SELECT id FROM audit_entries
+           SELECT detail_json FROM audit_entries
            WHERE operation = 'direct.attempt.started' AND correlation_id = ? AND attempt_id = ?
            LIMIT 1
            """,
            [Digest.sha256(request_id), attempt_id]
          ) do
-      {:ok, _} -> :ok
+      {:ok, %{"detail_json" => details}} -> matching_started_attempt(details, mode)
       :not_found -> {:error, :unknown_direct_attempt}
+    end
+  end
+
+  defp matching_started_attempt(details, mode) do
+    case Jason.decode(details) do
+      {:ok, %{"kind" => kind, "outcome" => "started"}} ->
+        if kind in ~w(push reconcile) and (mode == :any or kind == Atom.to_string(mode)),
+          do: :ok,
+          else: {:error, :unknown_direct_attempt}
+
+      _ ->
+        {:error, :unknown_direct_attempt}
     end
   end
 
@@ -2063,7 +2075,7 @@ defmodule Frameshift.Library do
   defp require_confirmation_attempt(_, _, nil), do: :ok
 
   defp require_confirmation_attempt(connection, request_id, attempt_id),
-    do: require_started_attempt(connection, request_id, attempt_id, :displayed)
+    do: require_started_attempt(connection, request_id, attempt_id, :any, :displayed)
 
   defp commit_confirmed_attempt(state, delivery, request_id, attempt_id) do
     with :ok <- require_confirmation_attempt(state.connection, request_id, attempt_id) do

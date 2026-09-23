@@ -104,6 +104,12 @@ defmodule Frameshift.Qualification.StoreTest do
                | "profileDigest" => Digest.sha256("mismatched profile")
              })
 
+    assert {:error, :unsupported_qualification_contract} =
+             Library.register_qualification(library, %{
+               first
+               | "connectorRevision" => "unimplemented-connector"
+             })
+
     assert {:error, :qualification_not_admitted} =
              Library.activate_qualification(library, "another-frame", first_digest)
 

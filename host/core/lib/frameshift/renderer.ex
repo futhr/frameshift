@@ -53,6 +53,19 @@ defmodule Frameshift.Renderer do
     GenServer.call(server, {:render, job, timeout}, call_timeout(timeout))
   end
 
+  @doc "Renders only when this worker owner fingerprints to the admitted executable build."
+  @spec render_qualified(server(), map(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def render_qualified(server, job, expected_digest, options \\ []) do
+    timeout = Keyword.get(options, :deadline_ms, @default_timeout_ms)
+
+    GenServer.call(
+      server,
+      {:render_qualified, job, timeout, expected_digest},
+      call_timeout(timeout)
+    )
+  end
+
   @doc "Returns the SHA-256 digest of the executable read when this worker owner started."
   @spec build_digest(server()) :: String.t()
   def build_digest(server \\ __MODULE__), do: GenServer.call(server, :build_digest)
@@ -79,7 +92,25 @@ defmodule Frameshift.Renderer do
     {:reply, {:error, :busy}, state}
   end
 
+  def handle_call({:render_qualified, _, _, _}, _, %{pending: pending} = state)
+      when pending != nil do
+    {:reply, {:error, :busy}, state}
+  end
+
+  def handle_call({:render_qualified, _, _, expected_digest}, _, state)
+      when expected_digest != state.build_digest do
+    {:reply, {:error, :renderer_build_mismatch}, state}
+  end
+
+  def handle_call({:render_qualified, job, timeout, _}, from, state) do
+    start_render(job, timeout, from, state)
+  end
+
   def handle_call({:render, job, timeout}, from, state) do
+    start_render(job, timeout, from, state)
+  end
+
+  defp start_render(job, timeout, from, state) do
     with :ok <- validate_timeout(timeout),
          {:ok, request} <- Protocol.encode_request(job),
          :ok <- command_worker(state.port, request) do

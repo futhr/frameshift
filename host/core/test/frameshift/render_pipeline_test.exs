@@ -7,6 +7,7 @@ defmodule Frameshift.RenderPipelineTest do
   alias Frameshift.Library
   alias Frameshift.LocalAPI
   alias Frameshift.MasterPackage
+  alias Frameshift.Qualification.Profile
   alias Frameshift.Renderer
   alias Frameshift.RenderPipeline
   alias Frameshift.Simulator
@@ -150,6 +151,98 @@ defmodule Frameshift.RenderPipelineTest do
                context.renderer,
                master["digest"],
                Map.delete(mismatched, :rgba),
+               artifact_attributes()
+             )
+  end
+
+  test "qualified render pins active binding, exact build and result across cache replay",
+       context do
+    {:ok, package} = MasterPackage.encode(@original, @rgba, 2, 1)
+    {:ok, master} = Library.import_master(context.library, package, master_attributes())
+
+    {:ok, frame} =
+      Library.register_paired_frame(
+        context.library,
+        thing_description(),
+        "keychain:qualified-pipeline-frame",
+        "sha256:" <> String.duplicate("d", 64)
+      )
+
+    binding = qualification_manifest(frame, Renderer.build_digest(context.renderer))
+    {:ok, binding_digest} = Library.register_qualification(context.library, binding)
+
+    :ok =
+      Library.admit_qualification(context.library, binding_digest, %{
+        "schemaVersion" => 1,
+        "scope" => "software_reference",
+        "outcome" => "passed",
+        "suiteDigest" => Digest.sha256("pipeline qualification fixture")
+      })
+
+    :ok = Library.activate_qualification(context.library, @frame_id, binding_digest)
+    job = Map.delete(render_job(), :rgba)
+
+    assert {:ok, first} =
+             RenderPipeline.render_qualified_stored_master(
+               context.library,
+               context.renderer,
+               @frame_id,
+               "pull",
+               master["digest"],
+               job,
+               artifact_attributes()
+             )
+
+    assert first["digest"] == Digest.sha256(@rgb)
+    assert first.cache == :miss
+    assert first.qualification_digest == binding_digest
+
+    assert {:ok, %{"digest" => work_digest}} =
+             Library.get_qualified_work(context.library, first.work_digest)
+
+    assert work_digest == first.work_digest
+
+    assert {:ok, %{"artifact_digest" => artifact_digest}} =
+             Library.qualified_result(context.library, first.work_digest)
+
+    assert artifact_digest == first["digest"]
+
+    assert {:ok, second} =
+             RenderPipeline.render_qualified_stored_master(
+               context.library,
+               context.renderer,
+               @frame_id,
+               "pull",
+               master["digest"],
+               job,
+               artifact_attributes()
+             )
+
+    assert second.cache == :hit
+    assert second.work_digest == first.work_digest
+    assert second.result_digest == first.result_digest
+
+    wrong_build = qualification_manifest(frame, Digest.sha256("wrong renderer"))
+    {:ok, wrong_digest} = Library.register_qualification(context.library, wrong_build)
+
+    :ok =
+      Library.admit_qualification(context.library, wrong_digest, %{
+        "schemaVersion" => 1,
+        "scope" => "software_reference",
+        "outcome" => "passed",
+        "suiteDigest" => Digest.sha256("wrong build fixture")
+      })
+
+    :ok = Library.activate_qualification(context.library, @frame_id, wrong_digest)
+
+    assert {:error, :qualification_runtime_mismatch} =
+             RenderPipeline.render_qualified_stored_master(
+               context.library,
+               context.renderer,
+               @frame_id,
+               "pull",
+               master["digest"],
+               job,
                artifact_attributes()
              )
   end
@@ -326,6 +419,27 @@ defmodule Frameshift.RenderPipelineTest do
       profile_id: @profile_id,
       renderer_revision: "frameshift-raster-v0.1",
       media_type: "application/vnd.frameshift.rgb24"
+    }
+  end
+
+  defp qualification_manifest(frame, renderer_digest) do
+    connector = "frameshift-outbox-v0.1"
+    {:ok, profile_digest} = Profile.digest(frame["capabilities"], @profile_id)
+    {:ok, binding_digest} = Profile.binding_digest(frame["td_json"], "pull", connector)
+
+    %{
+      "schemaVersion" => 1,
+      "frameId" => @frame_id,
+      "thingDescriptionDigest" => Digest.sha256(frame["td_json"]),
+      "profileId" => @profile_id,
+      "profileDigest" => profile_digest,
+      "rendererBuildDigest" => renderer_digest,
+      "rendererProtocolRevision" => "fsr1",
+      "rendererAlgorithmRevision" => "frameshift-raster-v0.1",
+      "bindingDigest" => binding_digest,
+      "connectorRevision" => connector,
+      "effectClass" => "physical_display",
+      "transferMode" => "pull"
     }
   end
 

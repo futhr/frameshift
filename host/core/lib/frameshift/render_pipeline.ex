@@ -11,6 +11,7 @@ defmodule Frameshift.RenderPipeline do
   alias Frameshift.Digest
   alias Frameshift.Library
   alias Frameshift.MasterPackage
+  alias Frameshift.Qualification.Contract
   alias Frameshift.Renderer
   alias Frameshift.Renderer.Protocol, as: RendererProtocol
 
@@ -25,8 +26,49 @@ defmodule Frameshift.RenderPipeline do
           map()
         ) :: {:ok, map()} | {:error, term()}
   def render_stored_master(library, renderer, master_digest, job, attributes) do
+    measure_render(fn ->
+      do_render_stored_master(library, renderer, master_digest, job, attributes, nil, nil)
+    end)
+  end
+
+  @doc "Accepts and renders work against one active frame/profile/transfer qualification."
+  @spec render_qualified_stored_master(
+          GenServer.server(),
+          GenServer.server(),
+          String.t(),
+          String.t(),
+          String.t(),
+          map(),
+          map()
+        ) :: {:ok, map()} | {:error, term()}
+  def render_qualified_stored_master(
+        library,
+        renderer,
+        frame_id,
+        mode,
+        master_digest,
+        job,
+        attributes
+      ) do
+    measure_render(fn ->
+      with {:ok, binding} <- active_binding(library, frame_id),
+           :ok <- validate_binding(library, renderer, binding, frame_id, mode, attributes) do
+        do_render_stored_master(
+          library,
+          renderer,
+          master_digest,
+          job,
+          attributes,
+          binding,
+          frame_id
+        )
+      end
+    end)
+  end
+
+  defp measure_render(operation) do
     started = System.monotonic_time(:millisecond)
-    result = do_render_stored_master(library, renderer, master_digest, job, attributes)
+    result = operation.()
 
     outcome =
       case result do
@@ -44,7 +86,15 @@ defmodule Frameshift.RenderPipeline do
     result
   end
 
-  defp do_render_stored_master(library, renderer, master_digest, job, attributes) do
+  defp do_render_stored_master(
+         library,
+         renderer,
+         master_digest,
+         job,
+         attributes,
+         binding,
+         frame_id
+       ) do
     with :ok <- validate_attributes(attributes),
          :ok <- validate_master_digest(master_digest),
          {:ok, master} <- Library.get_master(library, master_digest),
@@ -55,18 +105,50 @@ defmodule Frameshift.RenderPipeline do
          :ok <- validate_decoded(decoded, job),
          render_job = Map.put(job, :rgba, decoded.rgba),
          {:ok, _} <- RendererProtocol.encode_request(render_job),
-         {:ok, recipe_hash} <- register_recipe(library, master_digest, render_job, attributes) do
-      fetch_or_render(
+         {:ok, recipe_hash} <-
+           register_recipe(library, master_digest, render_job, attributes, binding) do
+      produce_artifact(
         library,
         renderer,
         master_digest,
         recipe_hash,
         render_job,
-        attributes
+        attributes,
+        binding,
+        frame_id
       )
     else
       :not_found -> {:error, :master_missing}
       {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp active_binding(library, frame_id) do
+    case Library.active_qualification(library, frame_id) do
+      {:ok, %{"status" => "admitted"} = binding} -> {:ok, binding}
+      _ -> {:error, :qualification_not_active}
+    end
+  end
+
+  defp validate_binding(library, renderer, binding, frame_id, mode, attributes) do
+    manifest = binding["manifest"]
+
+    with :ok <- Contract.validate(manifest),
+         {:ok, frame} <- Library.get_paired_frame(library, frame_id),
+         %{} = profile <-
+           Enum.find(
+             frame["capabilities"]["storage"]["artifactProfiles"],
+             &(&1["id"] == manifest["profileId"])
+           ),
+         true <- binding["frame_id"] == frame_id,
+         true <- manifest["transferMode"] == mode,
+         true <- manifest["profileId"] == attributes.profile_id,
+         true <- manifest["rendererAlgorithmRevision"] == attributes.renderer_revision,
+         true <- profile["mediaType"] == attributes.media_type,
+         true <- Renderer.build_digest(renderer) == manifest["rendererBuildDigest"] do
+      :ok
+    else
+      _ -> {:error, :qualification_runtime_mismatch}
     end
   end
 
@@ -110,8 +192,8 @@ defmodule Frameshift.RenderPipeline do
       else: {:error, :source_dimensions_mismatch}
   end
 
-  defp register_recipe(library, master_digest, job, attributes) do
-    recipe = %{
+  defp register_recipe(library, master_digest, job, attributes, binding) do
+    parameters = %{
       "background" => Tuple.to_list(job.background),
       "crop" => %{
         "height" => job.crop_height,
@@ -132,10 +214,68 @@ defmodule Frameshift.RenderPipeline do
       "targetWidth" => job.target_width
     }
 
+    recipe =
+      if binding,
+        do:
+          Map.put(parameters, "rendererBuildDigest", binding["manifest"]["rendererBuildDigest"]),
+        else: parameters
+
     Library.register_recipe(library, :composition, recipe, [master_digest])
   end
 
-  defp fetch_or_render(library, renderer, master_digest, recipe_hash, job, attributes) do
+  defp produce_artifact(
+         library,
+         renderer,
+         master_digest,
+         recipe_hash,
+         job,
+         attributes,
+         nil,
+         _
+       ) do
+    fetch_or_render(library, renderer, master_digest, recipe_hash, job, attributes, nil)
+  end
+
+  defp produce_artifact(
+         library,
+         renderer,
+         master_digest,
+         recipe_hash,
+         job,
+         attributes,
+         binding,
+         frame_id
+       ) do
+    with {:ok, work_digest} <-
+           Library.accept_qualified_work(
+             library,
+             frame_id,
+             binding["digest"],
+             master_digest,
+             recipe_hash
+           ),
+         {:ok, artifact} <-
+           fetch_or_render(
+             library,
+             renderer,
+             master_digest,
+             recipe_hash,
+             job,
+             attributes,
+             binding
+           ),
+         {:ok, result_digest} <-
+           Library.record_qualified_result(library, work_digest, artifact["digest"]) do
+      {:ok,
+       Map.merge(artifact, %{
+         work_digest: work_digest,
+         qualification_digest: binding["digest"],
+         result_digest: result_digest
+       })}
+    end
+  end
+
+  defp fetch_or_render(library, renderer, master_digest, recipe_hash, job, attributes, binding) do
     case Library.cached_artifact(
            library,
            recipe_hash,
@@ -146,12 +286,28 @@ defmodule Frameshift.RenderPipeline do
         {:ok, Map.put(artifact, :cache, :hit)}
 
       :not_found ->
-        render_and_register(library, renderer, master_digest, recipe_hash, job, attributes)
+        render_and_register(
+          library,
+          renderer,
+          master_digest,
+          recipe_hash,
+          job,
+          attributes,
+          binding
+        )
     end
   end
 
-  defp render_and_register(library, renderer, master_digest, recipe_hash, job, attributes) do
-    with {:ok, rendered} <- Renderer.render(renderer, job),
+  defp render_and_register(
+         library,
+         renderer,
+         master_digest,
+         recipe_hash,
+         job,
+         attributes,
+         binding
+       ) do
+    with {:ok, rendered} <- render_with_binding(renderer, job, binding),
          :ok <- validate_rendered(rendered, job) do
       Library.register_artifact(library, rendered.bytes, %{
         master_digest: master_digest,
@@ -161,6 +317,12 @@ defmodule Frameshift.RenderPipeline do
         media_type: attributes.media_type
       })
     end
+  end
+
+  defp render_with_binding(renderer, job, nil), do: Renderer.render(renderer, job)
+
+  defp render_with_binding(renderer, job, binding) do
+    Renderer.render_qualified(renderer, job, binding["manifest"]["rendererBuildDigest"])
   end
 
   defp validate_rendered(rendered, job) do

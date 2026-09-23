@@ -31,6 +31,12 @@ defmodule Frameshift.RendererTest do
 
     assert Renderer.build_digest(renderer) == Digest.sha256(File.read!(@renderer_path))
 
+    assert {:error, :renderer_build_mismatch} =
+             Renderer.render_qualified(renderer, job(), Digest.sha256("other executable"))
+
+    assert {:ok, _} =
+             Renderer.render_qualified(renderer, job(), Renderer.build_digest(renderer))
+
     assert {:ok, rendered} = Renderer.render(renderer, job())
     assert rendered == %{format: :rgb24, width: 2, height: 1, bytes: <<1, 2, 3, 4, 5, 6>>}
 

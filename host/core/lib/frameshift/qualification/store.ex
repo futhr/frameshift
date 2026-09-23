@@ -8,6 +8,7 @@ defmodule Frameshift.Qualification.Store do
 
   alias Frameshift.Diagnostics.Store, as: DiagnosticsStore
   alias Frameshift.Digest
+  alias Frameshift.Qualification.Contract
   alias Frameshift.Qualification.Identity
   alias Frameshift.Qualification.Profile
 
@@ -15,6 +16,7 @@ defmodule Frameshift.Qualification.Store do
   @spec register(pid(), map()) :: {:ok, String.t()} | {:error, term()}
   def register(connection, document) do
     with {:ok, identity} <- Identity.binding(document),
+         :ok <- Contract.validate(document),
          :ok <- matching_frame_profile(connection, document) do
       transact(connection, &insert_candidate(&1, identity))
     end
@@ -26,6 +28,7 @@ defmodule Frameshift.Qualification.Store do
     with true <- Digest.valid_sha256?(digest),
          {:ok, canonical_evidence} <- Identity.software_evidence(evidence),
          {:ok, binding} <- get(connection, digest),
+         :ok <- Contract.validate(binding["manifest"]),
          :ok <- matching_frame_profile(connection, binding["manifest"]) do
       admission_transition(connection, binding, canonical_evidence)
     else
@@ -42,6 +45,7 @@ defmodule Frameshift.Qualification.Store do
          true <- Digest.valid_sha256?(digest),
          {:ok, %{"frame_id" => ^frame_id, "status" => "admitted"} = binding} <-
            get(connection, digest),
+         :ok <- Contract.validate(binding["manifest"]),
          :ok <- matching_frame_profile(connection, binding["manifest"]) do
       transact(connection, &activate_binding(&1, frame_id, digest))
     else

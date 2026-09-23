@@ -35,7 +35,7 @@ defmodule Frameshift.Transport.MTLSCredentialTest do
     assert {:error, :invalid_client_private_key} =
              MTLSCredential.new("https://frame.local", @pin, <<4, 5, 6>>, %{
                algorithm: :rsa,
-               sign_fun: fn _message -> <<1>> end
+               sign_fun: fn _ -> <<1>> end
              })
   end
 end

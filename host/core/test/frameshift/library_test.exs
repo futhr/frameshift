@@ -323,7 +323,7 @@ defmodule Frameshift.LibraryTest do
   test "recipe and frame references protect removed masters", %{library: library} do
     {:ok, recipe_source} = Library.import_master(library, "recipe source", master_attributes())
 
-    assert {:ok, _recipe_hash} =
+    assert {:ok, _} =
              Library.register_recipe(
                library,
                :composition,

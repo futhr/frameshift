@@ -33,7 +33,7 @@ defmodule Frameshift.GenerationTest do
     end
 
     @impl true
-    def generate(_request, context) do
+    def generate(_, context) do
       send(context.test_pid, {:provider_generate, context.secret})
 
       {:ok,
@@ -56,7 +56,7 @@ defmodule Frameshift.GenerationTest do
     def id, do: "slow-fixture"
 
     @impl true
-    def preflight(_context) do
+    def preflight(_) do
       {:ok,
        %{
          provider_id: "slow-fixture",
@@ -68,7 +68,7 @@ defmodule Frameshift.GenerationTest do
     end
 
     @impl true
-    def generate(_request, _context) do
+    def generate(_, _) do
       Process.sleep(1_000)
       {:error, :unexpected_completion}
     end

@@ -63,5 +63,5 @@ defmodule Frameshift.Pairing.Endpoint do
   defp problem_details(:pairing_locked), do: {429, "pairing-locked", "Pairing window is closed"}
   defp problem_details(:already_paired), do: {409, "already-paired", "Frame is already paired"}
   defp problem_details(:pairing_rejected), do: {403, "pairing-rejected", "Pairing was rejected"}
-  defp problem_details(_reason), do: {400, "invalid-pairing-request", "Invalid pairing request"}
+  defp problem_details(_), do: {400, "invalid-pairing-request", "Invalid pairing request"}
 end

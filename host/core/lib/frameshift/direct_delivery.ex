@@ -76,7 +76,7 @@ defmodule Frameshift.DirectDelivery do
     end
   end
 
-  def reconcile(_library, _frame_id, _options), do: {:error, :invalid_direct_delivery}
+  def reconcile(_, _, _), do: {:error, :invalid_direct_delivery}
 
   defp fetch_frame(library, frame_id) do
     case Library.get_paired_frame(library, frame_id) do
@@ -88,7 +88,7 @@ defmodule Frameshift.DirectDelivery do
   defp fetch_pending_intent(library, frame_id) do
     case Library.direct_delivery(library, frame_id) do
       {:ok, %{"status" => "pending"} = intent} -> {:ok, intent}
-      {:ok, _completed} -> {:error, :direct_delivery_not_pending}
+      {:ok, _} -> {:error, :direct_delivery_not_pending}
       :not_found -> {:error, :direct_delivery_not_pending}
     end
   end
@@ -123,19 +123,19 @@ defmodule Frameshift.DirectDelivery do
       {:error, reason} ->
         {:error, reason}
 
-      _other ->
+      _ ->
         {:error, :direct_sync_contract_violation}
     end
   rescue
-    _exception -> {:error, :direct_sync_failure}
+    _ -> {:error, :direct_sync_failure}
   catch
-    _kind, _reason -> {:error, :direct_sync_failure}
+    _, _ -> {:error, :direct_sync_failure}
   end
 
   defp resolver(options) do
     case Keyword.get(options, :credential_resolver) do
       {module, config} when is_atom(module) and not is_nil(module) -> {:ok, {module, config}}
-      _other -> {:error, :credential_broker_unavailable}
+      _ -> {:error, :credential_broker_unavailable}
     end
   end
 
@@ -145,7 +145,7 @@ defmodule Frameshift.DirectDelivery do
          true <- uri.scheme == "https" and is_binary(uri.host) and uri.host != "" do
       {:ok, URI.to_string(%{uri | path: nil, query: nil, fragment: nil})}
     else
-      _other -> {:error, :invalid_frame_origin}
+      _ -> {:error, :invalid_frame_origin}
     end
   end
 
@@ -170,13 +170,13 @@ defmodule Frameshift.DirectDelivery do
         {:error, reason} when is_atom(reason) ->
           {:error, reason}
 
-        _other ->
+        _ ->
           {:error, :credential_broker_contract_violation}
       end
     rescue
-      _exception -> {:error, :credential_broker_failure}
+      _ -> {:error, :credential_broker_failure}
     catch
-      _kind, _reason -> {:error, :credential_broker_failure}
+      _, _ -> {:error, :credential_broker_failure}
     end
   end
 
@@ -199,7 +199,7 @@ defmodule Frameshift.DirectDelivery do
     )
   end
 
-  defp sync_context(_request_id), do: {:error, :invalid_request_id}
+  defp sync_context(_), do: {:error, :invalid_request_id}
 
   defp synchronize(library, frame, intent, td, artifact, credential, config, context, options) do
     synchronizer = Keyword.get(options, :synchronizer, DirectSync)
@@ -211,13 +211,13 @@ defmodule Frameshift.DirectDelivery do
       {:error, reason} ->
         {:error, reason}
 
-      _other ->
+      _ ->
         {:error, :direct_sync_contract_violation}
     end
   rescue
-    _exception -> {:error, :direct_sync_failure}
+    _ -> {:error, :direct_sync_failure}
   catch
-    _kind, _reason -> {:error, :direct_sync_failure}
+    _, _ -> {:error, :direct_sync_failure}
   end
 
   defp finish(library, frame, intent, artifact, context, outcome) do

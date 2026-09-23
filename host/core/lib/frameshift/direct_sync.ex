@@ -108,7 +108,7 @@ defmodule Frameshift.DirectSync do
     end
   end
 
-  def sync(_td, _artifact, _credential, _config, _context),
+  def sync(_, _, _, _, _),
     do: {:error, :invalid_sync_arguments}
 
   @doc "Reads the selected frame state without replaying an uncertain mutation."
@@ -134,7 +134,7 @@ defmodule Frameshift.DirectSync do
     end
   end
 
-  def observe(_td, _digest, _request_id, _credential, _config, _context),
+  def observe(_, _, _, _, _, _),
     do: {:error, :invalid_sync_arguments}
 
   defp validate_observation(digest, request_id, context) do
@@ -150,7 +150,7 @@ defmodule Frameshift.DirectSync do
   defp observed_outcome(
          %{"currentAsset" => digest, "displayState" => "displayed"},
          digest,
-         _request_id
+         _
        ),
        do: :displayed
 
@@ -162,7 +162,7 @@ defmodule Frameshift.DirectSync do
        when state in ["preparing", "refreshing", "recovering"],
        do: :pending
 
-  defp observed_outcome(_state, _digest, _request_id), do: :not_applied
+  defp observed_outcome(_, _, _), do: :not_applied
 
   defp validate_context(%Context{request_id: request_id, deadline: deadline}) do
     cond do
@@ -185,7 +185,7 @@ defmodule Frameshift.DirectSync do
            artifact.media_type
          ) do
       {:ok, verified} when verified.byte_count == artifact.byte_count -> :ok
-      _invalid -> {:error, :invalid_artifact}
+      _ -> {:error, :invalid_artifact}
     end
   end
 
@@ -201,7 +201,7 @@ defmodule Frameshift.DirectSync do
            Thing.select_frame(td, :action, "setDesired", :invokeaction, [json_profile]) do
       {:ok, %{state: state, install: install, desired: desired}}
     else
-      {:error, _reason} -> {:error, :compatible_binding_unavailable}
+      {:error, _} -> {:error, :compatible_binding_unavailable}
     end
   end
 
@@ -224,7 +224,7 @@ defmodule Frameshift.DirectSync do
       false -> {:error, :artifact_incompatible}
       nil -> {:error, :unsupported_profile}
       {:error, reason} -> {:error, reason}
-      _invalid -> {:error, :invalid_capabilities}
+      _ -> {:error, :invalid_capabilities}
     end
   end
 
@@ -232,7 +232,7 @@ defmodule Frameshift.DirectSync do
     if "push" in modes, do: :ok, else: {:error, :compatible_binding_unavailable}
   end
 
-  defp validate_push_mode(_capabilities), do: {:error, :invalid_capabilities}
+  defp validate_push_mode(_), do: {:error, :invalid_capabilities}
 
   defp validate_install_form(%Selection{} = selection, artifact) do
     form = Form.to_map(selection.form)
@@ -261,7 +261,7 @@ defmodule Frameshift.DirectSync do
        }),
        do: true
 
-  defp valid_digest_variable?(_variables), do: false
+  defp valid_digest_variable?(_), do: false
 
   defp converge(initial, %Session{} = session) do
     case state_outcome(initial.state, session.artifact.digest) do
@@ -338,7 +338,7 @@ defmodule Frameshift.DirectSync do
       case Response.status(response) do
         201 -> {:ok, :created}
         204 -> {:ok, :present}
-        _status -> response_error(response)
+        _ -> response_error(response)
       end
     end
   end
@@ -405,7 +405,7 @@ defmodule Frameshift.DirectSync do
 
   defp reconcile_mutation(mutation, initial, %Session{} = session, attempt) do
     case mutation do
-      {:ok, _reported_state} ->
+      {:ok, _} ->
         reconcile_state(session)
 
       {:error, {:transport, reason}} ->
@@ -449,7 +449,7 @@ defmodule Frameshift.DirectSync do
             {:error, :activation_outcome_unknown}
         end
 
-      {:error, _read_reason} ->
+      {:error, _} ->
         {:error, :activation_outcome_unknown}
     end
   end
@@ -496,7 +496,7 @@ defmodule Frameshift.DirectSync do
             {:error, :activation_outcome_unknown}
         end
 
-      {:error, _reason} ->
+      {:error, _} ->
         {:error, :activation_outcome_unknown}
     end
   end
@@ -525,7 +525,7 @@ defmodule Frameshift.DirectSync do
       {:ok, %{state: state, etag: etag}}
     else
       false -> {:error, :invalid_state_form}
-      {:error, {:transport, _reason}} -> {:error, :state_unavailable}
+      {:error, {:transport, _}} -> {:error, :state_unavailable}
       {:error, reason} -> {:error, reason}
     end
   end
@@ -546,7 +546,7 @@ defmodule Frameshift.DirectSync do
   defp state_outcome(%{"desiredAsset" => digest, "displayState" => "failed"}, digest),
     do: {:error, :display_failed}
 
-  defp state_outcome(_state, _digest), do: :needs_sync
+  defp state_outcome(_, _), do: :needs_sync
 
   defp precondition(%{
          state: %{
@@ -586,14 +586,14 @@ defmodule Frameshift.DirectSync do
   end
 
   defp normalize_request_result({:ok, request}), do: {:ok, request}
-  defp normalize_request_result({:error, _reason}), do: {:error, :invalid_advertised_form}
+  defp normalize_request_result({:error, _}), do: {:error, :invalid_advertised_form}
 
   defp request_headers(selection, dynamic) do
     with {:ok, static} <- form_headers(Form.to_map(selection.form)),
          {:ok, runtime} <- Headers.new(dynamic, :request) do
       {:ok, Headers.merge(static, runtime)}
     else
-      {:error, _reason} -> {:error, :invalid_advertised_form}
+      {:error, _} -> {:error, :invalid_advertised_form}
     end
   end
 
@@ -607,16 +607,16 @@ defmodule Frameshift.DirectSync do
       %{"htv:fieldName" => name} when is_binary(name) ->
         {name, ""}
 
-      _invalid ->
+      _ ->
         :invalid
     end)
     |> Headers.new(:request)
   end
 
-  defp form_headers(%{"htv:headers" => _invalid}),
+  defp form_headers(%{"htv:headers" => _}),
     do: {:error, :invalid_form_headers}
 
-  defp form_headers(_form), do: {:ok, []}
+  defp form_headers(_), do: {:ok, []}
 
   defp validate_method(form, expected) do
     method = Map.get(form, "htv:methodName", default_method(expected))
@@ -627,7 +627,7 @@ defmodule Frameshift.DirectSync do
   end
 
   defp default_method("GET"), do: "GET"
-  defp default_method(_mutation), do: "POST"
+  defp default_method(_), do: "POST"
 
   defp expand_digest_uri(uri, digest) do
     hex = String.replace_prefix(digest, "sha256:", "")
@@ -654,13 +654,13 @@ defmodule Frameshift.DirectSync do
     try do
       module.request(request, credential, client_config)
     rescue
-      _exception -> {:error, {:transport, :client_exception}}
+      _ -> {:error, {:transport, :client_exception}}
     catch
-      _kind, _reason -> {:error, {:transport, :client_exception}}
+      _, _ -> {:error, {:transport, :client_exception}}
     else
       {:ok, %Response{} = response} -> {:ok, response}
       {:error, reason} when is_atom(reason) -> {:error, {:transport, reason}}
-      _invalid -> {:error, {:transport, :client_contract_violation}}
+      _ -> {:error, {:transport, :client_contract_violation}}
     end
   end
 
@@ -669,7 +669,7 @@ defmodule Frameshift.DirectSync do
          {:ok, decoded} <- JSON.decode_control(Response.body(response), schema) do
       {:ok, decoded}
     else
-      _invalid -> {:error, :invalid_response}
+      _ -> {:error, :invalid_response}
     end
   end
 
@@ -704,7 +704,7 @@ defmodule Frameshift.DirectSync do
          code when is_atom(code) <- Map.get(@problem_codes, suffix) do
       {:error, code}
     else
-      _invalid -> {:error, :invalid_response}
+      _ -> {:error, :invalid_response}
     end
   end
 
@@ -716,17 +716,17 @@ defmodule Frameshift.DirectSync do
     |> String.downcase()
   end
 
-  defp normalize_media_type(_value), do: nil
+  defp normalize_media_type(_), do: nil
 
   defp valid_response_media_type?(%{"response" => %{"contentType" => type}}, expected),
     do: normalize_media_type(type) == expected
 
-  defp valid_response_media_type?(_form, _expected), do: true
+  defp valid_response_media_type?(_, _), do: true
 
   defp transport_class(:timeout), do: :timeout
   defp transport_class(reason) when reason in @retryable_transport_reasons, do: :unavailable
-  defp transport_class(_reason), do: :permanent
+  defp transport_class(_), do: :permanent
 
   defp public_transport_error({:error, {:transport, :timeout}}), do: {:error, :timeout}
-  defp public_transport_error({:error, {:transport, _reason}}), do: {:error, :transport_failure}
+  defp public_transport_error({:error, {:transport, _}}), do: {:error, :transport_failure}
 end

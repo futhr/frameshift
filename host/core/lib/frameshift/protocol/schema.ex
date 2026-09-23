@@ -51,7 +51,7 @@ defmodule Frameshift.Protocol.Schema do
   @spec validate(schema_name(), term()) :: :ok | {:error, term()}
   def validate(name, document) do
     with {:ok, root} <- compiled(name),
-         {:ok, _validated} <- JSV.validate(document, root) do
+         {:ok, _} <- JSV.validate(document, root) do
       :ok
     end
   end
@@ -67,7 +67,7 @@ defmodule Frameshift.Protocol.Schema do
     end
   end
 
-  defp compile_and_cache(_cache_key, name) when name not in @schema_names,
+  defp compile_and_cache(_, name) when name not in @schema_names,
     do: {:error, :unknown_schema}
 
   defp compile_and_cache(cache_key, name) do

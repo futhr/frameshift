@@ -39,11 +39,11 @@ defmodule Frameshift.Transport.KeychainBroker do
       false -> {:error, :credential_broker_contract_violation}
       :error -> {:error, :credential_broker_contract_violation}
       {:error, reason} -> {:error, reason}
-      _other -> {:error, :credential_broker_contract_violation}
+      _ -> {:error, :credential_broker_contract_violation}
     end
   end
 
-  def resolve(_reference, _config), do: {:error, :credential_broker_unavailable}
+  def resolve(_, _), do: {:error, :credential_broker_unavailable}
 
   defp sign!(config, reference, algorithm, message, digest_type, options) do
     with {:ok, digest} <- digest_input(message, digest_type),
@@ -59,7 +59,7 @@ defmodule Frameshift.Transport.KeychainBroker do
          true <- byte_size(signature) in 1..4_096 do
       signature
     else
-      _failure -> raise "Keychain signing failed"
+      _ -> raise "Keychain signing failed"
     end
   end
 
@@ -76,12 +76,12 @@ defmodule Frameshift.Transport.KeychainBroker do
       else: {:error, :unsupported_digest}
   end
 
-  defp digest_input(_message, _algorithm), do: {:error, :invalid_digest}
+  defp digest_input(_, _), do: {:error, :invalid_digest}
 
   defp digest_size(:sha256), do: 32
   defp digest_size(:sha384), do: 48
   defp digest_size(:sha512), do: 64
-  defp digest_size(_algorithm), do: 0
+  defp digest_size(_), do: 0
 
   defp signature_scheme("ecdsa", digest_type, []) when digest_type in [:sha256, :sha384, :sha512],
     do: {:ok, "ecdsa-#{digest_type}"}
@@ -93,11 +93,11 @@ defmodule Frameshift.Transport.KeychainBroker do
     case padding do
       :rsa_pkcs1_padding -> {:ok, "rsa-pkcs1-#{digest_type}"}
       :rsa_pkcs1_pss_padding -> validate_pss_options(digest_type, options)
-      _other -> {:error, :unsupported_signature_scheme}
+      _ -> {:error, :unsupported_signature_scheme}
     end
   end
 
-  defp signature_scheme(_algorithm, _digest_type, _options),
+  defp signature_scheme(_, _, _),
     do: {:error, :unsupported_signature_scheme}
 
   defp validate_pss_options(digest_type, options) do
@@ -116,7 +116,7 @@ defmodule Frameshift.Transport.KeychainBroker do
     else
       %{"ok" => false} -> {:error, :credential_broker_failure}
       {:error, reason} when is_atom(reason) -> {:error, reason}
-      _other -> {:error, :credential_broker_contract_violation}
+      _ -> {:error, :credential_broker_contract_violation}
     end
   end
 
@@ -139,13 +139,13 @@ defmodule Frameshift.Transport.KeychainBroker do
                ) do
           {:ok, decoded}
         else
-          _other -> {:error, :credential_broker_failure}
+          _ -> {:error, :credential_broker_failure}
         end
       after
         :gen_tcp.close(socket)
       end
     else
-      _other -> {:error, :credential_broker_unavailable}
+      _ -> {:error, :credential_broker_unavailable}
     end
   end
 end

@@ -138,7 +138,7 @@ defmodule Frameshift.LocalAPITest do
     assert {:ok, %{"items" => []}} =
              LocalAPI.execute(context.library, %{"kind" => "remove", "itemID" => item["id"]})
 
-    assert {:ok, _removed_master} = Library.get_master(context.library, item["digest"])
+    assert {:ok, _} = Library.get_master(context.library, item["digest"])
     assert {:error, :invalid_command} = LocalAPI.execute(context.library, %{"kind" => "queue"})
 
     missing = "sha256:" <> String.duplicate("0", 64)
@@ -152,7 +152,7 @@ defmodule Frameshift.LocalAPITest do
   end
 
   test "snapshot and selection use durable paired frame records", context do
-    assert {:ok, _frame} =
+    assert {:ok, _} =
              Library.register_paired_frame(
                context.library,
                File.read!(@frame_fixture),
@@ -235,6 +235,6 @@ defmodule Frameshift.LocalAPITest do
   defp stop_if_alive(process) do
     if Process.alive?(process), do: GenServer.stop(process)
   catch
-    :exit, _reason -> :ok
+    :exit, _ -> :ok
   end
 end

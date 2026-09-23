@@ -62,7 +62,7 @@ defmodule Frameshift.LocalAPI do
       case command do
         %{"kind" => "queue"} -> do_queue(library, renderer, command, options)
         %{"kind" => "reconcileDelivery"} -> do_reconcile_delivery(library, command, options)
-        _command -> do_execute(library, command)
+        _ -> do_execute(library, command)
       end
     end
   end
@@ -71,7 +71,7 @@ defmodule Frameshift.LocalAPI do
        when is_binary(instruction) and byte_size(instruction) <= 4_096 do
     case Library.put_setting(library, @instruction_key, instruction) do
       :ok -> {:ok, snapshot(library, "Instruction saved")}
-      {:error, _reason} -> {:error, :persistence_failed}
+      {:error, _} -> {:error, :persistence_failed}
     end
   end
 
@@ -95,7 +95,7 @@ defmodule Frameshift.LocalAPI do
          {:ok, rgba} <- read_file(canonical_path, @maximum_rgba_bytes),
          :ok <- validate_canonical(rgba, width, height, canonical_digest),
          {:ok, package} <- MasterPackage.encode(original, rgba, width, height),
-         {:ok, _master} <-
+         {:ok, _} <-
            Library.import_master(library, package, %{
              title: import_title(path),
              source_kind: :import,
@@ -128,14 +128,14 @@ defmodule Frameshift.LocalAPI do
        })
        when is_binary(digest) and is_boolean(pinned) do
     result =
-      with {:ok, _master} <- Library.get_master(library, digest) do
+      with {:ok, _} <- Library.get_master(library, digest) do
         if pinned, do: Library.pin(library, digest), else: Library.unpin(library, digest)
       end
 
     case result do
       :ok -> {:ok, snapshot(library, if(pinned, do: "Artwork pinned", else: "Artwork unpinned"))}
       :not_found -> {:error, :item_not_found}
-      {:error, _reason} -> {:error, :item_not_found}
+      {:error, _} -> {:error, :item_not_found}
     end
   end
 
@@ -143,23 +143,23 @@ defmodule Frameshift.LocalAPI do
        when is_binary(digest) do
     case Library.remove_master(library, digest) do
       :ok -> {:ok, snapshot(library, "Artwork moved to Recently Removed")}
-      {:error, _reason} -> {:error, :item_not_found}
+      {:error, _} -> {:error, :item_not_found}
     end
   end
 
   defp do_execute(library, %{"kind" => "selectTarget", "targetID" => target_id})
        when is_binary(target_id) do
-    with {:ok, _frame} <- Library.get_paired_frame(library, target_id),
+    with {:ok, _} <- Library.get_paired_frame(library, target_id),
          :ok <- Library.put_setting(library, @selected_target_key, target_id) do
       {:ok, snapshot(library, "Target selected")}
     else
       :not_found -> {:error, :target_not_found}
-      {:error, _reason} -> {:error, :persistence_failed}
+      {:error, _} -> {:error, :persistence_failed}
     end
   end
 
-  defp do_execute(_library, %{"kind" => "selectTarget"}), do: {:error, :target_not_found}
-  defp do_execute(_library, _command), do: {:error, :invalid_command}
+  defp do_execute(_, %{"kind" => "selectTarget"}), do: {:error, :target_not_found}
+  defp do_execute(_, _), do: {:error, :invalid_command}
 
   defp do_queue(
          library,
@@ -188,7 +188,7 @@ defmodule Frameshift.LocalAPI do
     end
   end
 
-  defp do_queue(_library, _renderer, _command, _options), do: {:error, :invalid_command}
+  defp do_queue(_, _, _, _), do: {:error, :invalid_command}
 
   defp do_reconcile_delivery(library, %{"targetID" => target_id}, options)
        when is_binary(target_id) do
@@ -199,7 +199,7 @@ defmodule Frameshift.LocalAPI do
     end
   end
 
-  defp do_reconcile_delivery(_library, _command, _options), do: {:error, :invalid_command}
+  defp do_reconcile_delivery(_, _, _), do: {:error, :invalid_command}
 
   defp validate_command_shape(%{"kind" => kind} = command) when is_binary(kind) do
     id = Map.get(command, "id")
@@ -217,7 +217,7 @@ defmodule Frameshift.LocalAPI do
     end
   end
 
-  defp validate_command_shape(_command), do: {:error, :invalid_command}
+  defp validate_command_shape(_), do: {:error, :invalid_command}
 
   defp allowed_command_keys("updateInstruction"), do: ~w(id kind instruction)
 
@@ -230,13 +230,13 @@ defmodule Frameshift.LocalAPI do
   defp allowed_command_keys("selectTarget"), do: ~w(id kind targetID)
   defp allowed_command_keys("queue"), do: ~w(id kind targetID itemID)
   defp allowed_command_keys("reconcileDelivery"), do: ~w(id kind targetID)
-  defp allowed_command_keys(_kind), do: ~w(id kind)
+  defp allowed_command_keys(_), do: ~w(id kind)
 
   defp setting(library, key, default) do
     case Library.get_setting(library, key) do
       {:ok, value} -> value
       :not_found -> default
-      {:error, _reason} -> default
+      {:error, _} -> default
     end
   end
 
@@ -286,12 +286,12 @@ defmodule Frameshift.LocalAPI do
   end
 
   defp default_status([]), do: "Core connected • no paired frame"
-  defp default_status(_targets), do: "Core connected • paired frames ready"
+  defp default_status(_), do: "Core connected • paired frames ready"
 
   defp selected_profile_id(capabilities) do
     case RenderProfile.compile(%{"width" => 1, "height" => 1}, capabilities) do
       {:ok, compilation} -> compilation.profile["id"]
-      {:error, _reason} -> capabilities["storage"]["artifactProfiles"] |> hd() |> Map.fetch!("id")
+      {:error, _} -> capabilities["storage"]["artifactProfiles"] |> hd() |> Map.fetch!("id")
     end
   end
 
@@ -315,7 +315,7 @@ defmodule Frameshift.LocalAPI do
     end
   end
 
-  defp deliver(library, frame, artifact, profile, command, :pull, _options) do
+  defp deliver(library, frame, artifact, profile, command, :pull, _) do
     case Library.queue_outbox(
            library,
            frame["frame_id"],
@@ -324,7 +324,7 @@ defmodule Frameshift.LocalAPI do
            nil,
            command["id"]
          ) do
-      {:ok, _manifest} ->
+      {:ok, _} ->
         {:ok, "Queued for #{frame["title"]} • waiting for next contact"}
 
       {:error, reason} ->
@@ -375,7 +375,7 @@ defmodule Frameshift.LocalAPI do
             ],
        do: reason
 
-  defp normalize_queue_error({:transport, _reason}), do: :delivery_outcome_unknown
+  defp normalize_queue_error({:transport, _}), do: :delivery_outcome_unknown
 
   defp normalize_queue_error(:state_unavailable), do: :delivery_outcome_unknown
 
@@ -386,7 +386,7 @@ defmodule Frameshift.LocalAPI do
        when reason in [:credential_broker_failure, :credential_broker_contract_violation],
        do: :credential_broker_unavailable
 
-  defp normalize_queue_error(_reason), do: :queue_failed
+  defp normalize_queue_error(_), do: :queue_failed
 
   defp validate_import_description(path, width, height, media_type, command) do
     orientation = Map.get(command, "importOrientation", 1)
@@ -404,23 +404,23 @@ defmodule Frameshift.LocalAPI do
        when is_binary(path) and byte_size(path) in 1..1_024,
        do: :ok
 
-  defp validate_import_path(_path), do: {:error, :invalid_import}
+  defp validate_import_path(_), do: {:error, :invalid_import}
 
   defp validate_import_dimensions(width, height)
        when is_integer(width) and is_integer(height) and width in 1..@maximum_dimension and
               height in 1..@maximum_dimension and width * height <= @maximum_pixels,
        do: :ok
 
-  defp validate_import_dimensions(_width, _height), do: {:error, :invalid_dimensions}
+  defp validate_import_dimensions(_, _), do: {:error, :invalid_dimensions}
 
   defp validate_import_media_type(media_type)
        when is_binary(media_type) and byte_size(media_type) <= 128,
        do: :ok
 
-  defp validate_import_media_type(_media_type), do: {:error, :unsupported_media_type}
+  defp validate_import_media_type(_), do: {:error, :unsupported_media_type}
 
   defp validate_import_orientation(orientation) when orientation in 1..8, do: :ok
-  defp validate_import_orientation(_orientation), do: {:error, :invalid_orientation}
+  defp validate_import_orientation(_), do: {:error, :invalid_orientation}
 
   defp validate_import_color_profile(nil), do: :ok
 
@@ -428,7 +428,7 @@ defmodule Frameshift.LocalAPI do
        when is_binary(color_profile) and byte_size(color_profile) <= 256,
        do: :ok
 
-  defp validate_import_color_profile(_color_profile), do: {:error, :invalid_color_profile}
+  defp validate_import_color_profile(_), do: {:error, :invalid_color_profile}
 
   defp read_file(path, maximum_bytes) do
     case File.open(path, [:read, :binary]) do
@@ -458,10 +458,10 @@ defmodule Frameshift.LocalAPI do
        when size > 0 and size <= maximum_bytes,
        do: :ok
 
-  defp validate_import_stat(%File.Stat{type: :regular}, _maximum_bytes),
+  defp validate_import_stat(%File.Stat{type: :regular}, _),
     do: {:error, :import_too_large}
 
-  defp validate_import_stat(%File.Stat{}, _maximum_bytes), do: {:error, :import_not_regular}
+  defp validate_import_stat(%File.Stat{}, _), do: {:error, :import_not_regular}
 
   defp validate_digest(digest) do
     if Digest.valid_sha256?(digest), do: :ok, else: {:error, :invalid_import}
@@ -475,23 +475,23 @@ defmodule Frameshift.LocalAPI do
     end
   end
 
-  defp media_type(<<137, "PNG\r\n", 26, 10, _rest::binary>>), do: "image/png"
-  defp media_type(<<255, 216, 255, _rest::binary>>), do: "image/jpeg"
-  defp media_type(<<"GIF87a", _rest::binary>>), do: "image/gif"
-  defp media_type(<<"GIF89a", _rest::binary>>), do: "image/gif"
-  defp media_type(<<"II", 42, 0, _rest::binary>>), do: "image/tiff"
-  defp media_type(<<"MM", 0, 42, _rest::binary>>), do: "image/tiff"
-  defp media_type(<<"RIFF", _size::binary-size(4), "WEBP", _rest::binary>>), do: "image/webp"
+  defp media_type(<<137, "PNG\r\n", 26, 10, _::binary>>), do: "image/png"
+  defp media_type(<<255, 216, 255, _::binary>>), do: "image/jpeg"
+  defp media_type(<<"GIF87a", _::binary>>), do: "image/gif"
+  defp media_type(<<"GIF89a", _::binary>>), do: "image/gif"
+  defp media_type(<<"II", 42, 0, _::binary>>), do: "image/tiff"
+  defp media_type(<<"MM", 0, 42, _::binary>>), do: "image/tiff"
+  defp media_type(<<"RIFF", _::binary-size(4), "WEBP", _::binary>>), do: "image/webp"
 
-  defp media_type(<<_size::unsigned-big-32, "ftyp", brand::binary-size(4), _rest::binary>>)
+  defp media_type(<<_::unsigned-big-32, "ftyp", brand::binary-size(4), _::binary>>)
        when brand in ["heic", "heix", "hevc", "hevx"],
        do: "image/heic"
 
-  defp media_type(<<_size::unsigned-big-32, "ftyp", brand::binary-size(4), _rest::binary>>)
+  defp media_type(<<_::unsigned-big-32, "ftyp", brand::binary-size(4), _::binary>>)
        when brand in ["mif1", "msf1"],
        do: "image/heif"
 
-  defp media_type(_bytes), do: nil
+  defp media_type(_), do: nil
 
   defp import_title(path) do
     case path |> Path.basename() |> Path.rootname() |> String.trim() do
@@ -515,5 +515,5 @@ defmodule Frameshift.LocalAPI do
             ],
        do: reason
 
-  defp normalize_import_error(_reason), do: :import_unreadable
+  defp normalize_import_error(_), do: :import_unreadable
 end

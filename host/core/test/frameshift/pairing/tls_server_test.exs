@@ -147,6 +147,6 @@ defmodule Frameshift.Pairing.TLSServerTest do
   defp stop_if_alive(process) do
     if Process.alive?(process), do: GenServer.stop(process)
   catch
-    :exit, _reason -> :ok
+    :exit, _ -> :ok
   end
 end

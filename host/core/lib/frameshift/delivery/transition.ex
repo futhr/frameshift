@@ -18,7 +18,7 @@ defmodule Frameshift.Delivery.Transition do
   @doc "Chooses whether a push request reuses, conflicts with, or creates an intent."
   @spec direct_request(direct_intent() | nil, String.t(), String.t(), String.t()) ::
           :insert | {:reuse, direct_intent()} | {:error, atom()}
-  def direct_request(nil, _digest, _profile_id, _request_id), do: :insert
+  def direct_request(nil, _, _, _), do: :insert
 
   def direct_request(existing, digest, profile_id, request_id) do
     cond do
@@ -63,7 +63,7 @@ defmodule Frameshift.Delivery.Transition do
     end
   end
 
-  def direct_confirmation(_intent, _revision, _request_id, _digest, _outcome),
+  def direct_confirmation(_, _, _, _, _),
     do: {:error, :invalid_direct_delivery}
 
   @doc "Checks a pull acknowledgement against the one current manifest."

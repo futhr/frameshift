@@ -205,7 +205,7 @@ defmodule Frameshift.Protocol.Thing do
       :ok ->
         :ok
 
-      {:error, _reason} ->
+      {:error, _} ->
         semantic_error(
           :frame_overlay_invalid,
           "/",

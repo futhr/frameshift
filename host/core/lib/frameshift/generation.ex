@@ -46,18 +46,18 @@ defmodule Frameshift.Generation do
          {:ok, provider_id} <- provider_id(provider) do
       {:ok, provider_id}
     else
-      _failure -> {:error, :invalid_provider}
+      _ -> {:error, :invalid_provider}
     end
   end
 
-  defp validate_provider(_provider), do: {:error, :invalid_provider}
+  defp validate_provider(_), do: {:error, :invalid_provider}
 
   defp provider_id(provider) do
     {:ok, provider.id()}
   rescue
-    _error -> {:error, :invalid_provider}
+    _ -> {:error, :invalid_provider}
   catch
-    _kind, _reason -> {:error, :invalid_provider}
+    _, _ -> {:error, :invalid_provider}
   end
 
   defp validate_request(request, provider_id) when is_map(request) do
@@ -75,7 +75,7 @@ defmodule Frameshift.Generation do
     end
   end
 
-  defp validate_request(_request, _provider), do: {:error, :invalid_request}
+  defp validate_request(_, _), do: {:error, :invalid_request}
 
   defp validate_request_identity(request, provider_id) do
     first_validation_error([
@@ -120,9 +120,9 @@ defmodule Frameshift.Generation do
   end
 
   defp first_validation_error(validations) do
-    case Enum.find(validations, fn {valid?, _reason} -> not valid? end) do
+    case Enum.find(validations, fn {valid?, _} -> not valid? end) do
       nil -> :ok
-      {_valid?, reason} -> {:error, reason}
+      {_, reason} -> {:error, reason}
     end
   end
 
@@ -139,16 +139,16 @@ defmodule Frameshift.Generation do
 
   defp valid_mode_parent?("generate", nil), do: true
   defp valid_mode_parent?("edit", parent_digest), do: is_binary(parent_digest)
-  defp valid_mode_parent?(_mode, _parent_digest), do: false
+  defp valid_mode_parent?(_, _), do: false
 
   defp valid_disclosure?(%{"destination" => "local", "acknowledged" => acknowledged}),
     do: is_boolean(acknowledged)
 
   defp valid_disclosure?(%{"destination" => "cloud", "acknowledged" => true}), do: true
-  defp valid_disclosure?(_disclosure), do: false
+  defp valid_disclosure?(_), do: false
 
   defp validate_timeout(timeout) when is_integer(timeout) and timeout > 0, do: :ok
-  defp validate_timeout(_timeout), do: {:error, :invalid_timeout}
+  defp validate_timeout(_), do: {:error, :invalid_timeout}
 
   defp register_recipe(library, request) do
     parent_digests = if request[:parent_digest], do: [request.parent_digest], else: []
@@ -198,7 +198,7 @@ defmodule Frameshift.Generation do
     case Task.yield(task, timeout) || Task.shutdown(task, :brutal_kill) do
       {:ok, {:ok, result}} -> persist_result(library, request, recipe_hash, result)
       {:ok, {:error, reason}} -> {:error, {:provider, reason}}
-      {:exit, _reason} -> {:error, :provider_crashed}
+      {:exit, _} -> {:error, :provider_crashed}
       nil -> {:error, :provider_timeout}
     end
   end
@@ -234,7 +234,7 @@ defmodule Frameshift.Generation do
     end
   end
 
-  defp validate_preflight(_preflight, _request),
+  defp validate_preflight(_, _),
     do: {:error, {:invalid_preflight, :invalid_response}}
 
   defp persist_result(library, request, recipe_hash, result) do
@@ -286,14 +286,14 @@ defmodule Frameshift.Generation do
     end
   end
 
-  defp validate_result(_result), do: {:error, :invalid_provider_result}
+  defp validate_result(_), do: {:error, :invalid_provider_result}
 
   defp validate_result_bytes(bytes)
        when is_binary(bytes) and byte_size(bytes) > 0 and
               byte_size(bytes) <= @maximum_result_bytes,
        do: :ok
 
-  defp validate_result_bytes(_bytes), do: {:error, :invalid_result_bytes}
+  defp validate_result_bytes(_), do: {:error, :invalid_result_bytes}
 
   defp validate_result_dimensions(width, height)
        when is_integer(width) and width > 0 and width <= @maximum_dimension and
@@ -301,7 +301,7 @@ defmodule Frameshift.Generation do
               width * height <= @maximum_pixels,
        do: :ok
 
-  defp validate_result_dimensions(_width, _height), do: {:error, :invalid_result_dimensions}
+  defp validate_result_dimensions(_, _), do: {:error, :invalid_result_dimensions}
 
   defp validate_result_media_type(media_type) do
     if still_media_type?(media_type), do: :ok, else: {:error, :invalid_result_media_type}
@@ -311,5 +311,5 @@ defmodule Frameshift.Generation do
     media_type in ["image/png", "image/jpeg", "image/heic", "image/avif"]
   end
 
-  defp still_media_type?(_media_type), do: false
+  defp still_media_type?(_), do: false
 end

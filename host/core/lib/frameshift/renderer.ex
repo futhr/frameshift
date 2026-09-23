@@ -64,7 +64,7 @@ defmodule Frameshift.Renderer do
   end
 
   @impl true
-  def handle_call({:render, _job, _timeout}, _from, %{pending: pending} = state)
+  def handle_call({:render, _, _}, _, %{pending: pending} = state)
       when pending != nil do
     {:reply, {:error, :busy}, state}
   end
@@ -96,7 +96,7 @@ defmodule Frameshift.Renderer do
     {:stop, :render_timeout, clear_pending(state)}
   end
 
-  def handle_info({:render_timeout, _stale_reference}, state), do: {:noreply, state}
+  def handle_info({:render_timeout, _}, state), do: {:noreply, state}
 
   def handle_info({port, {:exit_status, status}}, %{port: port} = state) do
     reply_pending(state, {:error, {:worker_exit, status}})
@@ -113,21 +113,21 @@ defmodule Frameshift.Renderer do
     status
     |> Map.update(:state, nil, fn
       %State{} = state -> %{state | prefix: "<redacted>", chunks: [:redacted]}
-      _state -> :redacted
+      _ -> :redacted
     end)
     |> Map.put(:message, :redacted)
     |> Map.put(:log, [:redacted])
   end
 
   @impl true
-  def terminate(_reason, %{port: port}) when is_port(port) do
+  def terminate(_, %{port: port}) when is_port(port) do
     if Port.info(port), do: Port.close(port)
     :ok
   end
 
-  def terminate(_reason, _state), do: :ok
+  def terminate(_, _), do: :ok
 
-  defp receive_data(%{pending: nil} = state, _data),
+  defp receive_data(%{pending: nil} = state, _),
     do: fail_worker(state, :unexpected_response)
 
   defp receive_data(%{expected: nil} = state, data) do
@@ -145,7 +145,7 @@ defmodule Frameshift.Renderer do
     continue_response(state, data)
   end
 
-  defp begin_response(state, expected, _first_chunk)
+  defp begin_response(state, expected, _)
        when expected > @maximum_response_bytes,
        do: fail_worker(state, :response_too_large)
 
@@ -203,7 +203,7 @@ defmodule Frameshift.Renderer do
     %{state | prefix: <<>>, chunks: [], received: 0, expected: nil}
   end
 
-  defp reply_pending(%{pending: nil}, _reply), do: :ok
+  defp reply_pending(%{pending: nil}, _), do: :ok
   defp reply_pending(state, reply), do: GenServer.reply(state.pending.from, reply)
 
   defp validate_options(path) do
@@ -211,10 +211,10 @@ defmodule Frameshift.Renderer do
   end
 
   defp validate_timeout(timeout) when is_integer(timeout) and timeout > 0, do: :ok
-  defp validate_timeout(_timeout), do: {:error, :invalid_timeout}
+  defp validate_timeout(_), do: {:error, :invalid_timeout}
 
   defp call_timeout(timeout) when is_integer(timeout) and timeout > 0, do: timeout + 1_000
-  defp call_timeout(_timeout), do: @default_timeout_ms + 1_000
+  defp call_timeout(_), do: @default_timeout_ms + 1_000
 
   defp command_worker(port, request) do
     Port.command(port, request)

@@ -249,6 +249,6 @@ defmodule Frameshift.LocalIPC.ServerTest do
   defp stop_process(process) do
     GenServer.stop(process)
   catch
-    :exit, _reason -> :ok
+    :exit, _ -> :ok
   end
 end

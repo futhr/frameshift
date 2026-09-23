@@ -63,14 +63,14 @@ defmodule Frameshift.LocalIPC.Server do
 
   @impl true
   def handle_info(
-        {:DOWN, _reference, :process, acceptor, reason},
+        {:DOWN, _, :process, acceptor, reason},
         %State{acceptor: acceptor} = state
       ) do
     {:stop, {:acceptor_stopped, reason}, state}
   end
 
   @impl true
-  def terminate(_reason, %State{listener: listener, path: path}) do
+  def terminate(_, %State{listener: listener, path: path}) do
     :gen_tcp.close(listener)
     File.rm(path)
     :ok
@@ -104,7 +104,7 @@ defmodule Frameshift.LocalIPC.Server do
           {:error, :enoent} ->
             :ok
 
-          {:error, _reason} ->
+          {:error, _} ->
             {:error, :socket_path_busy}
         end
 
@@ -158,10 +158,10 @@ defmodule Frameshift.LocalIPC.Server do
       {:ok, worker} ->
         case :gen_tcp.controlling_process(socket, worker) do
           :ok -> send(worker, {:serve, socket})
-          {:error, _reason} -> :gen_tcp.close(socket)
+          {:error, _} -> :gen_tcp.close(socket)
         end
 
-      {:error, _reason} ->
+      {:error, _} ->
         :gen_tcp.close(socket)
     end
   end
@@ -171,20 +171,20 @@ defmodule Frameshift.LocalIPC.Server do
       case :gen_tcp.recv(socket, 0, @request_timeout_ms) do
         {:ok, payload} -> dispatch(payload, library, token)
         {:error, :timeout} -> error_response(nil, :request_timeout)
-        {:error, _reason} -> error_response(nil, :invalid_request)
+        {:error, _} -> error_response(nil, :invalid_request)
       end
 
     with {:ok, encoded} <- RFC8785.encode(response),
          true <- byte_size(encoded) <= @maximum_response_bytes do
       :gen_tcp.send(socket, encoded)
     else
-      _failure ->
+      _ ->
         :gen_tcp.send(socket, ~s({"ok":false,"version":1,"error":{"code":"internal_error"}}))
     end
 
     :gen_tcp.close(socket)
   catch
-    kind, _reason ->
+    kind, _ ->
       Logger.error("local IPC request failed", frameshift_event: :ipc_failure, error_class: kind)
       :gen_tcp.close(socket)
   end
@@ -209,8 +209,8 @@ defmodule Frameshift.LocalIPC.Server do
            max_collection_size: 256
          ) do
       {:ok, request} when is_map(request) -> validate_request(request)
-      {:ok, _not_object} -> {:error, :invalid_request}
-      {:error, _reason} -> {:error, :invalid_request}
+      {:ok, _} -> {:error, :invalid_request}
+      {:error, _} -> {:error, :invalid_request}
     end
   end
 
@@ -250,10 +250,10 @@ defmodule Frameshift.LocalIPC.Server do
     do: {:error, {safe_request_id(request_id), :invalid_request}}
 
   defp validate_operation(operation) when operation in ["snapshot", "command"], do: :ok
-  defp validate_operation(_operation), do: {:error, :invalid_request}
+  defp validate_operation(_), do: {:error, :invalid_request}
 
   defp validate_auth_shape(auth) when is_binary(auth) and byte_size(auth) == 64, do: :ok
-  defp validate_auth_shape(_auth), do: {:error, :invalid_request}
+  defp validate_auth_shape(_), do: {:error, :invalid_request}
 
   defp validate_request_keys(request, allowed, request_id) do
     if Enum.any?(Map.keys(request), &(&1 not in allowed)),
@@ -266,24 +266,24 @@ defmodule Frameshift.LocalIPC.Server do
       %{"id" => command_id} when is_binary(command_id) and byte_size(command_id) in 1..64 ->
         :ok
 
-      _invalid ->
+      _ ->
         {:error, {request_id, :invalid_command}}
     end
   end
 
-  defp validate_command_shape(_request, _operation, _request_id), do: :ok
+  defp validate_command_shape(_, _, _), do: :ok
 
   defp safe_request_id(request_id)
        when is_binary(request_id) and byte_size(request_id) in 1..64,
        do: request_id
 
-  defp safe_request_id(_request_id), do: nil
+  defp safe_request_id(_), do: nil
 
   defp validate_token(token) when is_binary(token) do
     if Regex.match?(@token_pattern, token), do: :ok, else: {:error, :invalid_ipc_token}
   end
 
-  defp validate_token(_token), do: {:error, :invalid_ipc_token}
+  defp validate_token(_), do: {:error, :invalid_ipc_token}
 
   defp authenticate(%{"requestId" => request_id, "auth" => candidate}, token) do
     if secure_equal?(candidate, token),
@@ -302,7 +302,7 @@ defmodule Frameshift.LocalIPC.Server do
     |> Kernel.==(0)
   end
 
-  defp secure_equal?(_left, _right), do: false
+  defp secure_equal?(_, _), do: false
 
   defp execute_request(%{"requestId" => request_id, "operation" => "snapshot"}, library) do
     {:ok, success_response(request_id, LocalAPI.snapshot(library))}
@@ -325,9 +325,9 @@ defmodule Frameshift.LocalIPC.Server do
 
     outcome =
       case result do
-        {:ok, _response} -> :succeeded
+        {:ok, _} -> :succeeded
         {:error, {_, :command_outcome_unknown}} -> :unknown
-        {:error, _error} -> :failed
+        {:error, _} -> :failed
       end
 
     duration_ms = System.monotonic_time(:millisecond) - started
@@ -352,31 +352,31 @@ defmodule Frameshift.LocalIPC.Server do
 
     receipt_outcome =
       case outcome do
-        {:ok, _snapshot} -> :ok
+        {:ok, _} -> :ok
         {:error, code} -> {:error, code}
       end
 
     case Library.complete_command(library, command["id"], command_hash, receipt_outcome) do
       :ok -> command_response(request_id, outcome)
-      {:error, _reason} -> {:error, {request_id, :command_outcome_unknown}}
+      {:error, _} -> {:error, {request_id, :command_outcome_unknown}}
     end
   end
 
-  defp execute_command({:replay, :ok}, request_id, _command, _command_hash, library) do
+  defp execute_command({:replay, :ok}, request_id, _, _, library) do
     {:ok, success_response(request_id, LocalAPI.snapshot(library, "Command already applied"))}
   end
 
   defp execute_command(
          {:replay, {:error, error_code}},
          request_id,
-         _command,
-         _command_hash,
-         _library
+         _,
+         _,
+         _
        ) do
     {:error, {request_id, error_code}}
   end
 
-  defp execute_command(:pending, request_id, _command, _command_hash, _library),
+  defp execute_command(:pending, request_id, _, _, _),
     do: {:error, {request_id, :command_outcome_unknown}}
 
   defp command_response(request_id, {:ok, snapshot}),
@@ -392,7 +392,7 @@ defmodule Frameshift.LocalIPC.Server do
 
     case canonical_result do
       {:ok, canonical} -> {:ok, Digest.sha256(canonical)}
-      {:error, _reason} -> {:error, :invalid_command}
+      {:error, _} -> {:error, :invalid_command}
     end
   end
 

@@ -61,7 +61,7 @@ defmodule Frameshift.Outbox.TLSServerTest do
     {:ok, library} = Library.start_link(data_dir: Path.join(root, "library"), name: nil)
     on_exit(fn -> stop_if_alive(library) end)
 
-    assert {:ok, _frame} =
+    assert {:ok, _} =
              Library.register_paired_frame(
                library,
                File.read!(@thing_fixture),
@@ -129,6 +129,6 @@ defmodule Frameshift.Outbox.TLSServerTest do
   defp stop_if_alive(process) do
     if Process.alive?(process), do: GenServer.stop(process)
   catch
-    :exit, _reason -> :ok
+    :exit, _ -> :ok
   end
 end

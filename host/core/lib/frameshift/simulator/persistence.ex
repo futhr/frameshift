@@ -58,7 +58,7 @@ defmodule Frameshift.Simulator.Persistence do
          revision when is_integer(revision) and revision >= 0 <- payload["stateRevision"] do
       {:ok, payload}
     else
-      _reason -> :invalid
+      _ -> :invalid
     end
   end
 

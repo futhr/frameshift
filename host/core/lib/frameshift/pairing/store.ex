@@ -25,7 +25,7 @@ defmodule Frameshift.Pairing.Store do
       {:ok, %File.Stat{type: :regular, mode: mode}} when Bitwise.band(mode, 0o077) == 0 ->
         with {:ok, bytes} <- File.read(path), do: decode(bytes, device_id)
 
-      {:ok, _other} ->
+      {:ok, _} ->
         {:error, :insecure_pairing_authority}
 
       {:error, :enoent} ->
@@ -66,7 +66,7 @@ defmodule Frameshift.Pairing.Store do
     end
   end
 
-  defp create(_data_dir, _device_id, nil), do: {:ok, nil}
+  defp create(_, _, nil), do: {:ok, nil}
 
   defp create(data_dir, device_id, secret) do
     with {:ok, window} <- Window.new(device_id, secret),
@@ -92,11 +92,11 @@ defmodule Frameshift.Pairing.Store do
          {:ok, window} <- from_payload(payload, expected_device_id) do
       {:ok, window}
     else
-      _invalid -> {:error, :corrupt_pairing_authority}
+      _ -> {:error, :corrupt_pairing_authority}
     end
   end
 
-  defp decode(_bytes, _expected_device_id), do: {:error, :corrupt_pairing_authority}
+  defp decode(_, _), do: {:error, :corrupt_pairing_authority}
 
   defp from_payload(
          %{
@@ -120,12 +120,12 @@ defmodule Frameshift.Pairing.Store do
           do: paired_window(device_id, paired_fingerprint, paired_request_id),
           else: {:error, :corrupt_pairing_authority}
 
-      _other ->
+      _ ->
         {:error, :corrupt_pairing_authority}
     end
   end
 
-  defp from_payload(_payload, _device_id), do: {:error, :corrupt_pairing_authority}
+  defp from_payload(_, _), do: {:error, :corrupt_pairing_authority}
 
   defp unpaired_window(device_id, encoded_secret, attempts) do
     with {:ok, secret} <- Base.decode64(encoded_secret),

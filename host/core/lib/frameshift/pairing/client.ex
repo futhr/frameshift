@@ -43,15 +43,15 @@ defmodule Frameshift.Pairing.Client do
       {:ok, receipt}
     else
       {:error, reason} when is_atom(reason) -> {:error, reason}
-      _other -> {:error, :pairing_transport_failure}
+      _ -> {:error, :pairing_transport_failure}
     end
   rescue
-    _exception -> {:error, :pairing_transport_failure}
+    _ -> {:error, :pairing_transport_failure}
   catch
-    _kind, _reason -> {:error, :pairing_transport_failure}
+    _, _ -> {:error, :pairing_transport_failure}
   end
 
-  def pair(_bootstrap, _credential, _request_id, _options),
+  def pair(_, _, _, _),
     do: {:error, :invalid_pairing_request}
 
   defp validate_bootstrap(%Bootstrap{device_id: device_id, secret: secret})
@@ -59,7 +59,7 @@ defmodule Frameshift.Pairing.Client do
               byte_size(secret) in 16..64,
        do: :ok
 
-  defp validate_bootstrap(_bootstrap), do: {:error, :invalid_pairing_request}
+  defp validate_bootstrap(_), do: {:error, :invalid_pairing_request}
 
   defp validate_request_id(request_id) when is_binary(request_id) do
     if Regex.match?(@request_id_pattern, request_id),
@@ -67,7 +67,7 @@ defmodule Frameshift.Pairing.Client do
       else: {:error, :invalid_pairing_request}
   end
 
-  defp validate_request_id(_request_id), do: {:error, :invalid_pairing_request}
+  defp validate_request_id(_), do: {:error, :invalid_pairing_request}
 
   defp validate_pin(bootstrap, credential) do
     pin = "sha256:" <> Base.encode16(credential.server_spki_sha256, case: :lower)
@@ -101,7 +101,7 @@ defmodule Frameshift.Pairing.Client do
            max_uri_bytes: 1_024
          ) do
       {:ok, request} -> {:ok, request}
-      {:error, _reason} -> {:error, :invalid_pairing_request}
+      {:error, _} -> {:error, :invalid_pairing_request}
     end
   end
 
@@ -136,7 +136,7 @@ defmodule Frameshift.Pairing.Client do
              request_id: request_id
            }}
         else
-          _invalid -> {:error, :invalid_pairing_response}
+          _ -> {:error, :invalid_pairing_response}
         end
 
       true ->
@@ -144,6 +144,6 @@ defmodule Frameshift.Pairing.Client do
     end
   end
 
-  defp receipt(_response, _bootstrap, _credential, _request_id),
+  defp receipt(_, _, _, _),
     do: {:error, :invalid_pairing_response}
 end

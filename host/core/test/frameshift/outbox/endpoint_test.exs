@@ -49,7 +49,7 @@ defmodule Frameshift.Outbox.EndpointTest do
     {:ok, library} = Library.start_link(data_dir: Path.join(root, "library"), name: nil)
     on_exit(fn -> if Process.alive?(library), do: GenServer.stop(library) end)
 
-    assert {:ok, _frame} =
+    assert {:ok, _} =
              Library.register_paired_frame(
                library,
                File.read!(@thing_fixture),
@@ -85,7 +85,7 @@ defmodule Frameshift.Outbox.EndpointTest do
 
     next_digest = register_artifact!(context.library, @next_bytes)
 
-    assert {:ok, _new_manifest} =
+    assert {:ok, _} =
              Library.queue_outbox(context.library, @frame_id, next_digest, @profile_id)
 
     assert {:error, :not_found} = request(context, "GET", path)
@@ -165,7 +165,7 @@ defmodule Frameshift.Outbox.EndpointTest do
       |> put_in(["frameshift:capabilities", "deviceId"], "another-frame-0001")
       |> Jason.encode!()
 
-    assert {:ok, _frame} =
+    assert {:ok, _} =
              Library.register_paired_frame(
                context.library,
                another_td,
@@ -180,7 +180,7 @@ defmodule Frameshift.Outbox.EndpointTest do
   test "the bounded HTTP exchange frames authenticated content and safe problems", context do
     digest = register_artifact!(context.library, @bytes)
 
-    assert {:ok, _manifest} =
+    assert {:ok, _} =
              Library.queue_outbox(context.library, @frame_id, digest, @profile_id)
 
     request = "GET /v0/outbox/manifest HTTP/1.1\r\nHost: host.local\r\n\r\n"

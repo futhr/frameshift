@@ -49,18 +49,18 @@ defmodule Frameshift.Pairing.Bootstrap do
          true <- Base.url_encode64(secret, padding: false) == encoded_secret do
       {:ok, %__MODULE__{device_id: device_id, server_spki: server_spki, secret: secret}}
     else
-      _invalid -> {:error, :invalid_bootstrap_record}
+      _ -> {:error, :invalid_bootstrap_record}
     end
   end
 
-  def parse(_source), do: {:error, :invalid_bootstrap_record}
+  def parse(_), do: {:error, :invalid_bootstrap_record}
 
   @doc "Checks the peer certificate against the physical pin before any secret is sent."
   @spec verify_peer(t(), binary()) :: :ok | {:error, :peer_identity_mismatch}
   def verify_peer(%__MODULE__{server_spki: expected}, certificate_der) do
     case Frameshift.Transport.SPKIPin.fingerprint_der(certificate_der) do
       {:ok, ^expected} -> :ok
-      _other -> {:error, :peer_identity_mismatch}
+      _ -> {:error, :peer_identity_mismatch}
     end
   end
 
@@ -73,7 +73,7 @@ defmodule Frameshift.Pairing.Bootstrap do
            Wotex.ThingDescription.to_map(td) do
       :ok
     else
-      _other -> {:error, :device_identity_mismatch}
+      _ -> {:error, :device_identity_mismatch}
     end
   end
 end

@@ -16,14 +16,14 @@ defmodule Frameshift.Application do
   alias Frameshift.Transport.KeychainBroker
 
   @impl true
-  def start(_type, _args) do
+  def start(_, _) do
     children =
       [
         {Task.Supervisor, name: Frameshift.TaskSupervisor}
       ] ++ library_children() ++ metrics_children() ++ renderer_children() ++ local_ipc_children()
 
     case Supervisor.start_link(children, strategy: :one_for_one, name: Frameshift.Supervisor) do
-      {:ok, _supervisor} = started ->
+      {:ok, _} = started ->
         configure_fallback_logging()
         started
 
@@ -52,7 +52,7 @@ defmodule Frameshift.Application do
 
       case :logger.add_handler(:frameshift_fallback, :logger_std_h, config) do
         :ok -> File.chmod(path, 0o600)
-        {:error, {:already_exist, _handler}} -> :ok
+        {:error, {:already_exist, _}} -> :ok
         {:error, reason} -> raise "could not start fallback logging: #{inspect(reason)}"
       end
     end
@@ -124,7 +124,7 @@ defmodule Frameshift.Application do
             credential_resolver: {KeychainBroker, %{socket_path: expanded, token: token}}
           )
         else
-          _invalid -> raise "credential broker socket failed local admission"
+          _ -> raise "credential broker socket failed local admission"
         end
     end
   end

@@ -48,7 +48,7 @@ defmodule Frameshift.Pairing.ClientTest do
     transport = fn request, supplied_credential ->
       send(owner, {:pairing_request, request, supplied_credential})
 
-      {result, _next} =
+      {result, _} =
         Endpoint.handle(opened, context.host_certificate, Request.body(request), 101)
 
       Response.new(result.status, [{"content-type", result.content_type}], result.body)
@@ -78,7 +78,7 @@ defmodule Frameshift.Pairing.ClientTest do
         context.host_key
       )
 
-    transport = fn _request, _credential -> flunk("transport must not run") end
+    transport = fn _, _ -> flunk("transport must not run") end
 
     assert {:error, :peer_identity_mismatch} =
              Client.pair(bootstrap, credential, "pair-1", transport: transport)
@@ -118,7 +118,7 @@ defmodule Frameshift.Pairing.ClientTest do
         context.host_key
       )
 
-    transport = fn request, _credential ->
+    transport = fn request, _ ->
       body = Request.body(request)
 
       wire =
@@ -130,7 +130,7 @@ defmodule Frameshift.Pairing.ClientTest do
       {:ok, response_wire} = HTTP1.exchange(frame, context.host_certificate, wire, 101)
       [head, response_body] = :binary.split(response_wire, "\r\n\r\n")
       [status_line | headers] = :binary.split(head, "\r\n", [:global])
-      <<"HTTP/1.1 ", status_text::binary-size(3), _rest::binary>> = status_line
+      <<"HTTP/1.1 ", status_text::binary-size(3), _::binary>> = status_line
 
       response_headers =
         Enum.map(headers, fn line ->
@@ -166,11 +166,11 @@ defmodule Frameshift.Pairing.ClientTest do
         "hostCertificateFingerprint" => "sha256:" <> String.duplicate("0", 64)
       })
 
-    wrong_identity = fn _request, _credential ->
+    wrong_identity = fn _, _ ->
       Response.new(201, [{"content-type", "application/json"}], forged)
     end
 
-    wrong_media_type = fn _request, _credential ->
+    wrong_media_type = fn _, _ ->
       Response.new(201, [{"content-type", "text/plain"}], forged)
     end
 
@@ -191,7 +191,7 @@ defmodule Frameshift.Pairing.ClientTest do
       )
 
     bootstrap = bootstrap(context.frame_pin)
-    never_send = fn _request, _credential -> flunk("transport must not run") end
+    never_send = fn _, _ -> flunk("transport must not run") end
 
     assert {:error, :invalid_pairing_request} = Client.pair(nil, credential, "pair-1")
 
@@ -200,17 +200,17 @@ defmodule Frameshift.Pairing.ClientTest do
 
     assert {:error, :pairing_rejected} =
              Client.pair(bootstrap, credential, "pair-1",
-               transport: fn _request, _credential -> Response.new(403, [], "") end
+               transport: fn _, _ -> Response.new(403, [], "") end
              )
 
     assert {:error, :pairing_transport_failure} =
              Client.pair(bootstrap, credential, "pair-1",
-               transport: fn _request, _credential -> raise "transport failed" end
+               transport: fn _, _ -> raise "transport failed" end
              )
 
     assert {:error, :invalid_pairing_response} =
              Client.pair(bootstrap, credential, "pair-1",
-               transport: fn _request, _credential ->
+               transport: fn _, _ ->
                  Response.new(201, [{"content-type", "application/json"}], "{")
                end
              )

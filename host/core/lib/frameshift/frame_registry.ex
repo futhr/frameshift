@@ -51,11 +51,11 @@ defmodule Frameshift.FrameRegistry do
     end
   end
 
-  def admit(_td_source, _credential_ref, _server_spki_fingerprint),
+  def admit(_, _, _),
     do: {:error, :invalid_pairing_record}
 
   defp validate_credential_ref(reference) when byte_size(reference) in 1..1_024, do: :ok
-  defp validate_credential_ref(_reference), do: {:error, :invalid_credential_reference}
+  defp validate_credential_ref(_), do: {:error, :invalid_credential_reference}
 
   defp validate_fingerprint(fingerprint) do
     if Regex.match?(@fingerprint_pattern, fingerprint),
@@ -67,10 +67,10 @@ defmodule Frameshift.FrameRegistry do
        when is_map(capabilities),
        do: {:ok, capabilities}
 
-  defp fetch_capabilities(_document), do: {:error, :capabilities_missing}
+  defp fetch_capabilities(_), do: {:error, :capabilities_missing}
 
   defp medium("restricted-palette-reflective"), do: {:ok, "paper"}
   defp medium("continuous-color-raster"), do: {:ok, "photo"}
   defp medium("low-resolution-emissive-matrix"), do: {:ok, "pixel"}
-  defp medium(_display_class), do: {:error, :unsupported_display_class}
+  defp medium(_), do: {:error, :unsupported_display_class}
 end

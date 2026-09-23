@@ -31,8 +31,8 @@ defmodule Frameshift.RenderPipeline do
     outcome =
       case result do
         {:ok, %{cache: :hit}} -> :cache_hit
-        {:ok, _artifact} -> :succeeded
-        {:error, _reason} -> :failed
+        {:ok, _} -> :succeeded
+        {:error, _} -> :failed
       end
 
     :telemetry.execute(
@@ -54,7 +54,7 @@ defmodule Frameshift.RenderPipeline do
          {:ok, decoded} <- MasterPackage.decode(package),
          :ok <- validate_decoded(decoded, job),
          render_job = Map.put(job, :rgba, decoded.rgba),
-         {:ok, _request} <- RendererProtocol.encode_request(render_job),
+         {:ok, _} <- RendererProtocol.encode_request(render_job),
          {:ok, recipe_hash} <- register_recipe(library, master_digest, render_job, attributes) do
       fetch_or_render(
         library,
@@ -85,7 +85,7 @@ defmodule Frameshift.RenderPipeline do
     end
   end
 
-  defp validate_attributes(_attributes), do: {:error, :invalid_attributes}
+  defp validate_attributes(_), do: {:error, :invalid_attributes}
 
   defp validate_master_digest(digest) do
     if Digest.valid_sha256?(digest), do: :ok, else: {:error, :invalid_master_digest}

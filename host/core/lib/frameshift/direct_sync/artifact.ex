@@ -41,5 +41,5 @@ defmodule Frameshift.DirectSync.Artifact do
     end
   end
 
-  def new(_bytes, _digest, _profile_id, _media_type), do: {:error, :invalid_artifact}
+  def new(_, _, _, _), do: {:error, :invalid_artifact}
 end

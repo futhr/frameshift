@@ -22,7 +22,7 @@ defmodule Frameshift.Pairing.HTTP1 do
   @doc "Consumes one complete request or asks the TLS reader for more bytes."
   @spec exchange(GenServer.server(), binary(), binary(), non_neg_integer()) ::
           {:ok, binary()} | :more
-  def exchange(_frame, _peer_der, wire, _now_ms) when byte_size(wire) > @maximum_wire_bytes,
+  def exchange(_, _, wire, _) when byte_size(wire) > @maximum_wire_bytes,
     do: error(413, "request-too-large", "Request too large")
 
   def exchange(frame, peer_der, wire, now_ms),
@@ -33,29 +33,29 @@ defmodule Frameshift.Pairing.HTTP1 do
          frame,
          peer_der,
          now_ms,
-         _wire_size
+         _
        )
        when byte_size(body) <= @maximum_body_bytes do
     case Simulator.pair(frame, peer_der, body, now_ms) do
       {:ok, response} -> {:ok, encode(response)}
-      {:error, _reason} -> error(503, "pairing-unavailable", "Pairing unavailable")
+      {:error, _} -> error(503, "pairing-unavailable", "Pairing unavailable")
     end
   end
 
-  defp respond({:ok, %{body: body}}, _frame, _peer_der, _now_ms, _wire_size)
+  defp respond({:ok, %{body: body}}, _, _, _, _)
        when byte_size(body) > @maximum_body_bytes,
        do: error(413, "request-too-large", "Request too large")
 
-  defp respond({:ok, _request}, _frame, _peer_der, _now_ms, _wire_size),
+  defp respond({:ok, _}, _, _, _, _),
     do: error(404, "not-found", "Resource not found")
 
-  defp respond({:error, :request_too_large}, _frame, _peer_der, _now_ms, _wire_size),
+  defp respond({:error, :request_too_large}, _, _, _, _),
     do: error(413, "request-too-large", "Request too large")
 
-  defp respond({:error, _reason}, _frame, _peer_der, _now_ms, _wire_size),
+  defp respond({:error, _}, _, _, _, _),
     do: error(400, "invalid-request", "Invalid request")
 
-  defp respond(:more, _frame, _peer_der, _now_ms, wire_size) do
+  defp respond(:more, _, _, _, wire_size) do
     if wire_size < @maximum_wire_bytes,
       do: :more,
       else: error(413, "request-too-large", "Request too large")

@@ -49,7 +49,7 @@ defmodule Frameshift.MasterPackage do
     end
   end
 
-  def encode(_original, _rgba, _width, _height), do: {:error, :invalid_master_package}
+  def encode(_, _, _, _), do: {:error, :invalid_master_package}
 
   @doc "Verifies and unpacks a bounded versioned master package."
   @spec decode(binary()) :: {:ok, decoded()} | {:error, atom()}
@@ -68,7 +68,7 @@ defmodule Frameshift.MasterPackage do
     end
   end
 
-  def decode(_package), do: {:error, :invalid_master_package}
+  def decode(_), do: {:error, :invalid_master_package}
 
   defp parse_header(
          <<@magic, @version::unsigned-big-16, 0::unsigned-big-16, width::unsigned-big-32,
@@ -77,17 +77,17 @@ defmodule Frameshift.MasterPackage do
        ),
        do: {:ok, width, height, rgba_bytes, original_bytes, body}
 
-  defp parse_header(_package), do: {:error, :invalid_master_package}
+  defp parse_header(_), do: {:error, :invalid_master_package}
 
   defp validate_dimensions(width, height)
        when width in 1..@maximum_dimension and height in 1..@maximum_dimension and
               width * height <= @maximum_pixels,
        do: :ok
 
-  defp validate_dimensions(_width, _height), do: {:error, :invalid_dimensions}
+  defp validate_dimensions(_, _), do: {:error, :invalid_dimensions}
 
   defp validate_original(original) when byte_size(original) in 1..@maximum_source_bytes, do: :ok
-  defp validate_original(_original), do: {:error, :invalid_original}
+  defp validate_original(_), do: {:error, :invalid_original}
 
   defp validate_rgba(rgba, width, height) do
     if byte_size(rgba) == width * height * 4,

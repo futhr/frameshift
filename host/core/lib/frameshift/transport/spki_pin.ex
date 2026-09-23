@@ -32,12 +32,12 @@ defmodule Frameshift.Transport.SPKIPin do
     encoded = :public_key.pkix_encode(:OTPSubjectPublicKeyInfo, public_key_info, :otp)
     {:ok, :crypto.hash(:sha256, encoded)}
   rescue
-    _exception -> {:error, :invalid_certificate}
+    _ -> {:error, :invalid_certificate}
   catch
-    _kind, _reason -> {:error, :invalid_certificate}
+    _, _ -> {:error, :invalid_certificate}
   end
 
-  def fingerprint(_certificate), do: {:error, :invalid_certificate}
+  def fingerprint(_), do: {:error, :invalid_certificate}
 
   @doc "Derives a protocol-formatted SPKI pin from a DER peer certificate."
   @spec fingerprint_der(binary()) :: {:ok, String.t()} | {:error, :invalid_certificate}
@@ -47,30 +47,30 @@ defmodule Frameshift.Transport.SPKIPin do
       {:ok, "sha256:" <> Base.encode16(digest, case: :lower)}
     end
   rescue
-    _exception -> {:error, :invalid_certificate}
+    _ -> {:error, :invalid_certificate}
   catch
-    _kind, _reason -> {:error, :invalid_certificate}
+    _, _ -> {:error, :invalid_certificate}
   end
 
-  def fingerprint_der(_der), do: {:error, :invalid_certificate}
+  def fingerprint_der(_), do: {:error, :invalid_certificate}
 
   @doc false
   @spec verify(tuple(), term(), map()) ::
           {:valid, map()} | {:unknown, map()} | {:fail, term()}
-  def verify(_certificate, {:bad_cert, reason}, state) when reason in @accepted_path_failures,
+  def verify(_, {:bad_cert, reason}, state) when reason in @accepted_path_failures,
     do: {:valid, state}
 
-  def verify(_certificate, {:bad_cert, reason}, _state), do: {:fail, {:bad_cert, reason}}
-  def verify(_certificate, {:extension, _extension}, state), do: {:unknown, state}
-  def verify(_certificate, :valid, state), do: {:valid, state}
+  def verify(_, {:bad_cert, reason}, _), do: {:fail, {:bad_cert, reason}}
+  def verify(_, {:extension, _}, state), do: {:unknown, state}
+  def verify(_, :valid, state), do: {:valid, state}
 
   def verify(certificate, :valid_peer, %{expected: expected} = state) do
     case fingerprint(certificate) do
       {:ok, ^expected} -> {:valid, Map.put(state, :matched, true)}
-      {:ok, _different} -> {:fail, :server_spki_mismatch}
-      {:error, _reason} -> {:fail, :invalid_peer_certificate}
+      {:ok, _} -> {:fail, :server_spki_mismatch}
+      {:error, _} -> {:fail, :invalid_peer_certificate}
     end
   end
 
-  def verify(_certificate, _event, state), do: {:unknown, state}
+  def verify(_, _, state), do: {:unknown, state}
 end

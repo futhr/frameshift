@@ -38,7 +38,7 @@ defmodule Frameshift.Renderer.ProtocolPropertyTest do
       assert {:ok, [<<declared::unsigned-big-32>>, body]} = Protocol.encode_request(job)
       assert declared == byte_size(body)
       assert declared == 52 + byte_size(rgba)
-      assert <<"FSR1", _rest::binary>> = body
+      assert <<"FSR1", _::binary>> = body
     end
   end
 

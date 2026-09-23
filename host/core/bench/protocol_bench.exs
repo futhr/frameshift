@@ -58,7 +58,7 @@ render_job = %{
 Benchee.run(
   %{
     "validate and encode a 256x256 render request" => fn ->
-      {:ok, _request} = RendererProtocol.encode_request(render_job)
+      {:ok, _} = RendererProtocol.encode_request(render_job)
     end
   },
   warmup: 1,

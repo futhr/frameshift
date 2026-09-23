@@ -100,7 +100,7 @@ defmodule Frameshift.Renderer.Protocol do
     end
   end
 
-  def encode_request(_job), do: {:error, :invalid_job}
+  def encode_request(_), do: {:error, :invalid_job}
 
   @doc "Consumes one complete response from a possibly fragmented port buffer."
   @spec take_response(binary()) ::
@@ -150,7 +150,7 @@ defmodule Frameshift.Renderer.Protocol do
     end
   end
 
-  def decode_response(_body), do: {:error, :invalid_response}
+  def decode_response(_), do: {:error, :invalid_response}
 
   defp decode_status(0, output, width, height, payload) do
     with {:ok, format, bytes_per_pixel} <- decode_output(output),
@@ -170,12 +170,12 @@ defmodule Frameshift.Renderer.Protocol do
     end
   end
 
-  defp decode_status(_status, _output, _width, _height, _payload),
+  defp decode_status(_, _, _, _, _),
     do: {:error, :invalid_error_response}
 
   defp decode_output(1), do: {:ok, :rgb24, 3}
   defp decode_output(2), do: {:ok, :indexed8, 1}
-  defp decode_output(_output), do: {:error, :invalid_output_format}
+  defp decode_output(_), do: {:error, :invalid_output_format}
 
   defp required_fields(job) do
     case Enum.reject(@required_job_fields, &Map.has_key?(job, &1)) do
@@ -234,7 +234,7 @@ defmodule Frameshift.Renderer.Protocol do
        when length(palette) in 1..256,
        do: :ok
 
-  defp validate_profile(_job), do: {:error, :invalid_profile}
+  defp validate_profile(_), do: {:error, :invalid_profile}
 
   defp fetch_code(codes, value) do
     case Map.fetch(codes, value) do
@@ -252,7 +252,7 @@ defmodule Frameshift.Renderer.Protocol do
     end)
   end
 
-  defp encode_palette(_palette), do: {:error, :invalid_palette}
+  defp encode_palette(_), do: {:error, :invalid_palette}
 
   defp encode_color({red, green, blue}) do
     if Enum.all?([red, green, blue], &(is_integer(&1) and &1 in 0..255)),
@@ -260,7 +260,7 @@ defmodule Frameshift.Renderer.Protocol do
       else: {:error, :invalid_color}
   end
 
-  defp encode_color(_color), do: {:error, :invalid_color}
+  defp encode_color(_), do: {:error, :invalid_color}
 
   defp validate_response_dimensions(width, height) do
     if width > 0 and height > 0 and

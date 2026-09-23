@@ -94,14 +94,14 @@ defmodule Frameshift.Diagnostics.Metrics do
         send(target, {:sample, event, measurements, metadata})
         :ok
 
-      _overloaded ->
+      _ ->
         :atomics.add(dropped, 1, 1)
         :ok
     end
   end
 
   @impl true
-  def handle_call(:status, _from, state) do
+  def handle_call(:status, _, state) do
     {:reply,
      %{
        "startedAtMs" => state.started_at_ms,
@@ -113,7 +113,7 @@ defmodule Frameshift.Diagnostics.Metrics do
      }, state}
   end
 
-  def handle_call(:flush, _from, state) do
+  def handle_call(:flush, _, state) do
     {result, next_state} = flush_pending(state)
     {:reply, result, next_state}
   end
@@ -131,13 +131,13 @@ defmodule Frameshift.Diagnostics.Metrics do
   end
 
   def handle_info(:flush, state) do
-    {_result, next_state} = flush_pending(state)
+    {_, next_state} = flush_pending(state)
     Process.send_after(self(), :flush, @flush_interval_ms)
     {:noreply, next_state}
   end
 
   @impl true
-  def terminate(_reason, state) do
+  def terminate(_, state) do
     :telemetry.detach(state.handler_id)
     :ok
   end

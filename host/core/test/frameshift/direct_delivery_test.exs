@@ -22,7 +22,7 @@ defmodule Frameshift.DirectDeliveryTest do
     @behaviour CredentialResolver
 
     @impl CredentialResolver
-    def resolve(_reference, _config) do
+    def resolve(_, _) do
       {:ok, %{certificate: <<1, 2, 3>>, private_key: {:rsa, <<4, 5, 6>>}}}
     end
   end
@@ -31,14 +31,14 @@ defmodule Frameshift.DirectDeliveryTest do
     @moduledoc false
 
     @spec sync(term(), term(), term(), term(), term()) :: {:error, :timeout}
-    def sync(_td, _artifact, _credential, _config, _context), do: {:error, :timeout}
+    def sync(_, _, _, _, _), do: {:error, :timeout}
   end
 
   defmodule ConfirmingSynchronizer do
     @moduledoc false
 
     @spec observe(term(), term(), term(), term(), term(), term()) :: {:ok, :displayed}
-    def observe(_td, _digest, _request_id, _credential, _config, _context),
+    def observe(_, _, _, _, _, _),
       do: {:ok, :displayed}
   end
 
@@ -46,7 +46,7 @@ defmodule Frameshift.DirectDeliveryTest do
     @moduledoc false
 
     @spec observe(term(), term(), term(), term(), term(), term()) :: {:ok, :not_applied}
-    def observe(_td, _digest, _request_id, _credential, _config, _context),
+    def observe(_, _, _, _, _, _),
       do: {:ok, :not_applied}
   end
 
@@ -61,7 +61,7 @@ defmodule Frameshift.DirectDeliveryTest do
     {:ok, library} = Library.start_link(data_dir: data_dir, name: nil)
     on_exit(fn -> if Process.alive?(library), do: GenServer.stop(library) end)
 
-    assert {:ok, _frame} =
+    assert {:ok, _} =
              Library.register_paired_frame(
                library,
                File.read!(@frame_fixture),
@@ -275,7 +275,7 @@ defmodule Frameshift.DirectDeliveryTest do
   test "a transport timeout leaves a durable desired asset for later reconciliation", context do
     digest = register_artifact!(context.library, <<1, 2, 3, 4, 5, 6>>)
     {:ok, frame} = Library.get_paired_frame(context.library, @frame_id)
-    [profile | _rest] = frame["capabilities"]["storage"]["artifactProfiles"]
+    [profile | _] = frame["capabilities"]["storage"]["artifactProfiles"]
 
     assert {:error, :timeout} =
              DirectDelivery.push(

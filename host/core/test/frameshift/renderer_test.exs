@@ -63,7 +63,7 @@ defmodule Frameshift.RendererTest do
     assert {:error, :invalid_dimensions} = Renderer.render(renderer, invalid_for_worker)
     assert {:error, :invalid_timeout} = Renderer.render(renderer, job(), deadline_ms: :never)
     assert Process.alive?(renderer)
-    assert {:ok, _rendered} = Renderer.render(renderer, job())
+    assert {:ok, _} = Renderer.render(renderer, job())
 
     GenServer.stop(renderer)
   end
@@ -159,7 +159,7 @@ defmodule Frameshift.RendererTest do
   end
 
   defp eventually(function, attempts \\ 50)
-  defp eventually(_function, 0), do: false
+  defp eventually(_, 0), do: false
 
   defp eventually(function, attempts) do
     if function.() do

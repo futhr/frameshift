@@ -65,7 +65,7 @@ defmodule Frameshift.ContentStore do
     end
   end
 
-  def read(_data_dir, _digest, _maximum_bytes), do: {:error, :invalid_read}
+  def read(_, _, _), do: {:error, :invalid_read}
 
   @spec move_to_trash(String.t(), String.t()) :: :ok | {:error, term()}
   def move_to_trash(data_dir, digest) do
@@ -109,11 +109,11 @@ defmodule Frameshift.ContentStore do
     trash = trash_path(data_dir, digest)
 
     case {storage_state, File.regular?(object), File.regular?(trash)} do
-      {"active", true, _trash_present} -> :ok
+      {"active", true, _} -> :ok
       {"active", false, true} -> restore(data_dir, digest)
-      {"trash", _object_present, true} -> :ok
+      {"trash", _, true} -> :ok
       {"trash", true, false} -> move_to_trash(data_dir, digest)
-      {_state, false, false} -> {:error, {:object_missing, digest}}
+      {_, false, false} -> {:error, {:object_missing, digest}}
     end
   end
 
@@ -218,10 +218,10 @@ defmodule Frameshift.ContentStore do
        when size <= maximum_bytes,
        do: :ok
 
-  defp validate_read_stat(%File.Stat{type: :regular}, _maximum_bytes),
+  defp validate_read_stat(%File.Stat{type: :regular}, _),
     do: {:error, :object_too_large}
 
-  defp validate_read_stat(%File.Stat{}, _maximum_bytes), do: {:error, :object_not_regular}
+  defp validate_read_stat(%File.Stat{}, _), do: {:error, :object_not_regular}
 
   defp hash_stream(file, context) do
     case IO.binread(file, 64 * 1024) do

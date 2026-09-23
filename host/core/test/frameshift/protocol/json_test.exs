@@ -36,7 +36,7 @@ defmodule Frameshift.Protocol.JSONTest do
   test "does not count brackets inside strings as nesting" do
     invalid_for_schema = ~S({"value":"[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[["})
 
-    assert {:error, {:schema, _reason}} =
+    assert {:error, {:schema, _}} =
              ProtocolJSON.decode_control(invalid_for_schema, "desired")
   end
 

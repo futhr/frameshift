@@ -55,7 +55,7 @@ defmodule Frameshift.Pairing.EndpointTest do
     {wrong_secret, next} =
       Endpoint.handle(opened, context.client_certificate, request("pair-1", <<0::128>>), 101)
 
-    {wrong_certificate, _next} = Endpoint.handle(next, <<1>>, request("pair-1", @secret), 102)
+    {wrong_certificate, _} = Endpoint.handle(next, <<1>>, request("pair-1", @secret), 102)
 
     assert wrong_secret.status == 403
     assert wrong_secret.body == wrong_certificate.body

@@ -32,11 +32,11 @@ defmodule Frameshift.DirectSyncTest do
     end
 
     @impl true
-    def subscribe(_request, _credential, _owner, _config),
+    def subscribe(_, _, _, _),
       do: {:error, :streaming_not_available}
 
     @impl true
-    def close(_handle, _config), do: :ok
+    def close(_, _), do: :ok
   end
 
   setup do
@@ -79,7 +79,7 @@ defmodule Frameshift.DirectSyncTest do
       assert result.state["currentAsset"] == context.artifact.digest
 
       requests = receive_requests(4)
-      assert Enum.all?(requests, fn {_request, credential_ok?} -> credential_ok? end)
+      assert Enum.all?(requests, fn {_, credential_ok?} -> credential_ok? end)
 
       [{initial, _}, {install, _}, {desired, _}, {reconciled, _}] = requests
       base = "https://frame.local/root/"
@@ -203,7 +203,7 @@ defmodule Frameshift.DirectSyncTest do
                context("new-request")
              )
 
-    assert [_state_read] = receive_requests(1)
+    assert [_] = receive_requests(1)
     refute_receive {:direct_sync_request, _, _}
   end
 
@@ -228,7 +228,7 @@ defmodule Frameshift.DirectSyncTest do
                context(request_id)
              )
 
-    [_state, {first, true}, {second, true}, _desired, _reconciled] = receive_requests(5)
+    [_, {first, true}, {second, true}, _, _] = receive_requests(5)
     assert Request.method(first) == "PUT"
     assert Request.uri(first) == Request.uri(second)
     assert Request.body(first) == Request.body(second)
@@ -257,7 +257,7 @@ defmodule Frameshift.DirectSyncTest do
                context(request_id)
              )
 
-    [_initial, _install, {first, true}, _uncertainty_read, {second, true}, _final] =
+    [_, _, {first, true}, _, {second, true}, _] =
       receive_requests(6)
 
     assert Request.method(first) == "PUT"
@@ -289,7 +289,7 @@ defmodule Frameshift.DirectSyncTest do
                context("storage-problem")
              )
 
-    assert [_state, _install] = receive_requests(2)
+    assert [_, _] = receive_requests(2)
     refute_receive {:direct_sync_request, _, _}
   end
 
@@ -337,7 +337,7 @@ defmodule Frameshift.DirectSyncTest do
         try do
           Agent.stop(agent)
         catch
-          :exit, _reason -> :ok
+          :exit, _ -> :ok
         end
       end
     end)
@@ -477,7 +477,7 @@ defmodule Frameshift.DirectSyncTest do
   end
 
   defp receive_requests(count) do
-    Enum.map(1..count, fn _index ->
+    Enum.map(1..count, fn _ ->
       assert_receive {:direct_sync_request, request, credential_ok?}
       {request, credential_ok?}
     end)

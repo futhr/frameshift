@@ -22,7 +22,7 @@ defmodule Frameshift.LocalIPC.Token do
     end
   end
 
-  def consume(_path), do: {:error, :invalid_token_path}
+  def consume(_), do: {:error, :invalid_token_path}
 
   defp read_token(file) do
     with {:ok, info} <- :file.read_file_info(file),

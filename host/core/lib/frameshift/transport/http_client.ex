@@ -44,19 +44,19 @@ defmodule Frameshift.Transport.HTTPClient do
       {:error, reason} when is_atom(reason) -> {:error, reason}
     end
   rescue
-    _exception -> {:error, :transport_failure}
+    _ -> {:error, :transport_failure}
   catch
-    _kind, _reason -> {:error, :transport_failure}
+    _, _ -> {:error, :transport_failure}
   end
 
-  def request(_request, _credential, _config), do: {:error, :invalid_client_arguments}
+  def request(_, _, _), do: {:error, :invalid_client_arguments}
 
   @impl Wotex.Binding.HTTP.Client
-  def subscribe(_request, _credential, _owner, _config),
+  def subscribe(_, _, _, _),
     do: {:error, :streaming_not_available}
 
   @impl Wotex.Binding.HTTP.Client
-  def close(_handle, _config), do: {:error, :unknown_subscription}
+  def close(_, _), do: {:error, :unknown_subscription}
 
   defp authorize_target(target, credential) do
     with {:ok, uri} <- URI.new(target),
@@ -67,7 +67,7 @@ defmodule Frameshift.Transport.HTTPClient do
          true <- String.downcase(uri.host) == credential.host and port == credential.port do
       {:ok, %{uri | port: port}}
     else
-      _other -> {:error, :credential_audience_mismatch}
+      _ -> {:error, :credential_audience_mismatch}
     end
   end
 
@@ -79,20 +79,20 @@ defmodule Frameshift.Transport.HTTPClient do
     normalize_timeout(Context.remaining_ms(deadline, DateTime.utc_now()))
   end
 
-  defp remaining_timeout(_deadline), do: {:error, :deadline_required}
+  defp remaining_timeout(_), do: {:error, :deadline_required}
 
   defp normalize_timeout(value) when is_integer(value) and value > 0, do: {:ok, value}
-  defp normalize_timeout(_value), do: {:error, :timeout}
+  defp normalize_timeout(_), do: {:error, :timeout}
 
   defp resolve_addresses(host, %{resolver: {module, resolver_config}}) when is_atom(module) do
     case module.resolve(host, resolver_config) do
       {:ok, [_ | _] = addresses} -> {:ok, Enum.uniq(addresses)}
       {:error, reason} when is_atom(reason) -> {:error, reason}
-      _other -> {:error, :resolver_contract_violation}
+      _ -> {:error, :resolver_contract_violation}
     end
   end
 
-  defp resolve_addresses(_host, _config), do: {:error, :invalid_resolver}
+  defp resolve_addresses(_, _), do: {:error, :invalid_resolver}
 
   defp authorize_addresses(addresses, config) do
     if Enum.all?(addresses, &local_address?(&1, config.allow_loopback)),
@@ -100,18 +100,18 @@ defmodule Frameshift.Transport.HTTPClient do
       else: {:error, :destination_forbidden}
   end
 
-  defp local_address?({10, _, _, _}, _allow_loopback), do: true
-  defp local_address?({172, second, _, _}, _allow_loopback) when second in 16..31, do: true
-  defp local_address?({192, 168, _, _}, _allow_loopback), do: true
-  defp local_address?({169, 254, _, _}, _allow_loopback), do: true
+  defp local_address?({10, _, _, _}, _), do: true
+  defp local_address?({172, second, _, _}, _) when second in 16..31, do: true
+  defp local_address?({192, 168, _, _}, _), do: true
+  defp local_address?({169, 254, _, _}, _), do: true
   defp local_address?({127, _, _, _}, true), do: true
   defp local_address?({0, 0, 0, 0, 0, 0, 0, 1}, true), do: true
 
-  defp local_address?({first, _, _, _, _, _, _, _}, _allow_loopback)
+  defp local_address?({first, _, _, _, _, _, _, _}, _)
        when Bitwise.band(first, 0xFE00) == 0xFC00,
        do: true
 
-  defp local_address?({0xFE80, _, _, _, _, _, _, _}, _allow_loopback), do: true
+  defp local_address?({0xFE80, _, _, _, _, _, _, _}, _), do: true
 
   defp local_address?({0, 0, 0, 0, 0, 0xFFFF, high, low}, allow_loopback) do
     local_address?(
@@ -121,7 +121,7 @@ defmodule Frameshift.Transport.HTTPClient do
     )
   end
 
-  defp local_address?(_address, _allow_loopback), do: false
+  defp local_address?(_, _), do: false
 
   defp connect(addresses, uri, credential, request, timeout, config) do
     options = [
@@ -143,7 +143,7 @@ defmodule Frameshift.Transport.HTTPClient do
     connect_next(addresses, uri.port, options, Request.deadline(request))
   end
 
-  defp connect_next([], _port, _options, _deadline), do: {:error, :connection_failed}
+  defp connect_next([], _, _, _), do: {:error, :connection_failed}
 
   defp connect_next([address | rest], port, options, deadline) do
     with {:ok, timeout} <- remaining_timeout(deadline) do
@@ -152,7 +152,7 @@ defmodule Frameshift.Transport.HTTPClient do
 
       case Mint.HTTP.connect(:https, address, port, updated_options) do
         {:ok, connection} -> {:ok, connection}
-        {:error, _reason} -> connect_next(rest, port, options, deadline)
+        {:error, _} -> connect_next(rest, port, options, deadline)
       end
     end
   end
@@ -171,7 +171,7 @@ defmodule Frameshift.Transport.HTTPClient do
       {:ok, connection, reference} ->
         receive_response(connection, reference, request, empty_response())
 
-      {:error, _connection, _reason} ->
+      {:error, _, _} ->
         {:error, :request_failed}
     end
   after
@@ -184,10 +184,10 @@ defmodule Frameshift.Transport.HTTPClient do
         {:ok, next_connection, parts} ->
           handle_parts(parts, next_connection, reference, request, response)
 
-        {:error, _connection, %Mint.TransportError{reason: :timeout}, _parts} ->
+        {:error, _, %Mint.TransportError{reason: :timeout}, _} ->
           {:error, :timeout}
 
-        {:error, _connection, _reason, _parts} ->
+        {:error, _, _, _} ->
           {:error, :response_failed}
       end
     end
@@ -219,7 +219,7 @@ defmodule Frameshift.Transport.HTTPClient do
     end)
   end
 
-  defp consume_part({:status, reference, status}, reference, _request, %{status: nil} = response)
+  defp consume_part({:status, reference, status}, reference, _, %{status: nil} = response)
        when status in 100..599,
        do: {:continue, %{response | status: status}}
 
@@ -242,20 +242,20 @@ defmodule Frameshift.Transport.HTTPClient do
     end
   end
 
-  defp consume_part({:done, reference}, reference, _request, response) do
+  defp consume_part({:done, reference}, reference, _, response) do
     if is_integer(response.status) and is_list(response.headers),
       do: {:done, %{response | done?: true}},
       else: {:error, :incomplete_response}
   end
 
-  defp consume_part({:error, reference, _reason}, reference, _request, _response),
+  defp consume_part({:error, reference, _}, reference, _, _),
     do: {:error, :response_failed}
 
-  defp consume_part({_kind, other_reference, _value}, reference, _request, response)
+  defp consume_part({_, other_reference, _}, reference, _, response)
        when other_reference != reference,
        do: {:continue, response}
 
-  defp consume_part(_part, _reference, _request, _response),
+  defp consume_part(_, _, _, _),
     do: {:error, :response_contract_violation}
 
   defp validate_headers(headers, request) do
@@ -270,12 +270,12 @@ defmodule Frameshift.Transport.HTTPClient do
            ) do
       :ok
     else
-      {:error, _error} -> {:error, :invalid_response_headers}
+      {:error, _} -> {:error, :invalid_response_headers}
     end
   end
 
   defp validate_header_value_sizes(headers) do
-    if Enum.all?(headers, fn {_name, value} ->
+    if Enum.all?(headers, fn {_, value} ->
          byte_size(value) <= @maximum_header_value_bytes
        end) do
       :ok
@@ -298,18 +298,18 @@ defmodule Frameshift.Transport.HTTPClient do
         case Integer.parse(value) do
           {length, ""} when length >= 0 and length <= maximum -> :ok
           {length, ""} when length > maximum -> {:error, :response_too_large}
-          _other -> {:error, :invalid_content_length}
+          _ -> {:error, :invalid_content_length}
         end
 
-      _multiple ->
+      _ ->
         {:error, :invalid_content_length}
     end
   end
 
-  defp build_response(%{status: status, headers: headers, body: body, done?: true}, _request) do
+  defp build_response(%{status: status, headers: headers, body: body, done?: true}, _) do
     case Response.new(status, headers, body |> Enum.reverse() |> IO.iodata_to_binary()) do
       {:ok, response} -> {:ok, response}
-      {:error, _error} -> {:error, :invalid_response}
+      {:error, _} -> {:error, :invalid_response}
     end
   end
 

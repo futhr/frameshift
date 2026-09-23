@@ -53,7 +53,7 @@ defmodule Frameshift.Transport.KeychainBrokerTest do
   test "RSA-PSS requests preserve OTP's digest-sized salt policy" do
     owner = self()
 
-    transport = fn _path, request ->
+    transport = fn _, request ->
       send(owner, {:broker_request, request})
 
       case request["operation"] do
@@ -135,7 +135,7 @@ defmodule Frameshift.Transport.KeychainBrokerTest do
   end
 
   test "malformed broker responses and identities fail closed" do
-    transport = fn _path, _request ->
+    transport = fn _, _ ->
       {:ok, %{"ok" => true, "certificate" => "!", "algorithm" => "ecdsa"}}
     end
 
@@ -146,7 +146,7 @@ defmodule Frameshift.Transport.KeychainBrokerTest do
 
     assert {:error, :credential_broker_unavailable} = KeychainBroker.resolve("", config)
 
-    denied = fn _path, _request -> {:ok, %{"ok" => false}} end
+    denied = fn _, _ -> {:ok, %{"ok" => false}} end
 
     assert {:error, :credential_broker_failure} =
              KeychainBroker.resolve("keychain:denied", %{config | transport: denied})
@@ -161,7 +161,7 @@ defmodule Frameshift.Transport.KeychainBrokerTest do
   test "signing rejects unsupported digests, malformed signatures, and oversized input" do
     owner = self()
 
-    transport = fn _path, request ->
+    transport = fn _, request ->
       send(owner, request)
 
       case request["operation"] do
@@ -211,13 +211,13 @@ defmodule Frameshift.Transport.KeychainBrokerTest do
           %{"ok" => true, "algorithm" => "rsa"},
           %{"ok" => "true"}
         ] do
-      transport = fn _path, _request -> {:ok, response} end
+      transport = fn _, _ -> {:ok, response} end
 
       assert {:error, :credential_broker_contract_violation} =
                KeychainBroker.resolve("keychain:invalid", Map.put(config, :transport, transport))
     end
 
-    transport = fn _path, _request -> {:error, :econnreset} end
+    transport = fn _, _ -> {:error, :econnreset} end
 
     assert {:error, :econnreset} =
              KeychainBroker.resolve(

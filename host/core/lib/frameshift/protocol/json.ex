@@ -46,11 +46,11 @@ defmodule Frameshift.Protocol.JSON do
   end
 
   defp check_size(json, limit) when byte_size(json) <= limit, do: :ok
-  defp check_size(_json, _limit), do: {:error, :body_too_large}
+  defp check_size(_, _), do: {:error, :body_too_large}
 
   defp check_depth(json) do
     case scan_depth(json, 0, false, false) do
-      {:ok, _depth, _in_string, _escaped} -> :ok
+      {:ok, _, _, _} -> :ok
       {:error, :nesting_too_deep} = error -> error
     end
   end
@@ -58,7 +58,7 @@ defmodule Frameshift.Protocol.JSON do
   defp scan_depth(<<>>, depth, in_string, escaped),
     do: {:ok, depth, in_string, escaped}
 
-  defp scan_depth(<<_byte, rest::binary>>, depth, true, true),
+  defp scan_depth(<<_, rest::binary>>, depth, true, true),
     do: scan_depth(rest, depth, true, false)
 
   defp scan_depth(<<?\\, rest::binary>>, depth, true, false),
@@ -67,7 +67,7 @@ defmodule Frameshift.Protocol.JSON do
   defp scan_depth(<<?", rest::binary>>, depth, true, false),
     do: scan_depth(rest, depth, false, false)
 
-  defp scan_depth(<<_byte, rest::binary>>, depth, true, false),
+  defp scan_depth(<<_, rest::binary>>, depth, true, false),
     do: scan_depth(rest, depth, true, false)
 
   defp scan_depth(<<?", rest::binary>>, depth, false, false),
@@ -85,13 +85,13 @@ defmodule Frameshift.Protocol.JSON do
     scan_depth(rest, max(depth - 1, 0), false, false)
   end
 
-  defp scan_depth(<<_byte, rest::binary>>, depth, false, false),
+  defp scan_depth(<<_, rest::binary>>, depth, false, false),
     do: scan_depth(rest, depth, false, false)
 
   defp decode_strict(json) do
     case RFC8785.decode(json) do
       {:ok, document} -> {:ok, document}
-      {:error, _reason} -> {:error, :invalid_json}
+      {:error, _} -> {:error, :invalid_json}
     end
   end
 

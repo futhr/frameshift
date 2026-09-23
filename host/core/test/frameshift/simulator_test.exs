@@ -192,7 +192,7 @@ defmodule Frameshift.SimulatorTest do
   } do
     first = upload!(simulator, @first_bytes)
     second = upload!(simulator, @second_bytes)
-    {:ok, _state} = Simulator.set_desired(simulator, desired(first, "request-1"), "*")
+    {:ok, _} = Simulator.set_desired(simulator, desired(first, "request-1"), "*")
     %{etag: etag} = Simulator.state(simulator)
 
     :ok = Simulator.set_faults(simulator, %{power_loss_at: :after_desired})
@@ -241,9 +241,9 @@ defmodule Frameshift.SimulatorTest do
   } do
     first = upload!(simulator, @first_bytes)
     second = upload!(simulator, @second_bytes)
-    {:ok, _state} = Simulator.set_desired(simulator, desired(first, "request-1"), "*")
+    {:ok, _} = Simulator.set_desired(simulator, desired(first, "request-1"), "*")
     %{etag: etag} = Simulator.state(simulator)
-    {:ok, _state} = Simulator.set_playlist(simulator, playlist([second], 1_000), etag)
+    {:ok, _} = Simulator.set_playlist(simulator, playlist([second], 1_000), etag)
 
     assert {:error, :asset_referenced} = Simulator.delete_asset(simulator, first)
     assert {:error, :asset_referenced} = Simulator.delete_asset(simulator, second)

@@ -48,7 +48,7 @@ defmodule Frameshift.Transport.MTLSCredential do
     end
   end
 
-  def new(_origin, _fingerprint, _certificate, _private_key),
+  def new(_, _, _, _),
     do: {:error, :invalid_mtls_credential}
 
   defp parse_origin(origin) do
@@ -62,7 +62,7 @@ defmodule Frameshift.Transport.MTLSCredential do
       authority = if port == 443, do: host, else: "#{host}:#{port}"
       {:ok, host, port, "https://#{authority}"}
     else
-      _other -> {:error, :invalid_credential_origin}
+      _ -> {:error, :invalid_credential_origin}
     end
   end
 
@@ -74,7 +74,7 @@ defmodule Frameshift.Transport.MTLSCredential do
           :error -> {:error, :invalid_server_fingerprint}
         end
 
-      _other ->
+      _ ->
         {:error, :invalid_server_fingerprint}
     end
   end
@@ -83,16 +83,16 @@ defmodule Frameshift.Transport.MTLSCredential do
        when byte_size(certificate) in 1..@maximum_certificate_bytes,
        do: :ok
 
-  defp validate_certificate(_certificate), do: {:error, :invalid_client_certificate}
+  defp validate_certificate(_), do: {:error, :invalid_client_certificate}
 
-  defp validate_private_key({_type, _key}), do: :ok
+  defp validate_private_key({_, _}), do: :ok
 
-  defp validate_private_key(%{algorithm: _algorithm, sign_fun: sign_fun})
+  defp validate_private_key(%{algorithm: _, sign_fun: sign_fun})
        when is_function(sign_fun, 3),
        do: :ok
 
-  defp validate_private_key(%{algorithm: _algorithm, engine: _engine, key_id: _key_id}), do: :ok
-  defp validate_private_key(_private_key), do: {:error, :invalid_client_private_key}
+  defp validate_private_key(%{algorithm: _, engine: _, key_id: _}), do: :ok
+  defp validate_private_key(_), do: {:error, :invalid_client_private_key}
 end
 
 defimpl Inspect, for: Frameshift.Transport.MTLSCredential do

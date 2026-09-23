@@ -132,22 +132,22 @@ defmodule Frameshift.Simulator do
   end
 
   @impl true
-  def handle_call(:capabilities, _from, state), do: {:reply, state.capabilities, state}
+  def handle_call(:capabilities, _, state), do: {:reply, state.capabilities, state}
 
-  def handle_call({:open_pairing, _now_ms}, _from, %{pairing: nil} = state),
+  def handle_call({:open_pairing, _}, _, %{pairing: nil} = state),
     do: {:reply, {:error, :pairing_not_configured}, state}
 
-  def handle_call({:open_pairing, now_ms}, _from, state) do
+  def handle_call({:open_pairing, now_ms}, _, state) do
     case Window.open(state.pairing, now_ms) do
       {:ok, opened} -> {:reply, :ok, %{state | pairing: opened}}
       {:error, reason} -> {:reply, {:error, reason}, state}
     end
   end
 
-  def handle_call({:pair, _peer_der, _body, _now_ms}, _from, %{pairing: nil} = state),
+  def handle_call({:pair, _, _, _}, _, %{pairing: nil} = state),
     do: {:reply, {:error, :pairing_not_configured}, state}
 
-  def handle_call({:pair, peer_der, body, now_ms}, _from, state) do
+  def handle_call({:pair, peer_der, body, now_ms}, _, state) do
     {response, next} = Endpoint.handle(state.pairing, peer_der, body, now_ms)
 
     if next == state.pairing do
@@ -166,39 +166,39 @@ defmodule Frameshift.Simulator do
     end
   end
 
-  def handle_call(:state, _from, state) do
+  def handle_call(:state, _, state) do
     {:reply, %{state: State.public(state), etag: State.etag(state)}, state}
   end
 
-  def handle_call({:set_faults, faults}, _from, state) do
+  def handle_call({:set_faults, faults}, _, state) do
     if valid_faults?(faults),
       do: {:reply, :ok, %{state | faults: faults}},
       else: {:reply, {:error, :invalid_faults}, state}
   end
 
-  def handle_call({:has_asset, digest}, _from, state) do
+  def handle_call({:has_asset, digest}, _, state) do
     {:reply, Map.has_key?(state.assets, digest), state}
   end
 
-  def handle_call({:has_compatible_asset, digest, profile_id}, _from, state) do
+  def handle_call({:has_compatible_asset, digest, profile_id}, _, state) do
     {:reply, get_in(state.assets, [digest, "profileId"]) == profile_id, state}
   end
 
-  def handle_call({:put_asset, digest, profile_id, bytes}, _from, state) do
+  def handle_call({:put_asset, digest, profile_id, bytes}, _, state) do
     case put_asset_record(state, digest, profile_id, bytes) do
       {:ok, disposition, next_state} -> {:reply, {:ok, disposition}, next_state}
       {:error, reason} -> {:reply, {:error, reason}, state}
     end
   end
 
-  def handle_call({:delete_asset, digest}, _from, state) do
+  def handle_call({:delete_asset, digest}, _, state) do
     case delete_asset_record(state, digest) do
       {:ok, next_state} -> {:reply, :ok, next_state}
       {:error, reason} -> {:reply, {:error, reason}, state}
     end
   end
 
-  def handle_call({:set_desired, request, precondition}, _from, state) do
+  def handle_call({:set_desired, request, precondition}, _, state) do
     case set_desired_record(state, request, precondition) do
       {:ok, next_state} -> {:reply, {:ok, State.public(next_state)}, next_state}
       {:error, reason, next_state} -> {:reply, {:error, reason}, next_state}
@@ -206,11 +206,11 @@ defmodule Frameshift.Simulator do
     end
   end
 
-  def handle_call(:retry_display, _from, %{desired_asset: nil} = state) do
+  def handle_call(:retry_display, _, %{desired_asset: nil} = state) do
     {:reply, {:error, :asset_missing}, state}
   end
 
-  def handle_call(:retry_display, _from, state) do
+  def handle_call(:retry_display, _, state) do
     preparing =
       state
       |> Map.put(:display_state, "preparing")
@@ -229,14 +229,14 @@ defmodule Frameshift.Simulator do
     end
   end
 
-  def handle_call({:set_playlist, playlist, precondition}, _from, state) do
+  def handle_call({:set_playlist, playlist, precondition}, _, state) do
     case set_playlist_record(state, playlist, precondition) do
       {:ok, next_state} -> {:reply, {:ok, State.public(next_state)}, next_state}
       {:error, reason} -> {:reply, {:error, reason}, state}
     end
   end
 
-  def handle_call({:pull_outbox, manifest, bytes}, _from, state) do
+  def handle_call({:pull_outbox, manifest, bytes}, _, state) do
     case pull_outbox_record(state, manifest, bytes) do
       {:ok, acknowledgement, next_state} ->
         {:reply, {:ok, acknowledgement}, next_state}
@@ -292,7 +292,7 @@ defmodule Frameshift.Simulator do
       Map.get(faults, :power_loss_at) in [nil, :after_desired, :during_refresh, :after_refresh]
   end
 
-  defp valid_faults?(_faults), do: false
+  defp valid_faults?(_), do: false
 
   defp valid_slow_refresh?(milliseconds),
     do: is_integer(milliseconds) and milliseconds >= 0 and milliseconds <= 60_000
@@ -305,7 +305,7 @@ defmodule Frameshift.Simulator do
          {:ok, profile} <- find_profile(state, profile_id),
          :ok <- validate_asset_size(profile, candidate),
          :ok <- ensure_storage(state, digest, byte_size(candidate)),
-         {:ok, _digest, byte_count, placement} <- ContentStore.put(state.data_dir, candidate) do
+         {:ok, _, byte_count, placement} <- ContentStore.put(state.data_dir, candidate) do
       commit_asset(state, digest, profile_id, byte_count, placement)
     else
       false -> {:error, :digest_mismatch}
@@ -314,7 +314,7 @@ defmodule Frameshift.Simulator do
     end
   end
 
-  defp put_asset_record(_state, _digest, _profile_id, _bytes), do: {:error, :invalid_asset}
+  defp put_asset_record(_, _, _, _), do: {:error, :invalid_asset}
 
   defp find_profile(state, profile_id) do
     case Enum.find(state.capabilities["storage"]["artifactProfiles"], &(&1["id"] == profile_id)) do
@@ -342,7 +342,7 @@ defmodule Frameshift.Simulator do
     profile["width"] * profile["height"] * channels * bytes_per_channel
   end
 
-  defp exact_size(_profile), do: nil
+  defp exact_size(_), do: nil
 
   defp ensure_storage(state, digest, byte_count) do
     storage = state.capabilities["storage"]
@@ -422,8 +422,8 @@ defmodule Frameshift.Simulator do
          true <- asset["profileId"] == request["artifactProfile"] do
       accept_desired(state, request, request_hash)
     else
-      {:repeat, _request_hash} -> {:ok, state}
-      {:conflict, _request_hash} -> {:error, :request_id_conflict}
+      {:repeat, _} -> {:ok, state}
+      {:conflict, _} -> {:error, :request_id_conflict}
       :error -> {:error, :asset_missing}
       false -> {:error, :unsupported_profile}
       {:error, reason} -> {:error, normalize_schema_error(reason)}
@@ -436,7 +436,7 @@ defmodule Frameshift.Simulator do
     case state.requests[request["requestId"]] do
       nil -> {:new, request_hash}
       ^request_hash -> {:repeat, request_hash}
-      _different -> {:conflict, request_hash}
+      _ -> {:conflict, request_hash}
     end
   end
 
@@ -529,7 +529,7 @@ defmodule Frameshift.Simulator do
     end
   end
 
-  defp pull_outbox_record(%{faults: %{missed_contact: true}}, _manifest, _bytes),
+  defp pull_outbox_record(%{faults: %{missed_contact: true}}, _, _),
     do: {:error, :contact_missed}
 
   defp pull_outbox_record(state, manifest, bytes) when is_binary(bytes) do
@@ -546,9 +546,9 @@ defmodule Frameshift.Simulator do
     end
   end
 
-  defp pull_outbox_record(_state, _manifest, _bytes), do: {:error, :invalid_document}
+  defp pull_outbox_record(_, _, _), do: {:error, :invalid_document}
 
-  defp receive_outbox_manifest(state, %{"desiredAsset" => nil}, _bytes),
+  defp receive_outbox_manifest(state, %{"desiredAsset" => nil}, _),
     do: {:ok, :no_work, state}
 
   defp receive_outbox_manifest(
@@ -558,7 +558,7 @@ defmodule Frameshift.Simulator do
            display_state: "displayed"
          } = state,
          %{"desiredAsset" => digest, "artifactProfile" => profile_id} = manifest,
-         _bytes
+         _
        )
        when is_binary(digest) do
     outbox_acknowledgement(manifest, :existing, "displayed", state)
@@ -578,7 +578,7 @@ defmodule Frameshift.Simulator do
             do: {:ok, :existing, state},
             else: {:error, :asset_missing}
 
-        _bytes ->
+        _ ->
           put_asset_record(state, digest, profile_id, bytes)
       end
 

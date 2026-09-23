@@ -83,10 +83,10 @@ defmodule Frameshift.Outbox.TLSServer do
   end
 
   @impl true
-  def handle_call(:port, _from, %State{listener: listener} = state) do
+  def handle_call(:port, _, %State{listener: listener} = state) do
     result =
       case :ssl.sockname(listener) do
-        {:ok, {_address, port}} -> {:ok, port}
+        {:ok, {_, port}} -> {:ok, port}
         {:error, reason} -> {:error, reason}
       end
 
@@ -95,14 +95,14 @@ defmodule Frameshift.Outbox.TLSServer do
 
   @impl true
   def handle_info(
-        {:DOWN, _reference, :process, acceptor, reason},
+        {:DOWN, _, :process, acceptor, reason},
         %State{acceptor: acceptor} = state
       ) do
     {:stop, {:acceptor_stopped, reason}, state}
   end
 
   @impl true
-  def terminate(_reason, %State{listener: listener}) do
+  def terminate(_, %State{listener: listener}) do
     :ssl.close(listener)
     :ok
   end
@@ -110,15 +110,15 @@ defmodule Frameshift.Outbox.TLSServer do
   @doc "Pins a presented client certificate during the OTP TLS verification callback."
   @spec verify_client(tuple(), term(), map()) ::
           {:valid, map()} | {:unknown, map()} | {:fail, term()}
-  def verify_client(_certificate, {:bad_cert, reason}, state)
+  def verify_client(_, {:bad_cert, reason}, state)
       when reason in @accepted_chain_errors,
       do: {:valid, state}
 
-  def verify_client(_certificate, {:bad_cert, reason}, _state),
+  def verify_client(_, {:bad_cert, reason}, _),
     do: {:fail, {:bad_cert, reason}}
 
-  def verify_client(_certificate, {:extension, _extension}, state), do: {:unknown, state}
-  def verify_client(_certificate, :valid, state), do: {:valid, state}
+  def verify_client(_, {:extension, _}, state), do: {:unknown, state}
+  def verify_client(_, :valid, state), do: {:valid, state}
 
   def verify_client(certificate, :valid_peer, %{library: library} = state) do
     with {:ok, digest} <- SPKIPin.fingerprint(certificate),
@@ -128,11 +128,11 @@ defmodule Frameshift.Outbox.TLSServer do
          true <- "pull" in modes do
       {:valid, Map.put(state, :matched, true)}
     else
-      _failure -> {:fail, :unpaired_frame}
+      _ -> {:fail, :unpaired_frame}
     end
   end
 
-  def verify_client(_certificate, _event, state), do: {:unknown, state}
+  def verify_client(_, _, state), do: {:unknown, state}
 
   defp validate_options(bind_address, port, certificate, private_key) do
     if valid_address?(bind_address) and is_integer(port) and port in 0..65_535 and
@@ -152,7 +152,7 @@ defmodule Frameshift.Outbox.TLSServer do
     address |> Tuple.to_list() |> Enum.all?(&(&1 in 0..65_535))
   end
 
-  defp valid_address?(_address), do: false
+  defp valid_address?(_), do: false
 
   defp listen(bind_address, port, certificate, private_key, library) do
     :ssl.listen(port,
@@ -206,10 +206,10 @@ defmodule Frameshift.Outbox.TLSServer do
       {:ok, worker} ->
         case :ssl.controlling_process(socket, worker) do
           :ok -> send(worker, {:serve, socket})
-          {:error, _reason} -> :ssl.close(socket)
+          {:error, _} -> :ssl.close(socket)
         end
 
-      {:error, _reason} ->
+      {:error, _} ->
         :ssl.close(socket)
     end
   end
@@ -220,7 +220,7 @@ defmodule Frameshift.Outbox.TLSServer do
         serve_authenticated(established, library)
         :ssl.close(established)
 
-      {:error, _reason} ->
+      {:error, _} ->
         :ssl.close(socket)
     end
   end
@@ -251,7 +251,7 @@ defmodule Frameshift.Outbox.TLSServer do
   defp receive_more(socket, library, certificate, wire, deadline, remaining) do
     case :ssl.recv(socket, 0, remaining) do
       {:ok, bytes} -> read_exchange(socket, library, certificate, wire <> bytes, deadline)
-      {:error, _reason} -> :ok
+      {:error, _} -> :ok
     end
   end
 end

@@ -55,14 +55,14 @@ defmodule Frameshift.RenderProfile do
     end
   end
 
-  def compile(_master, _capabilities, _requested_profile_id),
+  def compile(_, _, _),
     do: {:error, :invalid_render_profile}
 
   defp artifact_profiles(%{"storage" => %{"artifactProfiles" => profiles}})
        when is_list(profiles) and profiles != [],
        do: {:ok, profiles}
 
-  defp artifact_profiles(_capabilities), do: {:error, :artifact_profiles_missing}
+  defp artifact_profiles(_), do: {:error, :artifact_profiles_missing}
 
   defp select_profile(profiles, capabilities, nil) do
     profiles
@@ -86,7 +86,7 @@ defmodule Frameshift.RenderProfile do
     end
   end
 
-  defp select_profile(_profiles, _capabilities, _requested_profile_id),
+  defp select_profile(_, _, _),
     do: {:error, :unsupported_profile}
 
   defp selected_profile(nil), do: {:error, :unsupported_profile}
@@ -111,7 +111,7 @@ defmodule Frameshift.RenderProfile do
     ]
     |> Enum.all?()
   rescue
-    _error -> false
+    _ -> false
   end
 
   defp validate_source(%{"width" => width, "height" => height})
@@ -119,14 +119,14 @@ defmodule Frameshift.RenderProfile do
               width * height <= @maximum_pixels,
        do: :ok
 
-  defp validate_source(_master), do: {:error, :invalid_source_dimensions}
+  defp validate_source(_), do: {:error, :invalid_source_dimensions}
 
   defp validate_target(%{"width" => width, "height" => height})
        when is_integer(width) and is_integer(height) and width > 0 and height > 0 and
               width * height <= @maximum_pixels,
        do: :ok
 
-  defp validate_target(_profile), do: {:error, :invalid_target_dimensions}
+  defp validate_target(_), do: {:error, :invalid_target_dimensions}
 
   defp center_crop(master, profile) do
     source_width = master["width"]

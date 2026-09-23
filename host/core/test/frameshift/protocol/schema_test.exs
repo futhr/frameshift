@@ -23,7 +23,7 @@ defmodule Frameshift.Protocol.SchemaTest do
       if fixture["valid"] do
         assert :ok = result, "expected #{fixture["document"]} to be valid"
       else
-        assert {:error, _reason} = result,
+        assert {:error, _} = result,
                "expected #{fixture["document"]} to be invalid"
       end
     end

@@ -19,18 +19,18 @@ defmodule Frameshift.Transport.HTTPClientTest do
     @behaviour Wotex.Runtime.Credentials
 
     @impl Wotex.Runtime.Credentials
-    def resolve(_security, _form, _context, credential), do: {:ok, credential}
+    def resolve(_, _, _, credential), do: {:ok, credential}
   end
 
   defmodule FixtureResolver do
     @moduledoc false
 
     @spec resolve(term(), term()) :: term()
-    def resolve(_host, result), do: result
+    def resolve(_, result), do: result
   end
 
   setup_all do
-    {:ok, _applications} = Application.ensure_all_started(:ssl)
+    {:ok, _} = Application.ensure_all_started(:ssl)
 
     subject_alt_name = {:Extension, {2, 5, 29, 17}, false, [dNSName: ~c"localhost"]}
     key = {:rsa, 2048, 65_537}
@@ -526,7 +526,7 @@ defmodule Frameshift.Transport.HTTPClientTest do
     end
   end
 
-  defp receive_request_body(_socket, bytes, body_start, expected)
+  defp receive_request_body(_, bytes, body_start, expected)
        when byte_size(bytes) - body_start >= expected,
        do: {:ok, binary_part(bytes, 0, body_start + expected)}
 
@@ -547,7 +547,7 @@ defmodule Frameshift.Transport.HTTPClientTest do
         if String.downcase(name) == "content-length",
           do: value |> String.trim() |> String.to_integer()
 
-      _other ->
+      _ ->
         nil
     end
   end

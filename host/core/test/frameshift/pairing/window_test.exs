@@ -155,7 +155,7 @@ defmodule Frameshift.Pairing.WindowTest do
              )
 
     assert expired.opened_at_ms == nil
-    assert {:ok, _reopened} = Window.open(expired, 300_101)
+    assert {:ok, _} = Window.open(expired, 300_101)
   end
 
   test "invalid input and clocks do not authorize a host", context do
@@ -185,7 +185,7 @@ defmodule Frameshift.Pairing.WindowTest do
                101
              )
 
-    assert {:error, :pair_mode_required, _closed} =
+    assert {:error, :pair_mode_required, _} =
              Window.authorize(
                opened,
                "pair-1",

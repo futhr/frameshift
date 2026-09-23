@@ -46,12 +46,12 @@ defmodule Frameshift.Outbox.HTTP1 do
         body = binary_part(wire, offset + 4, byte_size(wire) - offset - 4)
         decode_complete(head, body)
 
-      {_offset, 4} ->
+      {_, 4} ->
         {:error, :request_too_large}
     end
   end
 
-  def decode(_wire), do: {:error, :request_too_large}
+  def decode(_), do: {:error, :request_too_large}
 
   @doc "Runs one complete request through certificate-scoped outbox semantics."
   @spec exchange(GenServer.server(), binary(), binary()) :: {:ok, binary()} | :more
@@ -124,7 +124,7 @@ defmodule Frameshift.Outbox.HTTP1 do
     do: {422, "invalid-acknowledgement", "Invalid acknowledgement"}
 
   defp problem_details(:artifact_unavailable), do: {503, "asset-missing", "Asset unavailable"}
-  defp problem_details(_reason), do: {400, "invalid-request", "Invalid request"}
+  defp problem_details(_), do: {400, "invalid-request", "Invalid request"}
 
   defp encode_response(%{status: status, headers: headers, body: body}) do
     headers =
@@ -188,7 +188,7 @@ defmodule Frameshift.Outbox.HTTP1 do
           {:ok, method, path, headers}
         end
 
-      _other ->
+      _ ->
         {:error, :invalid_request}
     end
   end
@@ -198,19 +198,19 @@ defmodule Frameshift.Outbox.HTTP1 do
       [method, path, "HTTP/1.1"] when method in ["GET", "POST"] ->
         if valid_path?(path), do: {:ok, method, path}, else: {:error, :invalid_request}
 
-      _other ->
+      _ ->
         {:error, :invalid_request}
     end
   end
 
-  defp valid_path?(<<"/", _rest::binary>> = path)
+  defp valid_path?(<<"/", _::binary>> = path)
        when byte_size(path) <= @maximum_target_bytes do
     path
     |> :binary.bin_to_list()
     |> Enum.all?(&(&1 in 33..126 and &1 not in [?\#, ??]))
   end
 
-  defp valid_path?(_path), do: false
+  defp valid_path?(_), do: false
 
   defp decode_headers(lines) do
     Enum.reduce_while(lines, {:ok, %{}}, &put_header/2)
@@ -219,7 +219,7 @@ defmodule Frameshift.Outbox.HTTP1 do
   defp put_header(line, {:ok, headers}) do
     case :binary.split(line, ":") do
       [name, value] -> add_header(headers, name, value)
-      _other -> {:halt, {:error, :invalid_request}}
+      _ -> {:halt, {:error, :invalid_request}}
     end
   end
 
@@ -260,7 +260,7 @@ defmodule Frameshift.Outbox.HTTP1 do
     case Map.get(headers, "content-length") do
       nil -> {:ok, 0}
       "0" -> {:ok, 0}
-      _other -> {:error, :invalid_request}
+      _ -> {:error, :invalid_request}
     end
   end
 
@@ -271,7 +271,7 @@ defmodule Frameshift.Outbox.HTTP1 do
     end
   end
 
-  defp body_length("POST", _headers), do: {:error, :invalid_request}
+  defp body_length("POST", _), do: {:error, :invalid_request}
 
   defp decode_length(value) when byte_size(value) in 1..6 do
     if Regex.match?(@digit_pattern, value) do
@@ -287,8 +287,8 @@ defmodule Frameshift.Outbox.HTTP1 do
     end
   end
 
-  defp decode_length(_value), do: {:error, :request_too_large}
+  defp decode_length(_), do: {:error, :request_too_large}
 
   defp validate_body_size(body, expected_length) when byte_size(body) <= expected_length, do: :ok
-  defp validate_body_size(_body, _expected_length), do: {:error, :invalid_request}
+  defp validate_body_size(_, _), do: {:error, :invalid_request}
 end

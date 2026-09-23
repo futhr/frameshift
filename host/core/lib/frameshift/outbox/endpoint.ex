@@ -50,17 +50,17 @@ defmodule Frameshift.Outbox.Endpoint do
     end
   end
 
-  def handle(_library, _peer_certificate_der, _method, _path, _content_type, _body),
+  def handle(_, _, _, _, _, _),
     do: {:error, :invalid_request}
 
-  defp route(library, frame, "GET", "/v0/outbox/manifest", _content_type, <<>>) do
+  defp route(library, frame, "GET", "/v0/outbox/manifest", _, <<>>) do
     case Library.outbox_manifest(library, frame["frame_id"]) do
       {:ok, manifest} -> json_response(manifest)
       :empty -> {:ok, response(204, nil, <<>>)}
     end
   end
 
-  defp route(library, frame, "GET", "/v0/outbox/assets/sha256/" <> hex, _type, <<>>)
+  defp route(library, frame, "GET", "/v0/outbox/assets/sha256/" <> hex, _, <<>>)
        when byte_size(hex) == 64 do
     digest = "sha256:" <> hex
 
@@ -78,10 +78,10 @@ defmodule Frameshift.Outbox.Endpoint do
     else
       false -> {:error, :not_found}
       :empty -> {:error, :not_found}
-      {:ok, _other} -> {:error, :not_found}
+      {:ok, _} -> {:error, :not_found}
       :not_found -> {:error, :artifact_unavailable}
       {:error, :unsupported_profile} -> {:error, :artifact_unavailable}
-      {:error, _reason} -> {:error, :artifact_unavailable}
+      {:error, _} -> {:error, :artifact_unavailable}
     end
   end
 
@@ -91,11 +91,11 @@ defmodule Frameshift.Outbox.Endpoint do
       json_response(%{"status" => status})
     else
       {:error, :acknowledgement_conflict} = error -> error
-      {:error, _reason} -> {:error, :invalid_acknowledgement}
+      {:error, _} -> {:error, :invalid_acknowledgement}
     end
   end
 
-  defp route(_library, _frame, _method, _path, _type, _body),
+  defp route(_, _, _, _, _, _),
     do: {:error, :invalid_request}
 
   defp paired_pull_frame(library, peer_certificate_der) do
@@ -141,14 +141,14 @@ defmodule Frameshift.Outbox.Endpoint do
     case Library.acknowledge_outbox(library, frame_id, acknowledgement) do
       :ok -> {:ok, "confirmed"}
       {:ok, :pending} -> {:ok, "pending"}
-      {:error, _reason} -> {:error, :acknowledgement_conflict}
+      {:error, _} -> {:error, :acknowledgement_conflict}
     end
   end
 
   defp json_response(document) do
     case JSON.encode(document) do
       {:ok, body} -> {:ok, response(200, %{"content-type" => "application/json"}, body)}
-      {:error, _reason} -> {:error, :invalid_request}
+      {:error, _} -> {:error, :invalid_request}
     end
   end
 

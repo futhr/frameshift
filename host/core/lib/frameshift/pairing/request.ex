@@ -46,11 +46,11 @@ defmodule Frameshift.Pairing.Request do
          true <- Base.url_encode64(secret, padding: false) == encoded_secret do
       {:ok, %__MODULE__{request_id: request_id, device_id: device_id, secret: secret}}
     else
-      _invalid -> {:error, :invalid_pairing_request}
+      _ -> {:error, :invalid_pairing_request}
     end
   end
 
-  def parse(_source), do: {:error, :invalid_pairing_request}
+  def parse(_), do: {:error, :invalid_pairing_request}
 
   @doc "Applies an admitted body to an already TLS-authenticated peer window."
   @spec authorize(Window.t(), t(), binary(), non_neg_integer()) ::

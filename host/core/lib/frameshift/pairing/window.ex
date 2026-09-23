@@ -51,7 +51,7 @@ defmodule Frameshift.Pairing.Window do
       else: {:error, :invalid_pairing_state}
   end
 
-  def new(_device_id, _secret), do: {:error, :invalid_pairing_state}
+  def new(_, _), do: {:error, :invalid_pairing_state}
 
   @doc "Opens the five-minute window after a physical action on the frame."
   @spec open(t(), non_neg_integer()) :: {:ok, t()} | {:error, :already_paired | :invalid_time}
@@ -60,11 +60,11 @@ defmodule Frameshift.Pairing.Window do
     {:ok, %{state | opened_at_ms: now_ms, attempts: 0}}
   end
 
-  def open(%__MODULE__{host_certificate_fingerprint: fingerprint}, _now_ms)
+  def open(%__MODULE__{host_certificate_fingerprint: fingerprint}, _)
       when is_binary(fingerprint),
       do: {:error, :already_paired}
 
-  def open(%__MODULE__{}, _now_ms), do: {:error, :invalid_time}
+  def open(%__MODULE__{}, _), do: {:error, :invalid_time}
 
   @doc "Authorizes an authenticated TLS peer only during the physical window."
   @spec authorize(t(), String.t(), String.t(), binary(), binary(), non_neg_integer()) ::
@@ -73,7 +73,7 @@ defmodule Frameshift.Pairing.Window do
         %__MODULE__{host_certificate_fingerprint: fingerprint} = state,
         request_id,
         device_id,
-        _candidate,
+        _,
         peer_certificate,
         now_ms
       )
@@ -119,11 +119,11 @@ defmodule Frameshift.Pairing.Window do
 
   def authorize(
         %__MODULE__{} = state,
-        _request_id,
-        _device_id,
-        _candidate,
-        _peer_certificate,
-        _now_ms
+        _,
+        _,
+        _,
+        _,
+        _
       ),
       do: {:error, :invalid_time, state}
 
@@ -138,12 +138,12 @@ defmodule Frameshift.Pairing.Window do
   defp valid_request_id?(request_id) when is_binary(request_id),
     do: Regex.match?(@request_id_pattern, request_id)
 
-  defp valid_request_id?(_request_id), do: false
+  defp valid_request_id?(_), do: false
 
   defp window_open?(%__MODULE__{opened_at_ms: opened}, now_ms) when is_integer(opened),
     do: now_ms >= opened and now_ms - opened < @window_ms
 
-  defp window_open?(_state, _now_ms), do: false
+  defp window_open?(_, _), do: false
 
   defp reject_attempt(state) do
     attempts = state.attempts + 1
@@ -157,12 +157,12 @@ defmodule Frameshift.Pairing.Window do
   defp valid_peer_certificate?(certificate)
        when is_binary(certificate) and byte_size(certificate) in 1..65_536 do
     case Frameshift.Transport.SPKIPin.fingerprint_der(certificate) do
-      {:ok, _fingerprint} -> true
-      _invalid -> false
+      {:ok, _} -> true
+      _ -> false
     end
   end
 
-  defp valid_peer_certificate?(_certificate), do: false
+  defp valid_peer_certificate?(_), do: false
 
   defp secure_equal?(left, right)
        when is_binary(left) and is_binary(right) and byte_size(left) == byte_size(right) do
@@ -175,5 +175,5 @@ defmodule Frameshift.Pairing.Window do
     |> Kernel.==(0)
   end
 
-  defp secure_equal?(_left, _right), do: false
+  defp secure_equal?(_, _), do: false
 end

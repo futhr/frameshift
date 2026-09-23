@@ -41,7 +41,7 @@ defmodule Frameshift.RenderPipelineTest do
     @moduledoc false
 
     @spec sync(term(), term(), term(), term(), term()) :: {:ok, map()}
-    def sync(td, artifact, credential, _config, context) do
+    def sync(td, artifact, credential, _, context) do
       send(self(), {:direct_delivery, td, artifact, credential, context})
       {:ok, %{outcome: :displayed}}
     end
@@ -51,7 +51,7 @@ defmodule Frameshift.RenderPipelineTest do
     @moduledoc false
 
     @spec sync(term(), term(), term(), term(), term()) :: {:error, {:transport, :timeout}}
-    def sync(_td, _artifact, _credential, _config, _context),
+    def sync(_, _, _, _, _),
       do: {:error, {:transport, :timeout}}
   end
 
@@ -96,7 +96,7 @@ defmodule Frameshift.RenderPipelineTest do
     {:ok, package} = MasterPackage.encode(@original, @rgba, 2, 1)
     {:ok, master} = Library.import_master(context.library, package, master_attributes())
 
-    assert {:ok, _frame} =
+    assert {:ok, _} =
              Library.register_paired_frame(
                context.library,
                thing_description(),
@@ -124,7 +124,7 @@ defmodule Frameshift.RenderPipelineTest do
 
     GenServer.stop(context.renderer)
 
-    assert {:ok, _cached_queue} =
+    assert {:ok, _} =
              LocalAPI.execute_with_renderer(context.library, context.renderer, command)
 
     assert {:ok, repeated_manifest} = Library.outbox_manifest(context.library, @frame_id)
@@ -164,7 +164,7 @@ defmodule Frameshift.RenderPipelineTest do
       |> put_in(["frameshift:capabilities", "transferModes"], ["push"])
       |> Jason.encode!()
 
-    assert {:ok, _frame} =
+    assert {:ok, _} =
              Library.register_paired_frame(
                context.library,
                push_td,
@@ -174,7 +174,7 @@ defmodule Frameshift.RenderPipelineTest do
 
     owner = self()
 
-    broker_transport = fn _path, request ->
+    broker_transport = fn _, request ->
       send(owner, {:keychain_broker_request, request})
 
       case request["operation"] do
@@ -256,7 +256,7 @@ defmodule Frameshift.RenderPipelineTest do
       |> put_in(["frameshift:capabilities", "transferModes"], ["push"])
       |> Jason.encode!()
 
-    assert {:ok, _frame} =
+    assert {:ok, _} =
              Library.register_paired_frame(
                context.library,
                push_td,
@@ -307,7 +307,7 @@ defmodule Frameshift.RenderPipelineTest do
   defp stop_if_alive(process) do
     if Process.alive?(process), do: GenServer.stop(process)
   catch
-    :exit, _reason -> :ok
+    :exit, _ -> :ok
   end
 
   defp master_attributes do

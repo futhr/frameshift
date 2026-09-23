@@ -53,6 +53,13 @@ artwork digests, provider inputs, and network addresses are forbidden labels.
 | Storage | transaction duration/busy result, object bytes, WAL bytes | SQLite owner and filesystem sampling |
 | Runtime | core restart, process memory, queue depth, diagnostic drops | Supervisor and bounded samplers |
 
+The implemented pull outbox exchange metrics count completed HTTP requests and
+measure their server-side duration. They classify only `manifest`, `asset`,
+`ack`, or `invalid` routes and bounded response outcomes. Partial requests do
+not emit a completed-exchange sample. These measurements do not imply that a
+frame displayed an image; only authoritative acknowledgement advances display
+state. Frame IDs, request paths, and asset digests never become metric labels.
+
 The primary service indicator is the fraction of eligible updates confirmed
 displayed within a target window. Report awake push and sleeping pull
 separately; sleeping contact cadence is part of the denominator definition.

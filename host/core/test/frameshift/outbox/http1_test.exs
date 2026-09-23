@@ -73,4 +73,50 @@ defmodule Frameshift.Outbox.HTTP1Test do
                  <<255>> <> ": value\r\n\r\n"
              )
   end
+
+  test "completed exchanges emit bounded route and outcome telemetry" do
+    handler_id = {__MODULE__, self()}
+
+    :ok =
+      :telemetry.attach(
+        handler_id,
+        [:frameshift, :outbox, :exchange],
+        &__MODULE__.capture_event/4,
+        self()
+      )
+
+    on_exit(fn -> :telemetry.detach(handler_id) end)
+
+    assert {:ok, response} =
+             HTTP1.exchange(
+               nil,
+               <<>>,
+               "GET /secret?token=value HTTP/1.1\r\nHost: host.local\r\n\r\n"
+             )
+
+    assert response =~ "HTTP/1.1 400 Bad Request"
+
+    assert_receive {[:frameshift, :outbox, :exchange], measurements, metadata}
+    assert measurements.count == 1
+    assert is_integer(measurements.duration_ms)
+    assert metadata == %{route: :invalid, outcome: :rejected}
+
+    assert {:ok, denied} =
+             HTTP1.exchange(
+               nil,
+               <<>>,
+               "GET /v0/outbox/manifest HTTP/1.1\r\nHost: host.local\r\n\r\n"
+             )
+
+    assert denied =~ "HTTP/1.1 403 Forbidden"
+    assert_receive {[:frameshift, :outbox, :exchange], _, %{route: :manifest, outcome: :rejected}}
+
+    assert :more = HTTP1.exchange(nil, <<>>, "GET /v0/outbox/manifest HTTP/1.1\r\n")
+    refute_receive {[:frameshift, :outbox, :exchange], _, _}
+  end
+
+  @doc false
+  @spec capture_event(list(atom()), map(), map(), pid()) :: term()
+  def capture_event(event, measurements, metadata, owner),
+    do: send(owner, {event, measurements, metadata})
 end

@@ -58,6 +58,30 @@ defmodule Frameshift.Diagnostics.Catalog do
       buckets: @duration_buckets
     },
     %{
+      name: "frameshift.outbox.exchange.count",
+      event: [:frameshift, :outbox, :exchange],
+      measure: :count,
+      kind: :sum,
+      unit: :count,
+      dimensions: %{
+        route: ~w(manifest asset ack invalid other),
+        outcome: ~w(succeeded empty conflict unavailable rejected other)
+      },
+      buckets: []
+    },
+    %{
+      name: "frameshift.outbox.exchange.duration.ms",
+      event: [:frameshift, :outbox, :exchange],
+      measure: :duration_ms,
+      kind: :distribution,
+      unit: :millisecond,
+      dimensions: %{
+        route: ~w(manifest asset ack invalid other),
+        outcome: ~w(succeeded empty conflict unavailable rejected other)
+      },
+      buckets: @duration_buckets
+    },
+    %{
       name: "frameshift.render.duration.ms",
       event: [:frameshift, :render, :completed],
       measure: :duration_ms,

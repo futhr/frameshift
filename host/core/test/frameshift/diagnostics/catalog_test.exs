@@ -7,7 +7,7 @@ defmodule Frameshift.Diagnostics.CatalogTest do
 
   test "definitions and samples use bounded semantic dimensions" do
     definitions = Catalog.metrics()
-    assert length(definitions) == 8
+    assert length(definitions) == 10
     assert Enum.all?(definitions, &(&1.event_name in Catalog.events()))
 
     samples =
@@ -40,6 +40,27 @@ defmodule Frameshift.Diagnostics.CatalogTest do
                %{count: 1},
                %{mode: :reconcile, outcome: :failed, attempt_id: String.duplicate("a", 32)}
              )
+  end
+
+  test "outbox metrics classify routes and outcomes without a frame or asset label" do
+    assert [count, duration] =
+             Catalog.samples(
+               [:frameshift, :outbox, :exchange],
+               %{count: 1, duration_ms: 17},
+               %{
+                 route: :asset,
+                 outcome: :unavailable,
+                 frame_id: "private-frame",
+                 asset_digest: "private-digest"
+               }
+             )
+
+    assert count.dimensions == %{"route" => "asset", "outcome" => "unavailable"}
+    assert duration.dimensions == count.dimensions
+
+    assert Enum.all?([count, duration], fn sample ->
+             map_size(sample.dimensions) == 2
+           end)
   end
 
   test "only catalog rollups with bounded dimensions and aligned buckets are valid" do

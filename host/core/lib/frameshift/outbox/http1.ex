@@ -56,18 +56,47 @@ defmodule Frameshift.Outbox.HTTP1 do
   @doc "Runs one complete request through certificate-scoped outbox semantics."
   @spec exchange(GenServer.server(), binary(), binary()) :: {:ok, binary()} | :more
   def exchange(library, peer_certificate_der, wire) do
+    started = System.monotonic_time(:millisecond)
+
     case decode(wire) do
       {:ok, request} ->
-        request
-        |> dispatch(library, peer_certificate_der)
-        |> encode_response()
+        response = dispatch(request, library, peer_certificate_der)
+        emit_exchange(route_name(request), response.status, started)
+        encode_response(response)
 
       :more ->
         :more
 
       {:error, reason} ->
-        reason |> problem_response() |> encode_response()
+        response = problem_response(reason)
+        emit_exchange(:invalid, response.status, started)
+        encode_response(response)
     end
+  end
+
+  defp route_name(%{method: "GET", path: "/v0/outbox/manifest"}), do: :manifest
+  defp route_name(%{method: "POST", path: "/v0/outbox/ack"}), do: :ack
+
+  defp route_name(%{method: "GET", path: "/v0/outbox/assets/sha256/" <> _}),
+    do: :asset
+
+  defp route_name(_), do: :invalid
+
+  defp emit_exchange(route, status, started) do
+    outcome =
+      case status do
+        200 -> :succeeded
+        204 -> :empty
+        409 -> :conflict
+        503 -> :unavailable
+        _ -> :rejected
+      end
+
+    :telemetry.execute(
+      [:frameshift, :outbox, :exchange],
+      %{count: 1, duration_ms: max(0, System.monotonic_time(:millisecond) - started)},
+      %{route: route, outcome: outcome}
+    )
   end
 
   defp dispatch(request, library, peer_certificate_der) do

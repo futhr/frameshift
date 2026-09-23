@@ -141,6 +141,22 @@ defmodule Frameshift.Qualification.StoreTest do
     :ok = Library.activate_qualification(library, first_id, first_old)
     :ok = Library.activate_qualification(library, second_id, second_old)
 
+    {:ok, master} = Library.import_master(library, "cohort source", master_attributes())
+
+    {:ok, recipe_digest} =
+      Library.register_recipe(library, :composition, composition(manifest(first)), [
+        master["digest"]
+      ])
+
+    {:ok, accepted_work} =
+      Library.accept_qualified_work(
+        library,
+        first_id,
+        first_old,
+        master["digest"],
+        recipe_digest
+      )
+
     upgraded = fn frame ->
       %{manifest(frame) | "rendererBuildDigest" => Digest.sha256("renderer-v2")}
     end
@@ -177,6 +193,9 @@ defmodule Frameshift.Qualification.StoreTest do
     assert {:ok, %{"digest" => ^first_new}} = Library.active_qualification(library, first_id)
     assert {:ok, %{"digest" => ^second_new}} = Library.active_qualification(library, second_id)
 
+    assert {:ok, %{"binding_digest" => ^first_old}} =
+             Library.get_qualified_work(library, accepted_work)
+
     assert %{"entries" => audit} = Library.audit_page(library)
     assert Enum.count(audit, &(&1["operation"] == "qualification.activated")) == 4
 
@@ -184,6 +203,10 @@ defmodule Frameshift.Qualification.StoreTest do
     {:ok, restarted} = Library.start_link(data_dir: data_dir, name: nil)
     assert {:ok, %{"digest" => ^first_new}} = Library.active_qualification(restarted, first_id)
     assert {:ok, %{"digest" => ^second_new}} = Library.active_qualification(restarted, second_id)
+
+    assert {:ok, %{"binding_digest" => ^first_old}} =
+             Library.get_qualified_work(restarted, accepted_work)
+
     GenServer.stop(restarted)
   end
 

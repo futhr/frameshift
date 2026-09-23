@@ -89,7 +89,12 @@ never reassigns an in-flight intent or claims that a frame changed display.
 
 Existing pre-qualification work is preserved by migration with an explicit
 legacy/unqualified marker. It can be reconciled using its original identity
-and digest, but must not be reported as having passed new qualification.
+and digest, but must not be reported as having passed new qualification. Once a
+frame has an active admitted binding, a new pull or push intent must carry an
+accepted work digest. A pending legacy push may replay only its exact request,
+artifact, and profile; its original confirmation can still finish after a
+restart. A previously queued legacy pull acknowledgement may also finish, but
+neither path may create new unqualified work under the active binding.
 
 ## Diagnostic and verification contract
 

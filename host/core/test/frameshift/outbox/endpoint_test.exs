@@ -153,6 +153,22 @@ defmodule Frameshift.Outbox.EndpointTest do
                "GET",
                "/v0/outbox/assets/sha256/" <> Digest.hex!(digest)
              )
+
+    assert {:error, :acknowledgement_conflict} = post_ack(context, acknowledgement)
+
+    assert {:ok, next_manifest} =
+             Library.queue_outbox(context.library, @frame_id, digest, @profile_id)
+
+    assert next_manifest["revision"] > manifest["revision"]
+    assert {:error, :acknowledgement_conflict} = post_ack(context, acknowledgement)
+    assert {:ok, ^next_manifest} = Library.outbox_manifest(context.library, @frame_id)
+
+    assert {:ok, %{body: @bytes}} =
+             request(
+               context,
+               "GET",
+               "/v0/outbox/assets/sha256/" <> Digest.hex!(digest)
+             )
   end
 
   test "a duplicate paired SPKI is rejected before it can affect frame resolution", context do

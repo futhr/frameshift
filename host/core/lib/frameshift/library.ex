@@ -2049,14 +2049,7 @@ defmodule Frameshift.Library do
          :ok <- require_push_mode(frame),
          :ok <- require_artifact_profile(state, digest, profile_id),
          {:ok, qualification_digest} <-
-           WorkStore.delivery_binding(
-             state.connection,
-             work_digest,
-             frame_id,
-             digest,
-             profile_id,
-             "push"
-           ) do
+           direct_delivery_binding(state, work_digest, frame_id, digest, profile_id, request_id) do
       begin_or_replay_direct_delivery(
         state,
         frame_id,
@@ -2069,6 +2062,38 @@ defmodule Frameshift.Library do
     else
       :not_found -> {:error, :frame_not_paired}
       {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp direct_delivery_binding(state, work_digest, frame_id, digest, profile_id, request_id) do
+    case WorkStore.delivery_binding(
+           state.connection,
+           work_digest,
+           frame_id,
+           digest,
+           profile_id,
+           "push"
+         ) do
+      {:error, :qualification_required} ->
+        legacy_direct_replay(state, frame_id, digest, profile_id, request_id)
+
+      result ->
+        result
+    end
+  end
+
+  defp legacy_direct_replay(state, frame_id, digest, profile_id, request_id) do
+    case direct_delivery_record(state, frame_id) do
+      {:ok,
+       %{"work_digest" => nil, "qualification_digest" => nil, "status" => "pending"} =
+           delivery} ->
+        case Transition.direct_request(to_direct_intent(delivery), digest, profile_id, request_id) do
+          {:reuse, _} -> {:ok, nil}
+          _ -> {:error, :qualification_required}
+        end
+
+      _ ->
+        {:error, :qualification_required}
     end
   end
 

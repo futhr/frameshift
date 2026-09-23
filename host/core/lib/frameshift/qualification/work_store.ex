@@ -98,7 +98,12 @@ defmodule Frameshift.Qualification.WorkStore do
   @doc "Validates exact work/result custody for one frame delivery intent."
   @spec delivery_binding(pid(), String.t() | nil, String.t(), String.t(), String.t(), String.t()) ::
           {:ok, String.t() | nil} | {:error, term()}
-  def delivery_binding(_, nil, _, _, _, _), do: {:ok, nil}
+  def delivery_binding(connection, nil, frame_id, _, _, _) do
+    case BindingStore.active(connection, frame_id) do
+      :not_found -> {:ok, nil}
+      {:ok, _} -> {:error, :qualification_required}
+    end
+  end
 
   def delivery_binding(connection, work_digest, frame_id, artifact_digest, profile_id, mode) do
     with true <- Digest.valid_sha256?(work_digest),

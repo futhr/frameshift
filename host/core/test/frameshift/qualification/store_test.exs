@@ -418,23 +418,110 @@ defmodule Frameshift.Qualification.StoreTest do
     assert %{"current" => [%{"work_digest" => ^work, "qualification_digest" => ^binding}]} =
              Library.delivery_custody(restarted, frame["frame_id"])
 
-    assert {:ok, legacy_manifest} =
+    assert {:error, :qualification_required} =
              Library.queue_outbox(restarted, frame["frame_id"], artifact, @profile_id)
+
+    assert :empty = Library.outbox_manifest(restarted, frame["frame_id"])
+
+    assert %{"current" => [%{"work_digest" => ^work}]} =
+             Library.delivery_custody(restarted, frame["frame_id"])
+
+    GenServer.stop(restarted)
+  end
+
+  test "legacy queued work can finish after qualification activates", context do
+    %{library: library, frame: frame, data_dir: data_dir} = context
+    binding = manifest(frame, "pull")
+    artifact = legacy_artifact(library, binding)
+
+    assert {:ok, queued} =
+             Library.queue_outbox(library, frame["frame_id"], artifact, @profile_id)
+
+    assert %{"queued" => [%{"status" => "legacy_unqualified"}]} =
+             Library.delivery_custody(library, frame["frame_id"])
+
+    {:ok, binding_digest} = Library.register_qualification(library, binding)
+    :ok = Library.admit_qualification(library, binding_digest, evidence())
+    :ok = Library.activate_qualification(library, frame["frame_id"], binding_digest)
+
+    assert {:error, :qualification_required} =
+             Library.queue_outbox(library, frame["frame_id"], artifact, @profile_id)
+
+    GenServer.stop(library)
+    {:ok, restarted} = Library.start_link(data_dir: data_dir, name: nil)
+    assert {:ok, ^queued} = Library.outbox_manifest(restarted, frame["frame_id"])
 
     assert :ok =
              Library.acknowledge_outbox(restarted, frame["frame_id"], %{
-               "manifestRevision" => legacy_manifest["revision"],
+               "manifestRevision" => queued["revision"],
                "storage" => "verified",
                "refresh" => "displayed",
                "currentAsset" => artifact,
                "lastError" => nil
              })
 
-    custody = Library.delivery_custody(restarted, frame["frame_id"])
-    assert [%{"status" => "legacy_unqualified"}] = custody["current"]
+    assert %{"current" => [%{"status" => "legacy_unqualified"}]} =
+             Library.delivery_custody(restarted, frame["frame_id"])
 
-    assert [%{"work_digest" => ^work, "qualification_digest" => ^binding}] =
-             custody["previous-known-good"]
+    GenServer.stop(restarted)
+  end
+
+  test "legacy pending push can be replayed and confirmed after qualification activates",
+       context do
+    %{library: library, frame: frame, data_dir: data_dir} = context
+    binding = manifest(frame)
+    artifact = legacy_artifact(library, binding)
+    frame_id = frame["frame_id"]
+
+    assert {:ok, intent} =
+             Library.begin_direct_delivery(
+               library,
+               frame_id,
+               artifact,
+               @profile_id,
+               "legacy-push"
+             )
+
+    {:ok, binding_digest} = Library.register_qualification(library, binding)
+    :ok = Library.admit_qualification(library, binding_digest, evidence())
+    :ok = Library.activate_qualification(library, frame_id, binding_digest)
+
+    assert {:ok, ^intent} =
+             Library.begin_direct_delivery(
+               library,
+               frame_id,
+               artifact,
+               @profile_id,
+               "legacy-push"
+             )
+
+    assert {:error, :qualification_required} =
+             Library.begin_direct_delivery(library, frame_id, artifact, @profile_id, "new-push")
+
+    GenServer.stop(library)
+    {:ok, restarted} = Library.start_link(data_dir: data_dir, name: nil)
+
+    assert {:ok, ^intent} =
+             Library.begin_direct_delivery(
+               restarted,
+               frame_id,
+               artifact,
+               @profile_id,
+               "legacy-push"
+             )
+
+    assert :ok =
+             Library.finish_direct_delivery(
+               restarted,
+               frame_id,
+               intent["revision"],
+               "legacy-push",
+               artifact,
+               :displayed
+             )
+
+    assert %{"current" => [%{"status" => "legacy_unqualified"}]} =
+             Library.delivery_custody(restarted, frame_id)
 
     GenServer.stop(restarted)
   end
@@ -458,7 +545,7 @@ defmodule Frameshift.Qualification.StoreTest do
     assert intent["work_digest"] == work
     assert intent["qualification_digest"] == binding
 
-    assert {:error, :qualification_intent_conflict} =
+    assert {:error, :qualification_required} =
              Library.begin_direct_delivery(
                library,
                frame["frame_id"],
@@ -586,6 +673,24 @@ defmodule Frameshift.Qualification.StoreTest do
       work_digest: work_digest,
       artifact_digest: artifact["digest"]
     }
+  end
+
+  defp legacy_artifact(library, binding) do
+    {:ok, master} = Library.import_master(library, "legacy source", master_attributes())
+
+    {:ok, recipe_digest} =
+      Library.register_recipe(library, :composition, composition(binding), [master["digest"]])
+
+    {:ok, artifact} =
+      Library.register_artifact(library, "legacy wire", %{
+        master_digest: master["digest"],
+        recipe_hash: recipe_digest,
+        profile_id: @profile_id,
+        renderer_revision: binding["rendererAlgorithmRevision"],
+        media_type: "application/vnd.frameshift.rgb24"
+      })
+
+    artifact["digest"]
   end
 
   @doc false

@@ -91,6 +91,7 @@ already power-limited.
 | `minimumDwellMs` | Shortest accepted still-image dwell |
 | `recommendedDwellMs` | Optional profile suggestion for a new cycle; at least the minimum |
 | `recommendationBasis` | Required with a suggestion: `measured-energy` or `provisional-profile` |
+| `recommendationRevision` | Required bounded identifier for the recommendation evidence/profile version |
 | `partialRefresh` | Supported modes and region alignment, or absent |
 | `flashDuringRefresh` | Whether visible global flashing is expected |
 

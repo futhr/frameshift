@@ -226,6 +226,7 @@ defmodule Frameshift.SimulatorTest do
     playlist = playlist([first, second], 1_000)
     assert {:ok, accepted} = Simulator.set_playlist(simulator, playlist, etag)
     assert accepted["playlist"] == playlist
+    assert {:ok, ^accepted} = Simulator.set_playlist(simulator, playlist, etag)
 
     transition = Map.put(playlist, "transition", "crossfade")
     %{etag: next_etag} = Simulator.state(simulator)
@@ -233,7 +234,122 @@ defmodule Frameshift.SimulatorTest do
 
     too_fast = playlist([first], 999)
     assert {:error, :dwell_too_short} = Simulator.set_playlist(simulator, too_fast, next_etag)
+
+    wrong_revision = Map.put(playlist, "revision", Digest.sha256("wrong"))
+
+    assert {:error, :playlist_revision_mismatch} =
+             Simulator.set_playlist(simulator, wrong_revision, next_etag)
+
     assert Simulator.state(simulator).state["playlist"] == playlist
+  end
+
+  test "cached stills cycle once per receiver deadline across restart and long offline gaps", %{
+    simulator: simulator,
+    data_dir: data_dir,
+    capabilities: capabilities
+  } do
+    first = upload!(simulator, @first_bytes)
+    second = upload!(simulator, @second_bytes)
+    %{etag: etag} = Simulator.state(simulator)
+    assert {:ok, _} = Simulator.set_playlist(simulator, playlist([first, second], 1_000), etag)
+
+    assert {:ok, started} = Simulator.advance_playlist(simulator, 100)
+    assert started["currentAsset"] == first
+    assert started["playlistIndex"] == 0
+    assert started["playlistDueMs"] == 1_100
+    assert {:ok, :waiting} = Simulator.advance_playlist(simulator, 1_099)
+
+    assert {:ok, switched} = Simulator.advance_playlist(simulator, 1_100)
+    assert switched["currentAsset"] == second
+    assert switched["playlistDueMs"] == 2_100
+
+    assert {:ok, overdue} = Simulator.advance_playlist(simulator, 10_000)
+    assert overdue["currentAsset"] == first
+    assert overdue["playlistDueMs"] == 11_000
+    assert {:error, :clock_regressed} = Simulator.advance_playlist(simulator, 9_999)
+
+    GenServer.stop(simulator)
+
+    {:ok, restarted} =
+      Simulator.start_link(data_dir: data_dir, capabilities: capabilities, name: nil)
+
+    assert {:ok, :waiting} = Simulator.advance_playlist(restarted, 10_999)
+    assert {:ok, next} = Simulator.advance_playlist(restarted, 11_000)
+    assert next["currentAsset"] == second
+    GenServer.stop(restarted)
+  end
+
+  test "display failure keeps the confirmed still and retries after backoff", %{
+    simulator: simulator
+  } do
+    first = upload!(simulator, @first_bytes)
+    second = upload!(simulator, @second_bytes)
+    assert {:ok, _} = Simulator.set_desired(simulator, desired(first, "initial"), "*")
+    %{etag: etag} = Simulator.state(simulator)
+    assert {:ok, _} = Simulator.set_playlist(simulator, playlist([first, second], 1_000), etag)
+    assert {:ok, started} = Simulator.advance_playlist(simulator, 100)
+    assert started["currentAsset"] == first
+
+    :ok = Simulator.set_faults(simulator, %{display_failure: true})
+    assert {:error, :display_failed} = Simulator.advance_playlist(simulator, 1_100)
+    assert Simulator.state(simulator).state["currentAsset"] == first
+    assert {:ok, :waiting} = Simulator.advance_playlist(simulator, 2_099)
+
+    :ok = Simulator.set_faults(simulator, %{})
+    assert {:ok, recovered} = Simulator.advance_playlist(simulator, 2_100)
+    assert recovered["currentAsset"] == second
+    assert recovered["playlistIndex"] == 1
+  end
+
+  test "an explicit single-image send suspends an installed loop", %{simulator: simulator} do
+    first = upload!(simulator, @first_bytes)
+    second = upload!(simulator, @second_bytes)
+    %{etag: etag} = Simulator.state(simulator)
+    assert {:ok, _} = Simulator.set_playlist(simulator, playlist([first, second], 1_000), etag)
+    assert {:ok, _} = Simulator.advance_playlist(simulator, 100)
+
+    %{etag: next_etag} = Simulator.state(simulator)
+    assert {:ok, sent} = Simulator.set_desired(simulator, desired(second, "manual"), next_etag)
+    assert sent["playlistSuspended"]
+    assert {:ok, :suspended} = Simulator.advance_playlist(simulator, 10_000)
+    assert Simulator.state(simulator).state["currentAsset"] == second
+  end
+
+  test "an interrupted playlist refresh recovers its entry after restart", %{
+    simulator: simulator,
+    data_dir: data_dir,
+    capabilities: capabilities
+  } do
+    digest = upload!(simulator, @first_bytes)
+    %{etag: etag} = Simulator.state(simulator)
+    assert {:ok, _} = Simulator.set_playlist(simulator, playlist([digest], 1_000), etag)
+    :ok = Simulator.set_faults(simulator, %{power_loss_at: :after_desired})
+
+    assert {:error, :power_loss} = Simulator.advance_playlist(simulator, 100)
+    assert Simulator.state(simulator).state["currentAsset"] == nil
+    GenServer.stop(simulator)
+
+    {:ok, restarted} =
+      Simulator.start_link(data_dir: data_dir, capabilities: capabilities, name: nil)
+
+    assert Simulator.state(restarted).state["displayState"] == "recovering"
+    assert {:ok, displayed} = Simulator.advance_playlist(restarted, 200)
+    assert displayed["currentAsset"] == digest
+    assert displayed["playlistIndex"] == 0
+    GenServer.stop(restarted)
+  end
+
+  test "the first failed playlist entry waits before retrying", %{simulator: simulator} do
+    digest = upload!(simulator, @first_bytes)
+    %{etag: etag} = Simulator.state(simulator)
+    assert {:ok, _} = Simulator.set_playlist(simulator, playlist([digest], 1_000), etag)
+    :ok = Simulator.set_faults(simulator, %{display_failure: true})
+
+    assert {:error, :display_failed} = Simulator.advance_playlist(simulator, 100)
+    assert {:ok, :waiting} = Simulator.advance_playlist(simulator, 1_099)
+    :ok = Simulator.set_faults(simulator, %{})
+    assert {:ok, displayed} = Simulator.advance_playlist(simulator, 1_100)
+    assert displayed["currentAsset"] == digest
   end
 
   test "current, previous, desired, and playlist assets cannot be collected", %{

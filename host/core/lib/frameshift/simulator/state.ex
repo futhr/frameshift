@@ -20,6 +20,11 @@ defmodule Frameshift.Simulator.State do
             assets: %{},
             requests: %{},
             playlist: nil,
+            playlist_index: nil,
+            playlist_due_ms: nil,
+            playlist_clock_ms: nil,
+            playlist_retry_at_ms: nil,
+            playlist_suspended: false,
             pairing: nil,
             faults: %{}
 
@@ -43,7 +48,12 @@ defmodule Frameshift.Simulator.State do
       last_error: payload["lastError"],
       assets: payload["assets"] || %{},
       requests: payload["requests"] || %{},
-      playlist: payload["playlist"]
+      playlist: payload["playlist"],
+      playlist_index: payload["playlistIndex"],
+      playlist_due_ms: payload["playlistDueMs"],
+      playlist_clock_ms: payload["playlistClockMs"],
+      playlist_retry_at_ms: payload["playlistRetryAtMs"],
+      playlist_suspended: payload["playlistSuspended"] || false
     }
   end
 
@@ -60,7 +70,12 @@ defmodule Frameshift.Simulator.State do
       "lastError" => state.last_error,
       "assets" => state.assets,
       "requests" => state.requests,
-      "playlist" => state.playlist
+      "playlist" => state.playlist,
+      "playlistIndex" => state.playlist_index,
+      "playlistDueMs" => state.playlist_due_ms,
+      "playlistClockMs" => state.playlist_clock_ms,
+      "playlistRetryAtMs" => state.playlist_retry_at_ms,
+      "playlistSuspended" => state.playlist_suspended
     }
   end
 
@@ -75,7 +90,11 @@ defmodule Frameshift.Simulator.State do
       "pendingRequestId" => state.pending_request_id,
       "lastError" => state.last_error,
       "storage" => storage_summary(state),
-      "playlist" => state.playlist
+      "playlist" => state.playlist,
+      "playlistIndex" => state.playlist_index,
+      "playlistDueMs" => state.playlist_due_ms,
+      "playlistRetryAtMs" => state.playlist_retry_at_ms,
+      "playlistSuspended" => state.playlist_suspended
     }
   end
 

@@ -131,8 +131,16 @@
         "typicalRefreshMs": { "type": "integer", "minimum": 0, "maximum": 86400000 },
         "maximumRefreshMs": { "type": "integer", "minimum": 1, "maximum": 86400000 },
         "minimumDwellMs": { "type": "integer", "minimum": 1, "maximum": 31536000000 },
+        "recommendedDwellMs": { "type": "integer", "minimum": 1, "maximum": 31536000000 },
+        "recommendationBasis": { "enum": ["measured-energy", "provisional-profile"] },
+        "recommendationRevision": { "type": "string", "minLength": 1, "maxLength": 128 },
         "flashDuringRefresh": { "type": "boolean" },
         "partialRefresh": { "type": "object" }
+      },
+      "dependentRequired": {
+        "recommendedDwellMs": ["recommendationBasis", "recommendationRevision"],
+        "recommendationBasis": ["recommendedDwellMs", "recommendationRevision"],
+        "recommendationRevision": ["recommendedDwellMs", "recommendationBasis"]
       },
       "additionalProperties": true
     },

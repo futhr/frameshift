@@ -3,6 +3,7 @@ defmodule Frameshift.ContainerReceiverTest do
 
   use ExUnit.Case, async: false
 
+  alias Frameshift.Digest
   alias Frameshift.Library
   alias Frameshift.Outbox.TLSServer
   alias Frameshift.Transport.SPKIPin
@@ -20,6 +21,8 @@ defmodule Frameshift.ContainerReceiverTest do
       power: "bistable-sleeping",
       refresh: "global-bistable",
       refresh_ms: 19_000,
+      minimum_dwell_ms: 180_000,
+      recommended_dwell_ms: 21_600_000,
       model: "Waveshare 13.3-inch e-Paper HAT+ (E)"
     },
     "photo" => %{
@@ -29,6 +32,7 @@ defmodule Frameshift.ContainerReceiverTest do
       power: "continuous-emissive",
       refresh: "sample-and-hold",
       refresh_ms: 17,
+      minimum_dwell_ms: 1_000,
       model: "BOE MV270QHM-N40 Rev.P1"
     },
     "pixel" => %{
@@ -38,6 +42,7 @@ defmodule Frameshift.ContainerReceiverTest do
       power: "continuous-high-current",
       refresh: "scanned-emissive",
       refresh_ms: 17,
+      minimum_dwell_ms: 1_000,
       model: "Waveshare RGB-Matrix-P3-64x64 3x2"
     }
   }
@@ -64,6 +69,18 @@ defmodule Frameshift.ContainerReceiverTest do
 
       assert refresh_ms == context.profile.refresh_ms
       assert model == context.profile.model
+      inspected = run_inspector!(context, "on")
+      timing = inspected["timingProfile"]
+      assert timing["minimumDwellMs"] == context.profile.minimum_dwell_ms
+
+      if context.class == "paper" do
+        assert timing["recommendedDwellMs"] == context.profile.recommended_dwell_ms
+        assert timing["recommendationBasis"] == "provisional-profile"
+        assert timing["recommendationRevision"] == "frameshift-paper-e6-v1"
+      else
+        refute Map.has_key?(timing, "recommendedDwellMs")
+      end
+
       assert :empty == Library.outbox_manifest(context.library, context.frame_id)
       assert %{"outcome" => "empty"} = run_receiver!(context)
 
@@ -80,6 +97,111 @@ defmodule Frameshift.ContainerReceiverTest do
       assert %{"outcome" => "inspected", "visibleAsset" => ^digest} =
                run_inspector!(context, "on")
     end
+  end
+
+  test "paper keeps the old still through a failed first loop tick and retries at its floor" do
+    context = start_fixture!("paper")
+    on_exit(fn -> stop_fixture(context) end)
+    first = queue_artifact!(context, 31)
+    assert %{"outcome" => "displayed"} = run_receiver!(context)
+    second = queue_artifact!(context, 32)
+    assert %{"outcome" => "displayed"} = run_receiver!(context)
+    document = playlist([first, second], context.profile.minimum_dwell_ms)
+    payload = %{"FS_PLAYLIST_JSON" => RFC8785.encode!(document)}
+
+    assert %{"outcome" => "playlist_installed"} =
+             run_action!(context, "install_playlist", payload)
+
+    assert %{"outcome" => "playlist_failed", "state" => %{"currentAsset" => ^second}} =
+             run_action!(context, "tick", %{"FS_NOW_MS" => "100"}, "display_failure")
+
+    assert %{"outcome" => "waiting"} =
+             run_action!(context, "tick", %{"FS_NOW_MS" => "180099"})
+
+    assert %{"outcome" => "playlist_displayed", "state" => %{"currentAsset" => ^first}} =
+             run_action!(context, "tick", %{"FS_NOW_MS" => "180100"})
+
+    assert %{"outcome" => "playlist_existing", "state" => %{"playlistIndex" => 0}} =
+             run_action!(context, "install_playlist", payload)
+
+    altered = Map.put(document, "revision", Digest.sha256("invalid"))
+
+    assert {:error, output} =
+             run_receiver(
+               context,
+               "none",
+               nil,
+               25,
+               "install_playlist",
+               "on",
+               %{"FS_PLAYLIST_JSON" => RFC8785.encode!(altered)}
+             )
+
+    assert output =~ "playlist revision mismatch"
+    assert stored_state(context)["playlist"] == document
+  end
+
+  for class <- ["paper", "photo", "pixel"] do
+    test "#{class} receiver cycles cached stills on its own clock" do
+      context = start_fixture!(unquote(class))
+      on_exit(fn -> stop_fixture(context) end)
+      first = queue_artifact!(context, 21)
+      assert %{"outcome" => "displayed"} = run_receiver!(context)
+      second = queue_artifact!(context, 22)
+      assert %{"outcome" => "displayed"} = run_receiver!(context)
+
+      dwell = context.profile.minimum_dwell_ms
+      document = playlist([first, second], dwell)
+
+      assert %{"outcome" => "playlist_installed"} =
+               run_action!(context, "install_playlist", %{
+                 "FS_PLAYLIST_JSON" => RFC8785.encode!(document)
+               })
+
+      assert %{"outcome" => "playlist_displayed", "state" => %{"currentAsset" => ^first}} =
+               run_action!(context, "tick", %{"FS_NOW_MS" => "100"})
+
+      assert %{"outcome" => "waiting"} =
+               run_action!(context, "tick", %{"FS_NOW_MS" => Integer.to_string(99 + dwell)})
+
+      assert %{"outcome" => "playlist_displayed", "state" => %{"currentAsset" => ^second}} =
+               run_action!(context, "tick", %{"FS_NOW_MS" => Integer.to_string(100 + dwell)})
+
+      assert %{"outcome" => "playlist_displayed", "state" => %{"currentAsset" => ^first}} =
+               run_action!(context, "tick", %{"FS_NOW_MS" => "100000000"})
+
+      expected_without_power = if context.class == "paper", do: first, else: nil
+
+      assert %{"visibleAsset" => ^expected_without_power} = run_inspector!(context, "off")
+
+      too_fast = playlist([first, second], dwell - 1)
+
+      assert {:error, output} =
+               run_receiver(
+                 context,
+                 "none",
+                 nil,
+                 25,
+                 "install_playlist",
+                 "on",
+                 %{"FS_PLAYLIST_JSON" => RFC8785.encode!(too_fast)}
+               )
+
+      assert output =~ "invalid playlist entry"
+      assert stored_state(context)["playlist"] == document
+    end
+  end
+
+  defp playlist(digests, dwell_ms) do
+    entries = Enum.map(digests, &%{"assetDigest" => &1, "dwellMs" => dwell_ms})
+    payload = %{"mode" => "cycle", "entries" => entries}
+    Map.put(payload, "revision", Digest.sha256(RFC8785.encode!(payload)))
+  end
+
+  defp run_action!(context, action, extras, fault \\ "none") do
+    {:ok, output} = run_receiver(context, fault, nil, 25, action, "on", extras)
+    {:ok, document} = RFC8785.decode(output)
+    document
   end
 
   test "faulted pull preserves host custody and previous visible reference" do
@@ -288,8 +410,20 @@ defmodule Frameshift.ContainerReceiverTest do
         "kind" => profile.refresh,
         "typicalRefreshMs" => profile.refresh_ms,
         "maximumRefreshMs" => max(profile.refresh_ms * 2, 100),
+        "minimumDwellMs" => profile.minimum_dwell_ms,
         "flashDuringRefresh" => class == "paper"
       })
+
+    refresh =
+      if class == "paper" do
+        Map.merge(refresh, %{
+          "recommendedDwellMs" => profile.recommended_dwell_ms,
+          "recommendationBasis" => "provisional-profile",
+          "recommendationRevision" => "frameshift-paper-e6-v1"
+        })
+      else
+        refresh
+      end
 
     power =
       Map.merge(capabilities["power"], %{
@@ -383,7 +517,8 @@ defmodule Frameshift.ContainerReceiverTest do
          pin \\ nil,
          temperature_c \\ 25,
          action \\ "contact",
-         power_state \\ "on"
+         power_state \\ "on",
+         extra_env \\ %{}
        ) do
     name = "frameshift-receiver-#{System.unique_integer([:positive])}"
 
@@ -427,9 +562,11 @@ defmodule Frameshift.ContainerReceiverTest do
       "--env",
       "FS_PROFILE_ID=#{context.profile_id}",
       "--env",
-      "FS_TEMPERATURE_C=#{temperature_c}",
-      @image
+      "FS_TEMPERATURE_C=#{temperature_c}"
     ]
+
+    extra_args = Enum.flat_map(extra_env, fn {key, value} -> ["--env", "#{key}=#{value}"] end)
+    args = args ++ extra_args ++ [@image]
 
     task = Task.async(fn -> System.cmd("docker", args, stderr_to_stdout: true) end)
 

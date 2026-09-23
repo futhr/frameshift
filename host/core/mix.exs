@@ -112,6 +112,7 @@ defmodule FrameshiftCore.MixProject do
           {"../../docs/architecture/qualified-generations.md", title: "Qualified generations"},
           {"../../docs/architecture/diagnostics.md", title: "Host diagnostics"},
           {"../../docs/architecture/frame-protocol.md", title: "Frame protocol"},
+          {"../../docs/architecture/display-timing.md", title: "Display timing"},
           {"../../docs/architecture/verification.md", title: "Verification map"},
           {"../../docs/research/software-stack.md", title: "Software stack research"},
           {"../../docs/research/protocol-foundations.md", title: "Protocol foundations"}

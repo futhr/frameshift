@@ -51,10 +51,16 @@ defmodule Frameshift.Protocol.Schema do
   @spec validate(schema_name(), term()) :: :ok | {:error, term()}
   def validate(name, document) do
     with {:ok, root} <- compiled(name),
-         {:ok, _} <- JSV.validate(document, root) do
+         {:ok, _} <- JSV.validate(document, root),
+         :ok <- validate_semantics(name, document) do
       :ok
     end
   end
+
+  defp validate_semantics("capabilities", %{"refresh" => refresh}),
+    do: Frameshift.DisplayTiming.validate_refresh(refresh)
+
+  defp validate_semantics(_, _), do: :ok
 
   @doc "Returns the precompiled schema used by protocol admission."
   @spec compiled(schema_name()) :: {:ok, JSV.Root.t()} | {:error, term()}

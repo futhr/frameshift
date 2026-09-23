@@ -91,6 +91,13 @@ defmodule Frameshift.Simulator do
     GenServer.call(server, {:set_playlist, playlist, precondition})
   end
 
+  @doc "Advances at most one cached still at a receiver-owned RTC tick."
+  @spec advance_playlist(server(), non_neg_integer()) ::
+          {:ok, :waiting | :suspended | map()} | {:error, term()}
+  def advance_playlist(server \\ __MODULE__, now_ms) do
+    GenServer.call(server, {:advance_playlist, now_ms}, :infinity)
+  end
+
   @doc "Models a sleeping frame's contact, artifact pull, and manifest acknowledgement."
   @spec pull_outbox(server(), map(), binary() | nil) ::
           {:ok, :no_work | map()} | {:error, term()}
@@ -199,7 +206,7 @@ defmodule Frameshift.Simulator do
   end
 
   def handle_call({:set_desired, request, precondition}, _, state) do
-    case set_desired_record(state, request, precondition) do
+    case set_desired_record(state, request, precondition, true) do
       {:ok, next_state} -> {:reply, {:ok, State.public(next_state)}, next_state}
       {:error, reason, next_state} -> {:reply, {:error, reason}, next_state}
       {:error, reason} -> {:reply, {:error, reason}, state}
@@ -232,6 +239,14 @@ defmodule Frameshift.Simulator do
   def handle_call({:set_playlist, playlist, precondition}, _, state) do
     case set_playlist_record(state, playlist, precondition) do
       {:ok, next_state} -> {:reply, {:ok, State.public(next_state)}, next_state}
+      {:error, reason} -> {:reply, {:error, reason}, state}
+    end
+  end
+
+  def handle_call({:advance_playlist, now_ms}, _, state) do
+    case advance_playlist_record(state, now_ms) do
+      {:ok, disposition, next_state} -> {:reply, {:ok, disposition}, next_state}
+      {:error, reason, next_state} -> {:reply, {:error, reason}, next_state}
       {:error, reason} -> {:reply, {:error, reason}, state}
     end
   end
@@ -414,13 +429,13 @@ defmodule Frameshift.Simulator do
     end
   end
 
-  defp set_desired_record(state, request, precondition) do
+  defp set_desired_record(state, request, precondition, suspend_playlist \\ false) do
     with :ok <- Schema.validate("desired", request),
          {:new, request_hash} <- request_status(state, request),
          :ok <- check_precondition(state, precondition),
          {:ok, asset} <- Map.fetch(state.assets, request["assetDigest"]),
          true <- asset["profileId"] == request["artifactProfile"] do
-      accept_desired(state, request, request_hash)
+      accept_desired(state, request, request_hash, suspend_playlist)
     else
       {:repeat, _} -> {:ok, state}
       {:conflict, _} -> {:error, :request_id_conflict}
@@ -446,13 +461,17 @@ defmodule Frameshift.Simulator do
     if precondition == State.etag(state), do: :ok, else: {:error, :state_precondition}
   end
 
-  defp accept_desired(state, request, request_hash) do
+  defp accept_desired(state, request, request_hash, suspend_playlist) do
     accepted =
       state
       |> Map.put(:desired_asset, request["assetDigest"])
       |> Map.put(:desired_profile, request["artifactProfile"])
       |> Map.put(:pending_request_id, request["requestId"])
       |> Map.put(:display_state, "preparing")
+      |> Map.put(
+        :playlist_suspended,
+        state.playlist_suspended or (suspend_playlist and state.playlist != nil)
+      )
       |> Map.put(:last_error, nil)
       |> Map.update!(:requests, &Map.put(&1, request["requestId"], request_hash))
       |> State.bump()
@@ -514,11 +533,24 @@ defmodule Frameshift.Simulator do
   defp maybe_delay(0), do: :ok
   defp maybe_delay(milliseconds), do: Process.sleep(milliseconds)
 
+  defp set_playlist_record(%{playlist: playlist} = state, playlist, _)
+       when is_map(playlist),
+       do: {:ok, state}
+
   defp set_playlist_record(state, playlist, precondition) do
     with :ok <- Schema.validate("playlist", playlist),
          :ok <- check_precondition(state, precondition),
+         :ok <- validate_playlist_revision(playlist),
          :ok <- validate_playlist_capabilities(state, playlist) do
-      next_state = state |> Map.put(:playlist, playlist) |> State.bump()
+      next_state =
+        state
+        |> Map.put(:playlist, playlist)
+        |> Map.put(:playlist_index, nil)
+        |> Map.put(:playlist_due_ms, nil)
+        |> Map.put(:playlist_clock_ms, nil)
+        |> Map.put(:playlist_retry_at_ms, nil)
+        |> Map.put(:playlist_suspended, false)
+        |> State.bump()
 
       case Persistence.save(next_state) do
         :ok -> {:ok, next_state}
@@ -526,6 +558,127 @@ defmodule Frameshift.Simulator do
       end
     else
       {:error, reason} -> {:error, normalize_schema_error(reason)}
+    end
+  end
+
+  defp validate_playlist_revision(playlist) do
+    payload = Map.take(playlist, ["mode", "entries"])
+
+    if Digest.sha256(RFC8785.encode!(payload)) == playlist["revision"],
+      do: :ok,
+      else: {:error, :playlist_revision_mismatch}
+  end
+
+  defp advance_playlist_record(_, now_ms) when not is_integer(now_ms) or now_ms < 0,
+    do: {:error, :invalid_clock}
+
+  defp advance_playlist_record(%{playlist: nil}, _), do: {:error, :no_playlist}
+
+  defp advance_playlist_record(%{playlist_suspended: true} = state, _),
+    do: {:ok, :suspended, state}
+
+  defp advance_playlist_record(%{playlist_clock_ms: prior} = state, now_ms)
+       when is_integer(prior) and now_ms < prior,
+       do: {:error, :clock_regressed, state}
+
+  defp advance_playlist_record(state, now_ms) do
+    case next_playlist_index(state, now_ms) do
+      :waiting -> {:ok, :waiting, state}
+      index -> advance_playlist_entry(state, index, now_ms)
+    end
+  end
+
+  defp next_playlist_index(%{playlist_retry_at_ms: retry_at}, now_ms)
+       when is_integer(retry_at) and now_ms < retry_at,
+       do: :waiting
+
+  defp next_playlist_index(%{playlist_index: nil}, _), do: 0
+
+  defp next_playlist_index(%{playlist: %{"mode" => "hold"}}, _), do: :waiting
+
+  defp next_playlist_index(%{playlist_due_ms: due}, now_ms)
+       when is_integer(due) and now_ms < due,
+       do: :waiting
+
+  defp next_playlist_index(state, _) do
+    rem(state.playlist_index + 1, length(state.playlist["entries"]))
+  end
+
+  defp advance_playlist_entry(state, index, now_ms) do
+    entry = Enum.at(state.playlist["entries"], index)
+    digest = entry["assetDigest"]
+
+    cond do
+      state.current_asset == digest and state.display_state == "displayed" ->
+        complete_playlist_entry(state, index, now_ms)
+
+      state.desired_asset == digest ->
+        finish_playlist_display(perform_display(state), index, now_ms)
+
+      true ->
+        request_playlist_display(state, index, digest, now_ms)
+    end
+  end
+
+  defp request_playlist_display(state, index, digest, now_ms) do
+    profile_id = state.assets[digest]["profileId"]
+    revision = state.playlist["revision"] |> String.replace_prefix("sha256:", "")
+    request_id = "playlist-#{String.slice(revision, 0, 16)}-#{index}-#{now_ms}"
+
+    request = %{
+      "assetDigest" => digest,
+      "artifactProfile" => profile_id,
+      "requestId" => request_id
+    }
+
+    state
+    |> set_desired_record(request, State.etag(state))
+    |> finish_playlist_display(index, now_ms)
+  end
+
+  defp finish_playlist_display({:ok, displayed}, index, now_ms),
+    do: complete_playlist_entry(displayed, index, now_ms)
+
+  defp finish_playlist_display({:error, :display_failed, failed}, _, now_ms) do
+    minimum = failed.capabilities["refresh"]["minimumDwellMs"]
+
+    retrying =
+      failed
+      |> Map.put(:playlist_retry_at_ms, now_ms + minimum)
+      |> Map.put(:playlist_clock_ms, now_ms)
+      |> State.bump()
+
+    case Persistence.save(retrying) do
+      :ok -> {:error, :display_failed, retrying}
+      {:error, reason} -> {:error, reason, failed}
+    end
+  end
+
+  defp finish_playlist_display({:error, reason, state}, _, _),
+    do: {:error, reason, state}
+
+  defp finish_playlist_display({:error, reason}, _, _), do: {:error, reason}
+
+  defp complete_playlist_entry(state, index, now_ms) do
+    completion_ms = now_ms + Map.get(state.faults, :slow_refresh_ms, 0)
+    entry = Enum.at(state.playlist["entries"], index)
+
+    due_ms =
+      if state.playlist["mode"] == "cycle",
+        do: completion_ms + entry["dwellMs"],
+        else: nil
+
+    completed =
+      state
+      |> Map.put(:playlist_index, index)
+      |> Map.put(:playlist_due_ms, due_ms)
+      |> Map.put(:playlist_clock_ms, completion_ms)
+      |> Map.put(:playlist_retry_at_ms, nil)
+      |> State.bump()
+
+    case Persistence.save(completed) do
+      :ok -> {:ok, State.public(completed), completed}
+      {:error, reason} -> {:error, reason, state}
     end
   end
 
@@ -597,7 +750,7 @@ defmodule Frameshift.Simulator do
 
     precondition = if state.desired_asset == nil, do: "*", else: State.etag(state)
 
-    case set_desired_record(state, request, precondition) do
+    case set_desired_record(state, request, precondition, true) do
       {:ok, next_state} ->
         complete_outbox_display(next_state, manifest, disposition)
 

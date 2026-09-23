@@ -27,14 +27,25 @@ defmodule FrameshiftContainerReceiver do
       model: "Waveshare 13.3-inch e-Paper HAT+ (E)",
       width: 1600,
       height: 1200,
-      refresh_ms: 19_000
+      refresh_ms: 19_000,
+      minimum_dwell_ms: 180_000,
+      recommended_dwell_ms: 21_600_000,
+      recommendation_basis: "provisional-profile",
+      recommendation_revision: "frameshift-paper-e6-v1"
     },
-    "photo" => %{model: "BOE MV270QHM-N40 Rev.P1", width: 2560, height: 1440, refresh_ms: 17},
+    "photo" => %{
+      model: "BOE MV270QHM-N40 Rev.P1",
+      width: 2560,
+      height: 1440,
+      refresh_ms: 17,
+      minimum_dwell_ms: 1_000
+    },
     "pixel" => %{
       model: "Waveshare RGB-Matrix-P3-64x64 3x2",
       width: 192,
       height: 128,
-      refresh_ms: 17
+      refresh_ms: 17,
+      minimum_dwell_ms: 1_000
     }
   }
 
@@ -46,12 +57,20 @@ defmodule FrameshiftContainerReceiver do
     result =
       case {config.action, config.power_state, config.fault} do
         {"inspect", _, _} -> %{outcome: "inspected", state: state}
+        {"install_playlist", "on", _} -> install_playlist!(config, state)
+        {"tick", "on", _} -> tick_playlist!(config, state)
         {"contact", "off", _} -> %{outcome: "powered_off", state: state}
+        {"tick", "off", _} -> %{outcome: "powered_off", state: state}
         {"contact", _, "missed_contact"} -> %{outcome: "missed_contact", state: state}
         _ -> contact!(config, state)
       end
 
-    IO.puts(encode_json(Map.put(result, :visibleAsset, visible_asset(config, result.state))))
+    result =
+      result
+      |> Map.put(:visibleAsset, visible_asset(config, result.state))
+      |> Map.put(:timingProfile, config.timing_profile)
+
+    IO.puts(encode_json(result))
   rescue
     exception ->
       IO.puts(:stderr, Exception.message(exception))
@@ -69,7 +88,7 @@ defmodule FrameshiftContainerReceiver do
       raise "invalid fault"
     end
 
-    unless action in ~w(contact inspect) and power_state in ~w(on off),
+    unless action in ~w(contact inspect install_playlist tick) and power_state in ~w(on off),
       do: raise("invalid action or power state")
 
     %{
@@ -79,6 +98,9 @@ defmodule FrameshiftContainerReceiver do
       model: profile.model,
       artifact_bytes: profile.width * profile.height * 3,
       scenario_refresh_ms: profile.refresh_ms,
+      timing_profile: timing_profile(profile),
+      playlist_json: System.get_env("FS_PLAYLIST_JSON"),
+      now_ms: System.get_env("FS_NOW_MS", "0") |> String.to_integer(),
       fault: fault,
       data_dir: System.fetch_env!("FS_DATA_DIR"),
       host: System.fetch_env!("FS_HOST"),
@@ -90,6 +112,22 @@ defmodule FrameshiftContainerReceiver do
       refresh_delay_ms: System.get_env("FS_REFRESH_DELAY_MS", "0") |> String.to_integer(),
       temperature_c: System.get_env("FS_TEMPERATURE_C", "25") |> String.to_integer()
     }
+  end
+
+  defp timing_profile(profile) do
+    base = %{minimumDwellMs: profile.minimum_dwell_ms}
+
+    case Map.fetch(profile, :recommended_dwell_ms) do
+      {:ok, dwell} ->
+        Map.merge(base, %{
+          recommendedDwellMs: dwell,
+          recommendationBasis: profile.recommendation_basis,
+          recommendationRevision: profile.recommendation_revision
+        })
+
+      :error ->
+        base
+    end
   end
 
   defp load_state!(config) do
@@ -125,6 +163,158 @@ defmodule FrameshiftContainerReceiver do
   defp visible_asset(%{class: "paper"}, state), do: state["currentAsset"]
   defp visible_asset(%{power_state: "on"}, state), do: state["currentAsset"]
   defp visible_asset(_, _), do: nil
+
+  defp install_playlist!(%{playlist_json: json} = config, state)
+       when is_binary(json) and byte_size(json) <= @maximum_control_bytes do
+    playlist = decode_json(json)
+    validate_playlist!(config, playlist)
+
+    if state["playlist"] == playlist do
+      %{outcome: "playlist_existing", state: state}
+    else
+      persist_playlist!(config, state, playlist)
+    end
+  end
+
+  defp install_playlist!(_, _), do: raise("playlist document required")
+
+  defp persist_playlist!(config, state, playlist) do
+    installed =
+      Map.merge(state, %{
+        "playlist" => playlist,
+        "playlistIndex" => nil,
+        "playlistDueMs" => nil,
+        "playlistClockMs" => nil,
+        "playlistRetryAtMs" => nil,
+        "playlistSuspended" => false
+      })
+
+    durable_state!(config.data_dir, installed)
+    %{outcome: "playlist_installed", state: installed}
+  end
+
+  defp validate_playlist!(config, playlist) when is_map(playlist) do
+    entries = Map.get(playlist, "entries")
+
+    unless Map.keys(playlist) |> Enum.sort() == ["entries", "mode", "revision"] and
+             valid_digest?(playlist["revision"]) and playlist["mode"] in ~w(hold cycle) and
+             is_list(entries) and length(entries) in 1..2 do
+      raise "invalid playlist document"
+    end
+
+    Enum.each(entries, &validate_playlist_entry!(config, &1))
+
+    if playlist["revision"] != canonical_playlist_revision(playlist),
+      do: raise("playlist revision mismatch")
+  end
+
+  defp validate_playlist!(_, _), do: raise("invalid playlist document")
+
+  defp validate_playlist_entry!(config, entry) when is_map(entry) do
+    digest = entry["assetDigest"]
+    dwell = entry["dwellMs"]
+
+    unless Map.keys(entry) |> Enum.sort() == ["assetDigest", "dwellMs"] and
+             valid_digest?(digest) and is_integer(dwell) and
+             dwell >= config.timing_profile.minimumDwellMs and dwell <= 31_536_000_000 and
+             verified_asset?(config.data_dir, digest, config.artifact_bytes) do
+      raise "invalid playlist entry or uncached asset"
+    end
+  end
+
+  defp validate_playlist_entry!(_, _), do: raise("invalid playlist entry")
+
+  defp canonical_playlist_revision(playlist) do
+    entries =
+      Enum.map_join(playlist["entries"], ",", fn entry ->
+        ~s({"assetDigest":"#{entry["assetDigest"]}","dwellMs":#{entry["dwellMs"]}})
+      end)
+
+    digest_bytes(~s({"entries":[#{entries}],"mode":"#{playlist["mode"]}"}))
+  end
+
+  defp tick_playlist!(config, %{"playlist" => playlist} = state) do
+    now_ms = config.now_ms
+    clock_ms = state["playlistClockMs"]
+    if now_ms < 0 or (is_integer(clock_ms) and now_ms < clock_ms), do: raise("clock regressed")
+
+    cond do
+      state["playlistSuspended"] -> %{outcome: "playlist_suspended", state: state}
+      waiting_for_dwell?(state, playlist, now_ms) -> %{outcome: "waiting", state: state}
+      true -> display_playlist_entry!(config, state, playlist, now_ms)
+    end
+  end
+
+  defp tick_playlist!(_, _), do: raise("no playlist installed")
+
+  defp waiting_for_dwell?(%{"playlistRetryAtMs" => retry_at}, _, now_ms)
+       when is_integer(retry_at) and now_ms < retry_at,
+       do: true
+
+  defp waiting_for_dwell?(%{"playlistIndex" => nil}, _, _), do: false
+  defp waiting_for_dwell?(_, %{"mode" => "hold"}, _), do: true
+
+  defp waiting_for_dwell?(state, _, now_ms) do
+    retry_at = state["playlistRetryAtMs"]
+    due = state["playlistDueMs"]
+    (is_integer(retry_at) and now_ms < retry_at) or (is_integer(due) and now_ms < due)
+  end
+
+  defp display_playlist_entry!(config, state, playlist, now_ms) do
+    index = next_playlist_index(state, playlist)
+    entry = Enum.at(playlist["entries"], index)
+    digest = entry["assetDigest"]
+
+    unless verified_asset?(config.data_dir, digest, config.artifact_bytes),
+      do: raise("playlist asset corrupt")
+
+    desired = Map.put(state, "desiredAsset", digest)
+    durable_state!(config.data_dir, desired)
+
+    cond do
+      config.fault == "power_loss_after_download" ->
+        System.halt(23)
+
+      config.fault == "display_failure" ->
+        fail_playlist_display!(config, desired, now_ms)
+
+      config.class == "paper" and (config.temperature_c < 0 or config.temperature_c > 40) ->
+        fail_playlist_display!(config, desired, now_ms)
+
+      true ->
+        complete_playlist_display!(config, desired, playlist, index, now_ms)
+    end
+  end
+
+  defp next_playlist_index(%{"playlistIndex" => nil}, _), do: 0
+
+  defp next_playlist_index(state, playlist),
+    do: rem(state["playlistIndex"] + 1, length(playlist["entries"]))
+
+  defp fail_playlist_display!(config, state, now_ms) do
+    failed = Map.put(state, "playlistRetryAtMs", now_ms + config.timing_profile.minimumDwellMs)
+    durable_state!(config.data_dir, failed)
+    %{outcome: "playlist_failed", state: failed}
+  end
+
+  defp complete_playlist_display!(config, state, playlist, index, now_ms) do
+    if state["currentAsset"] != state["desiredAsset"], do: Process.sleep(config.refresh_delay_ms)
+    completion_ms = now_ms + config.refresh_delay_ms
+    entry = Enum.at(playlist["entries"], index)
+    due = if playlist["mode"] == "cycle", do: completion_ms + entry["dwellMs"], else: nil
+
+    completed =
+      Map.merge(state, %{
+        "currentAsset" => entry["assetDigest"],
+        "playlistIndex" => index,
+        "playlistClockMs" => completion_ms,
+        "playlistDueMs" => due,
+        "playlistRetryAtMs" => nil
+      })
+
+    durable_state!(config.data_dir, completed)
+    %{outcome: "playlist_displayed", state: completed}
+  end
 
   defp contact!(config, state) do
     case exchange!(config, "GET", "/v0/outbox/manifest", nil) do
@@ -173,7 +363,11 @@ defmodule FrameshiftContainerReceiver do
       durable_write!(asset_path!(config.data_dir, digest), response.body)
     end
 
-    desired = Map.put(state, "desiredAsset", digest)
+    desired =
+      state
+      |> Map.put("desiredAsset", digest)
+      |> Map.put("playlistSuspended", Map.has_key?(state, "playlist"))
+
     durable_state!(config.data_dir, desired)
 
     case config.fault do

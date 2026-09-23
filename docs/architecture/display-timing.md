@@ -10,7 +10,8 @@ cycling playlist, not a panel scan rate or a claim of optimal battery life.
 `recommendationBasis` is either `measured-energy` (whole assembled frame,
 including sleep, wake, contact, transfer, and refresh) or
 `provisional-profile` (an explicit product starting point). The recommendation
-must be at least the minimum. An operator override is stored per frame and
+also carries a `recommendationRevision` that identifies its evidence or
+provisional profile. It must be at least the minimum. An operator override is stored per frame and
 clamped to its current capability minimum when submitted. The host displays
 the source and basis, and warns if a changed profile forces a longer dwell.
 
@@ -21,7 +22,8 @@ energy-optimal interval. Until assembled-frame measurements exist, Frameshift
 uses a provisional six-hour cycling suggestion for this candidate. Its
 receiver advertises `minimumDwellMs: 180000`,
 `recommendedDwellMs: 21600000`, and
-`recommendationBasis: provisional-profile`. A 24-hour maintenance refresh of
+`recommendationBasis: provisional-profile`, with revision
+`frameshift-paper-e6-v1`. A 24-hour maintenance refresh of
 unchanged content is a separate receiver policy and must not advance a
 playlist or falsely report new art. This policy needs panel/controller
 qualification before hardware release. [Waveshare E6 manual](https://www.waveshare.com/wiki/13.3inch_e-Paper_HAT%2B_%28E%29_Manual).

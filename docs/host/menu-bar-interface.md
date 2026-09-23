@@ -150,6 +150,8 @@ whole-minute interval field. The custom control validates the receiver minimum
 and a one-year upper bound before submission; the core applies the receiver
 minimum again.
 It shows pending, active, or suspended state from the durable core snapshot.
+The status shows the selected revision's still count and interval, including
+while confirmation is pending.
 For a pending replacement it says that the current loop continues until the
 frame confirms the new revision.
 Each visible library card in that frame's selected playlist carries the same

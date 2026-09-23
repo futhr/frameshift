@@ -72,6 +72,9 @@ references intact until an explicit new loop is queued.
 The local library projection marks every member of the selected frame's
 pending, active, or suspended revision. It does not infer loop membership from
 the manifest's first `desiredAsset`.
+The compact panel shows the selected revision's still count and dwell interval
+beside its pending, active, or suspended state. A pending replacement labels
+the previous active loop as continuing until the frame confirms the new one.
 The compact menu offers fixed intervals and a whole-minute custom interval
 above the receiver minimum, bounded to one year. Review and reordering of the
 included set, per-frame interval persistence, a dedicated resume action, and

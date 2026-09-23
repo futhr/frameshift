@@ -241,10 +241,17 @@ struct FrameshiftPanel: View {
           Spacer()
 
           if let playlist = target.playlist {
-            Text(playlistStatus(playlist))
-              .font(.caption)
-              .foregroundStyle(.secondary)
-              .accessibilityIdentifier("playlist-status")
+            VStack(alignment: .trailing, spacing: 1) {
+              Text(playlistStatus(playlist))
+                .font(.caption)
+              Text(
+                "\(playlist.entryCount) \(playlist.entryCount == 1 ? "still" : "stills") · every \(intervalLabel(playlist.dwellMs))"
+              )
+              .font(.caption2)
+            }
+            .foregroundStyle(.secondary)
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("playlist-status")
           }
         }
 
@@ -313,16 +320,25 @@ struct FrameshiftPanel: View {
 
   private func intervalLabel(_ milliseconds: Int) -> String {
     if milliseconds % 3_600_000 == 0 {
-      return "\(milliseconds / 3_600_000) hours"
+      let hours = milliseconds / 3_600_000
+      return "\(hours) \(hours == 1 ? "hour" : "hours")"
     }
-    return "\(milliseconds / 60_000) minutes"
+    if milliseconds % 60_000 == 0 {
+      let minutes = milliseconds / 60_000
+      return "\(minutes) \(minutes == 1 ? "minute" : "minutes")"
+    }
+    if milliseconds % 1_000 == 0 {
+      let seconds = milliseconds / 1_000
+      return "\(seconds) \(seconds == 1 ? "second" : "seconds")"
+    }
+    return "\(milliseconds) ms"
   }
 
   private func playlistStatus(_ playlist: FramePlaylist) -> String {
     switch playlist.status {
     case .pending:
       playlist.replacingActive == true ? "Updating · current loop continues" : "Waiting for frame"
-    case .active: "Looping \(playlist.entryCount) stills"
+    case .active: "Loop active"
     case .suspended: "Loop paused"
     }
   }

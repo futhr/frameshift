@@ -5,6 +5,10 @@ presentation, Apple framework integration, image decoding, secure handoff, and
 application lifecycle. Durable library, recipe, outbox, render, and frame state
 remain owned by the bundled Elixir core.
 
+The packaged app has a Dock window with the same `ShellModel` and controls as
+the menu-bar panel. The menu-bar entry uses a system symbol until a product
+logo is selected.
+
 `LocalCoreClient` communicates with the versioned bounded Unix-domain-socket
 protocol using a fresh 256-bit per-launch token delivered through a one-use
 user-only bootstrap file. Imports use Image I/O to admit one still image, apply

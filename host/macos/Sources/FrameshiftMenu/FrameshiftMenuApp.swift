@@ -6,6 +6,7 @@ import SwiftUI
 private enum ShellSession {
   static let model = ShellModel(client: LocalCoreClient())
   static let panelState = PanelState()
+  static let loginSettings = LoginSettingsModel(service: SystemLoginItemService())
 }
 
 @main
@@ -23,7 +24,7 @@ struct FrameshiftMenuApp: App {
     .menuBarExtraStyle(.window)
 
     Settings {
-      SettingsView()
+      SettingsView(model: ShellSession.loginSettings)
     }
   }
 }

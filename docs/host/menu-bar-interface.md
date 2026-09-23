@@ -32,6 +32,8 @@ whether it reached the selected frame.
 - A small, keyboard-focusable power icon in the dropdown header quits the app.
   Its help text and accessibility label say “Quit Frameshift”; Command-Q also
   works while the dropdown has focus. Quitting stops the bundled core.
+- A labeled settings icon beside Quit opens the native Settings scene without
+  depending on the dropdown remaining open.
 - No animated menu-bar icon. Busy state uses a subtle static badge/dot or text
   inside the popover.
 
@@ -203,6 +205,9 @@ Settings contains:
 - local/cloud provider order, models, licenses, quotas, and privacy policy;
 - model/storage downloads and cache/trash retention;
 - background launch and outbox availability;
+- an opt-in Launch at Login switch for the main menu-bar app using
+  `SMAppService.mainApp`, with enabled, approval-required, and disabled states
+  visible and a working unregister path;
 - renderer defaults and full base instructions;
 - accessibility and notification preferences;
 - diagnostics/export with automatic secret redaction.

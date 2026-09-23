@@ -170,6 +170,12 @@ registration state and provide a working disable path. It never installs a root
 daemon. Apple describes `SMAppService` as the supported interface for bundled
 login items and launch agents: [Service Management documentation](https://developer.apple.com/documentation/servicemanagement/).
 
+The first native setting registers the main menu-bar app with
+`SMAppService.mainApp` only when Launch at Login is enabled. A separate helper
+remains unnecessary while the app owns the bundled core lifecycle. Settings
+distinguishes macOS approval-required state from enabled state and links to
+Login Items when approval is pending.
+
 The background process wakes only for pending jobs, frame contact, or scheduled
 outbox availability. It does not poll powered frames aggressively. Sleeping
 frames control their own contact interval; the host reports “waiting for next

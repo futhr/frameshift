@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 
 struct FrameshiftPanel: View {
   @Environment(\.colorScheme) private var colorScheme
+  @Environment(\.openSettings) private var openSettings
   let model: ShellModel
   let panelState: PanelState
 
@@ -57,6 +58,18 @@ struct FrameshiftPanel: View {
       }
 
       Spacer()
+
+      Button {
+        openSettings()
+      } label: {
+        Image(systemName: "gearshape")
+          .frame(width: 28, height: 28)
+      }
+      .buttonStyle(.plain)
+      .foregroundStyle(.secondary)
+      .help("Open Frameshift Settings")
+      .accessibilityLabel("Open Frameshift Settings")
+      .accessibilityIdentifier("open-settings")
 
       Button {
         NSApplication.shared.terminate(nil)

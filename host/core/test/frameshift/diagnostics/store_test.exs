@@ -56,4 +56,31 @@ defmodule Frameshift.Diagnostics.StoreTest do
                "SELECT detail_json, attempt_id FROM audit_entries ORDER BY id DESC LIMIT 1"
              )
   end
+
+  test "metric maintenance removes the oldest rows beyond its capacity" do
+    {:ok, connection} = Exqlite.start_link(database: ":memory:")
+    Process.unlink(connection)
+    on_exit(fn -> if Process.alive?(connection), do: GenServer.stop(connection) end)
+
+    Exqlite.query!(
+      connection,
+      "CREATE TABLE metric_rollups (metric TEXT, bucket_ms INTEGER, granularity TEXT)"
+    )
+
+    Exqlite.query!(
+      connection,
+      """
+      WITH RECURSIVE sequence(value) AS (
+        SELECT 0 UNION ALL SELECT value + 1 FROM sequence WHERE value < 20000
+      )
+      INSERT INTO metric_rollups(metric, bucket_ms, granularity)
+      SELECT 'frameshift.test', value, 'hour' FROM sequence
+      """
+    )
+
+    assert :ok = Store.merge_rollups(connection, [], 0)
+
+    assert %Exqlite.Result{rows: [[20_000, 1]]} =
+             Exqlite.query!(connection, "SELECT count(*), min(bucket_ms) FROM metric_rollups")
+  end
 end

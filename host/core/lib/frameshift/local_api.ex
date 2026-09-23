@@ -28,8 +28,8 @@ defmodule Frameshift.LocalAPI do
   @type result :: {:ok, map()} | {:error, atom()}
 
   @doc "Builds the menu shell's authoritative snapshot from durable library state."
-  @spec snapshot(GenServer.server(), String.t() | nil) :: map()
-  def snapshot(library \\ Library, status_message \\ nil) do
+  @spec snapshot(GenServer.server(), String.t() | nil, String.t()) :: map()
+  def snapshot(library \\ Library, status_message \\ nil, search_query \\ "") do
     targets = Enum.map(Library.list_paired_frames(library), &frame_target(library, &1))
     selected_target_id = selected_target_id(library, targets)
     membership = playlist_membership(library, selected_target_id)
@@ -38,7 +38,8 @@ defmodule Frameshift.LocalAPI do
       "targets" => targets,
       "selectedTargetID" => selected_target_id,
       "instruction" => setting(library, @instruction_key, ""),
-      "items" => Enum.map(Library.search(library, "", limit: 100), &library_item(&1, membership)),
+      "items" =>
+        Enum.map(Library.search(library, search_query, limit: 100), &library_item(&1, membership)),
       "generationAvailability" => "notConfigured",
       "statusMessage" => status_message || default_status(targets)
     }

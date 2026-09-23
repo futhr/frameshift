@@ -10,8 +10,12 @@ public final class ShellModel {
   public private(set) var isBusy = false
   public private(set) var errorMessage: String?
   public var draftInstruction: String
+  public private(set) var searchQuery = ""
+  public private(set) var searchError: String?
+  public private(set) var searchItems: [LibraryItem]?
 
   private let client: any CoreClient
+  private var searchRevision = 0
 
   public init(
     client: any CoreClient,
@@ -24,6 +28,57 @@ public final class ShellModel {
 
   public func refresh() async {
     await perform { try await client.snapshot() }
+  }
+
+  public var visibleItems: [LibraryItem] {
+    searchItems ?? snapshot.items
+  }
+
+  public func setSearchQuery(_ query: String) {
+    searchQuery = query
+    searchRevision += 1
+    let revision = searchRevision
+
+    guard !query.isEmpty else {
+      searchItems = nil
+      searchError = nil
+      return
+    }
+
+    guard query.utf8.count <= 256 else {
+      searchItems = []
+      searchError = "Search is limited to 256 bytes."
+      return
+    }
+
+    Task {
+      try? await Task.sleep(for: .milliseconds(150))
+      guard revision == searchRevision else { return }
+      await loadSearch(query, revision: revision)
+    }
+  }
+
+  public func submitSearch() async {
+    await refreshSearch()
+  }
+
+  private func refreshSearch() async {
+    guard !searchQuery.isEmpty, searchQuery.utf8.count <= 256 else { return }
+    searchRevision += 1
+    await loadSearch(searchQuery, revision: searchRevision)
+  }
+
+  private func loadSearch(_ query: String, revision: Int) async {
+    do {
+      let result = try await client.snapshot(query: query)
+      guard revision == searchRevision else { return }
+      searchItems = result.items
+      searchError = nil
+    } catch {
+      guard revision == searchRevision else { return }
+      searchItems = []
+      searchError = "Library search is unavailable."
+    }
   }
 
   public func selectTarget(_ targetID: String) async {
@@ -124,6 +179,7 @@ public final class ShellModel {
     } catch {
       errorMessage = "The core command could not be completed."
     }
+    await refreshSearch()
   }
 
   private func perform(_ operation: () async throws -> CoreSnapshot) async {
@@ -140,6 +196,7 @@ public final class ShellModel {
     } catch {
       errorMessage = "The core command could not be completed."
     }
+    await refreshSearch()
   }
 
   private func apply(_ next: CoreSnapshot) {

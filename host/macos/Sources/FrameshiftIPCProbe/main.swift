@@ -47,6 +47,14 @@ private struct FrameshiftIPCProbe {
     else {
       throw ProbeFailure()
     }
+
+    let matched = try await client.snapshot(query: "installed")
+    guard matched.items.count == 1, matched.items[0].title == "installed-flow" else {
+      throw ProbeFailure()
+    }
+    let absent = try await client.snapshot(query: "absent")
+    guard absent.items.isEmpty else { throw ProbeFailure() }
+
     print("Frameshift Swift-to-Elixir IPC probe passed")
   }
 

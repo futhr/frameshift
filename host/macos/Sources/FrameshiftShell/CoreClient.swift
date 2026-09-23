@@ -2,6 +2,7 @@ import Foundation
 
 public protocol CoreClient: Sendable {
   func snapshot() async throws -> CoreSnapshot
+  func snapshot(query: String) async throws -> CoreSnapshot
   func send(_ command: CoreCommand) async throws -> CoreSnapshot
 }
 

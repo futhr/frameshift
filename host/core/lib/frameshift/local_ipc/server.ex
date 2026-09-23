@@ -223,15 +223,18 @@ defmodule Frameshift.LocalIPC.Server do
          } = request
        ) do
     allowed =
-      if operation == "command",
-        do: ~w(version requestId operation auth command),
-        else: ~w(version requestId operation auth)
+      case operation do
+        "command" -> ~w(version requestId operation auth command)
+        "snapshot" -> ~w(version requestId operation auth query)
+        _ -> ~w(version requestId operation auth)
+      end
 
     with :ok <- validate_request_id(request_id),
          :ok <- validate_operation(operation),
          :ok <- validate_auth_shape(auth),
          :ok <- validate_request_keys(request, allowed, request_id),
-         :ok <- validate_command_shape(request, operation, request_id) do
+         :ok <- validate_command_shape(request, operation, request_id),
+         :ok <- validate_query_shape(request, operation, request_id) do
       {:ok, request}
     end
   end
@@ -273,6 +276,15 @@ defmodule Frameshift.LocalIPC.Server do
 
   defp validate_command_shape(_, _, _), do: :ok
 
+  defp validate_query_shape(request, "snapshot", request_id) do
+    case Map.get(request, "query", "") do
+      query when is_binary(query) and byte_size(query) <= 256 -> :ok
+      _ -> {:error, {request_id, :invalid_request}}
+    end
+  end
+
+  defp validate_query_shape(_, _, _), do: :ok
+
   defp safe_request_id(request_id)
        when is_binary(request_id) and byte_size(request_id) in 1..64,
        do: request_id
@@ -304,8 +316,9 @@ defmodule Frameshift.LocalIPC.Server do
 
   defp secure_equal?(_, _), do: false
 
-  defp execute_request(%{"requestId" => request_id, "operation" => "snapshot"}, library) do
-    {:ok, success_response(request_id, LocalAPI.snapshot(library))}
+  defp execute_request(%{"requestId" => request_id, "operation" => "snapshot"} = request, library) do
+    {:ok,
+     success_response(request_id, LocalAPI.snapshot(library, nil, Map.get(request, "query", "")))}
   end
 
   defp execute_request(

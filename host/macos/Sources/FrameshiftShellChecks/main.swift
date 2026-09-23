@@ -259,6 +259,8 @@ private actor RecordingClient: CoreClient {
     current
   }
 
+  func snapshot(query _: String) -> CoreSnapshot { current }
+
   func send(_ command: CoreCommand) -> CoreSnapshot {
     commands.append(command)
     if command.kind == .updateInstruction {
@@ -282,6 +284,14 @@ private actor InMemoryCoreClient: CoreClient {
 
   func snapshot() -> CoreSnapshot {
     current
+  }
+
+  func snapshot(query: String) -> CoreSnapshot {
+    var result = current
+    result.items = current.items.filter {
+      query.isEmpty || $0.title.localizedCaseInsensitiveContains(query)
+    }
+    return result
   }
 
   func send(_ command: CoreCommand) throws -> CoreSnapshot {
@@ -367,6 +377,8 @@ private struct FailingClient: CoreClient {
     throw CoreClientError.invalidCommand
   }
 
+  func snapshot(query _: String) async throws -> CoreSnapshot { try await snapshot() }
+
   func send(_ command: CoreCommand) async throws -> CoreSnapshot {
     _ = command
     throw CoreClientError.invalidCommand
@@ -379,6 +391,8 @@ private struct UnknownOutcomeClient: CoreClient {
     refreshed.instruction = "Reconciled state"
     return refreshed
   }
+
+  func snapshot(query _: String) async throws -> CoreSnapshot { try await snapshot() }
 
   func send(_ command: CoreCommand) async throws -> CoreSnapshot {
     _ = command

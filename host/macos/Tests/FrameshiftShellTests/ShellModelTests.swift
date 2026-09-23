@@ -99,15 +99,65 @@ struct ShellModelTests {
 
     #expect(model.errorMessage == "Pin artwork in the library before starting a loop.")
   }
+
+  @Test("Search displays matching cards and refreshes after removal")
+  func searchesAuthoritativeLibrary() async {
+    let initial = CoreSnapshot(
+      targets: [],
+      selectedTargetID: nil,
+      items: [
+        LibraryItem(id: "blue", title: "Blue study", digest: "blue"),
+        LibraryItem(id: "warm", title: "Warm study", digest: "warm"),
+      ],
+      statusMessage: "Ready"
+    )
+    let model = ShellModel(client: SearchClient(snapshot: initial), initialSnapshot: initial)
+
+    model.setSearchQuery("Warm")
+    await model.submitSearch()
+    #expect(model.visibleItems.map(\.id) == ["warm"])
+    #expect(model.snapshot.items.count == 2)
+
+    await model.remove("warm")
+    #expect(model.visibleItems.isEmpty)
+
+    model.setSearchQuery("")
+    #expect(model.visibleItems.map(\.id) == ["blue"])
+  }
+}
+
+private actor SearchClient: CoreClient {
+  private var current: CoreSnapshot
+
+  init(snapshot: CoreSnapshot) {
+    current = snapshot
+  }
+
+  func snapshot() -> CoreSnapshot { current }
+
+  func snapshot(query: String) -> CoreSnapshot {
+    var result = current
+    result.items = current.items.filter { $0.title.localizedCaseInsensitiveContains(query) }
+    return result
+  }
+
+  func send(_ command: CoreCommand) -> CoreSnapshot {
+    if command.kind == .remove {
+      current.items.removeAll { $0.id == command.itemID }
+    }
+    return current
+  }
 }
 
 private struct MissingLoopPinsClient: CoreClient {
   func snapshot() -> CoreSnapshot { .disconnected }
+  func snapshot(query _: String) -> CoreSnapshot { .disconnected }
   func send(_: CoreCommand) throws -> CoreSnapshot { throw CoreClientError.noPinnedArtwork }
 }
 
 private struct PendingDeliveryClient: CoreClient {
   func snapshot() -> CoreSnapshot { .disconnected }
+  func snapshot(query _: String) -> CoreSnapshot { .disconnected }
   func send(_: CoreCommand) throws -> CoreSnapshot {
     throw CoreClientError.deliveryPending
   }
@@ -128,6 +178,8 @@ private actor DirectDeliveryOutcomeClient: CoreClient {
     return try JSONDecoder().decode(CoreSnapshot.self, from: data)
   }
 
+  func snapshot(query _: String) throws -> CoreSnapshot { try snapshot() }
+
   func send(_: CoreCommand) throws -> CoreSnapshot {
     sends += 1
     throw CoreClientError.deliveryOutcomeUnknown
@@ -138,6 +190,7 @@ private actor DirectDeliveryOutcomeClient: CoreClient {
 
 private struct MissingCredentialClient: CoreClient {
   func snapshot() -> CoreSnapshot { .disconnected }
+  func snapshot(query _: String) -> CoreSnapshot { .disconnected }
   func send(_: CoreCommand) throws -> CoreSnapshot {
     throw CoreClientError.credentialBrokerUnavailable
   }
@@ -150,6 +203,8 @@ private actor RecordingClient: CoreClient {
   func snapshot() -> CoreSnapshot {
     current
   }
+
+  func snapshot(query _: String) -> CoreSnapshot { current }
 
   func send(_ command: CoreCommand) -> CoreSnapshot {
     commands.append(command)
@@ -176,6 +231,8 @@ private struct UnknownOutcomeClient: CoreClient {
     )
   }
 
+  func snapshot(query _: String) -> CoreSnapshot { snapshot() }
+
   func send(_: CoreCommand) throws -> CoreSnapshot {
     throw CoreClientError.commandOutcomeUnknown
   }
@@ -185,6 +242,8 @@ private struct FailingClient: CoreClient {
   func snapshot() throws -> CoreSnapshot {
     throw CoreClientError.coreUnavailable
   }
+
+  func snapshot(query _: String) throws -> CoreSnapshot { try snapshot() }
 
   func send(_: CoreCommand) throws -> CoreSnapshot {
     throw CoreClientError.protocolFailure

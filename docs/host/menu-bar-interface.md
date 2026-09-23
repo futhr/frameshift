@@ -113,6 +113,11 @@ never accepted from the search field. Empty search keeps pinned-first library
 ordering. The index is rebuildable from masters and labels and excludes
 removed masters. Frame, source, and pin filters are separate facets of the
 full library view.
+The compact panel sends the entered text over authenticated, read-only local
+IPC and displays the matching cards without changing the selected target or
+instruction. Empty text returns the ordinary recent/pinned set. Search results
+from an older edit cannot replace results for the current text; after a library
+mutation, the visible search is refreshed from the core.
 
 Auto-labeling runs in the background and does not interrupt import. Generated
 or machine labels remain editable in the full library/settings view.

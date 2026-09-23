@@ -19,6 +19,11 @@ public actor LocalCoreClient: CoreClient {
     try await exchange(operation: "snapshot")
   }
 
+  public func snapshot(query: String) async throws -> CoreSnapshot {
+    guard query.utf8.count <= 256 else { throw CoreClientError.invalidCommand }
+    return try await exchange(operation: "snapshot", query: query)
+  }
+
   public func send(_ command: CoreCommand) async throws -> CoreSnapshot {
     let prepared = try prepare(command)
     defer { prepared.decodedImport?.removeWorkDirectory() }
@@ -57,21 +62,24 @@ public actor LocalCoreClient: CoreClient {
     return PreparedCommand(command: command.withDecodedImport(decoded), decodedImport: decoded)
   }
 
-  private func exchange(operation: String, command: CoreCommand? = nil) async throws -> CoreSnapshot
-  {
+  private func exchange(
+    operation: String, command: CoreCommand? = nil, query: String? = nil
+  ) async throws -> CoreSnapshot {
     try await BundledCore.shared.ensureRunning(socketPath: socketPath)
 
     do {
-      return try await exchangeOnce(operation: operation, command: command)
+      return try await exchangeOnce(operation: operation, command: command, query: query)
     } catch CoreClientError.coreUnavailable {
       try await BundledCore.shared.ensureRunning(socketPath: socketPath, force: true)
-      return try await exchangeOnce(operation: operation, command: command)
+      return try await exchangeOnce(operation: operation, command: command, query: query)
     }
   }
 
-  private func exchangeOnce(operation: String, command: CoreCommand?) async throws -> CoreSnapshot {
+  private func exchangeOnce(
+    operation: String, command: CoreCommand?, query: String?
+  ) async throws -> CoreSnapshot {
     let auth = try await BundledCore.shared.sessionToken(socketPath: socketPath)
-    let request = WireRequest(auth: auth, operation: operation, command: command)
+    let request = WireRequest(auth: auth, operation: operation, command: command, query: query)
     let payload = try encoder.encode(request)
     guard payload.count <= Self.maximumRequestBytes else {
       throw CoreClientError.invalidCommand
@@ -325,6 +333,7 @@ private struct WireRequest: Encodable, Sendable {
   let auth: String
   let operation: String
   let command: CoreCommand?
+  let query: String?
 
   private enum CodingKeys: String, CodingKey {
     case version
@@ -332,14 +341,16 @@ private struct WireRequest: Encodable, Sendable {
     case auth
     case operation
     case command
+    case query
   }
 
-  init(auth: String, operation: String, command: CoreCommand? = nil) {
+  init(auth: String, operation: String, command: CoreCommand? = nil, query: String? = nil) {
     version = 1
     requestID = UUID().uuidString.lowercased()
     self.auth = auth
     self.operation = operation
     self.command = command
+    self.query = query
   }
 }
 

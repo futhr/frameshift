@@ -17,6 +17,7 @@ struct FrameshiftPanel: View {
       actionRow
       status
       loopControls
+      searchField
       library
     }
     .padding(16)
@@ -343,19 +344,55 @@ struct FrameshiftPanel: View {
     }
   }
 
+  private var searchField: some View {
+    VStack(alignment: .leading, spacing: 4) {
+      HStack(spacing: 7) {
+        Image(systemName: "magnifyingglass")
+          .foregroundStyle(.secondary)
+          .accessibilityHidden(true)
+        TextField(
+          "Search library",
+          text: Binding(
+            get: { model.searchQuery },
+            set: { model.setSearchQuery($0) }
+          )
+        )
+        .textFieldStyle(.plain)
+        .accessibilityIdentifier("library-search")
+        .onSubmit { Task { await model.submitSearch() } }
+      }
+      .padding(.horizontal, 9)
+      .padding(.vertical, 6)
+      .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 7))
+
+      if let searchError = model.searchError {
+        Text(searchError)
+          .font(.caption2)
+          .foregroundStyle(.secondary)
+      }
+    }
+  }
+
   @ViewBuilder
   private var library: some View {
-    if model.snapshot.items.isEmpty {
+    if model.visibleItems.isEmpty {
       ContentUnavailableView {
-        Label("No artwork yet", systemImage: "photo")
+        Label(
+          model.searchQuery.isEmpty ? "No artwork yet" : "No matching artwork",
+          systemImage: model.searchQuery.isEmpty ? "photo" : "magnifyingglass"
+        )
       } description: {
-        Text("Import a still image. Generation stays disabled until a provider is configured.")
+        Text(
+          model.searchQuery.isEmpty
+            ? "Import a still image. Generation stays disabled until a provider is configured."
+            : "Try a title or label prefix."
+        )
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
     } else {
       ScrollView {
         LazyVStack(spacing: 10) {
-          ForEach(model.snapshot.items) { item in
+          ForEach(model.visibleItems) { item in
             ResultCard(
               item: item,
               targetName: model.snapshot.selectedTarget?.name ?? "selected target",

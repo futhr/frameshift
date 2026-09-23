@@ -63,6 +63,45 @@ defmodule Frameshift.LocalIPC.ServerTest do
     assert Bitwise.band(File.stat!(Path.dirname(context.socket_path)).mode, 0o777) == 0o700
   end
 
+  test "a bounded snapshot query filters cards without mutating library state", context do
+    attributes = %{
+      title: "Copper Forest",
+      source_kind: :import,
+      width: 2,
+      height: 1,
+      media_type: "image/png",
+      provenance: %{"kind" => "local-import"}
+    }
+
+    {:ok, master} = Library.import_master(context.library, "search bytes", attributes)
+
+    filtered =
+      request(context.socket_path, %{
+        "version" => 1,
+        "requestId" => "search-request",
+        "operation" => "snapshot",
+        "query" => "copp"
+      })
+
+    assert %{"ok" => true, "snapshot" => %{"items" => [%{"digest" => digest}]}} = filtered
+    assert digest == master["digest"]
+
+    assert %{"ok" => false, "error" => %{"code" => "invalid_request"}} =
+             request(context.socket_path, %{
+               "version" => 1,
+               "requestId" => "long-search-request",
+               "operation" => "snapshot",
+               "query" => String.duplicate("x", 257)
+             })
+
+    assert %{"ok" => true, "snapshot" => %{"items" => [_]}} =
+             request(context.socket_path, %{
+               "version" => 1,
+               "requestId" => "empty-search-request",
+               "operation" => "snapshot"
+             })
+  end
+
   test "executes a command and returns the authoritative snapshot", context do
     response =
       request(context.socket_path, %{

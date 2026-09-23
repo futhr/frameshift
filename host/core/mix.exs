@@ -105,6 +105,7 @@ defmodule FrameshiftCore.MixProject do
           {"README.md", title: "Core overview"},
           {"../../docs/architecture/system.md", title: "System architecture"},
           {"../../docs/architecture/host-core.md", title: "Portable host core"},
+          {"../../docs/architecture/library-backup.md", title: "Library backup and restore"},
           {"../../docs/architecture/container-frame-simulator.md",
            title: "Networked frame simulator"},
           {"../../docs/hardware/validation-plan.md", title: "Hardware validation plan"},

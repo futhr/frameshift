@@ -6,6 +6,7 @@ defmodule Frameshift.LibraryTest do
   alias Frameshift.ContentStore
   alias Frameshift.Digest
   alias Frameshift.Library
+  alias Frameshift.Library.Backup
 
   @frame_fixture Path.expand(
                    "../../../../protocol/fixtures/valid/thing-description.json",
@@ -44,6 +45,83 @@ defmodule Frameshift.LibraryTest do
     assert stored["media_type"] == "image/png"
 
     GenServer.stop(restarted)
+  end
+
+  test "backup restores protected and trashed objects with the same metadata", %{
+    library: library,
+    data_dir: data_dir
+  } do
+    {:ok, protected} =
+      Library.import_master(
+        library,
+        "protected backup bytes",
+        master_attributes(%{title: "Protected"})
+      )
+
+    {:ok, removed} =
+      Library.import_master(
+        library,
+        "removed backup bytes",
+        master_attributes(%{title: "Removed"})
+      )
+
+    :ok = Library.protect_frame_asset(library, "frame-1", "current", protected["digest"])
+    :ok = Library.remove_master(library, removed["digest"])
+    assert {:ok, [removed_digest]} = Library.collect_removed(library)
+    assert removed_digest == removed["digest"]
+
+    backup_dir = data_dir <> "-backup"
+    restored_dir = data_dir <> "-restored"
+
+    on_exit(fn ->
+      File.rm_rf!(backup_dir)
+      File.rm_rf!(restored_dir)
+    end)
+
+    assert :ok = Library.create_backup(library, backup_dir)
+    assert :ok = Backup.verify(backup_dir)
+    assert {:error, :backup_destination_exists} = Library.create_backup(library, backup_dir)
+
+    assert {:error, :backup_inside_library} =
+             Library.create_backup(library, Path.join(data_dir, "unsafe-backup"))
+
+    assert :ok = Backup.restore(backup_dir, restored_dir)
+    assert {:ok, restored} = Library.start_link(data_dir: restored_dir, name: nil)
+    assert [%{"digest" => digest}] = Library.search(restored, "protect")
+    assert digest == protected["digest"]
+
+    assert {:ok, %{"bytes" => "protected backup bytes"}} =
+             Library.read_object(restored, protected["digest"])
+
+    assert :ok = Library.restore_master(restored, removed_digest)
+
+    assert {:ok, %{"bytes" => "removed backup bytes"}} =
+             Library.read_object(restored, removed_digest)
+
+    GenServer.stop(restored)
+  end
+
+  test "restore rejects corrupted backup bytes without publishing a destination", %{
+    library: library,
+    data_dir: data_dir
+  } do
+    {:ok, master} = Library.import_master(library, "untouched bytes", master_attributes())
+    backup_dir = data_dir <> "-corrupt-backup"
+    destination = data_dir <> "-rejected-restore"
+
+    on_exit(fn ->
+      File.rm_rf!(backup_dir)
+      File.rm_rf!(destination)
+    end)
+
+    assert :ok = Library.create_backup(library, backup_dir)
+    File.write!(ContentStore.object_path(backup_dir, master["digest"]), "tampered bytes")
+
+    assert {:error, :invalid_backup_file} = Backup.restore(backup_dir, destination)
+    refute File.exists?(destination)
+
+    assert {:ok, %{"bytes" => "untouched bytes"}} =
+             Library.read_object(library, master["digest"])
   end
 
   test "command receipts preserve terminal outcomes and pending crash windows across restart", %{

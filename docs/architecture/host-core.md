@@ -50,6 +50,9 @@ introduce a port when it isolates a real platform or external-system boundary.
 
 ## Persistence decision
 
+The [library backup and restore contract](library-backup.md) defines verified
+offline activation and recovery alongside this storage boundary.
+
 SQLite remains the embedded metadata store; content-addressed files remain
 the byte store. The accepted [D-010](../decisions/README.md#d-010--host-metadata-boundary)
 keeps direct Exqlite and numbered SQL migrations until a measured persistence

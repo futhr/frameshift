@@ -13,6 +13,7 @@ defmodule Frameshift.Library do
   alias Frameshift.Diagnostics.Store, as: DiagnosticsStore
   alias Frameshift.Digest
   alias Frameshift.FrameRegistry
+  alias Frameshift.Library.Backup
   alias Frameshift.Library.Identity
   alias Frameshift.Library.Migrations
   alias Frameshift.Library.Writer
@@ -133,6 +134,11 @@ defmodule Frameshift.Library do
   @spec rebuild_search_index(server()) :: :ok | {:error, term()}
   def rebuild_search_index(server \\ __MODULE__),
     do: GenServer.call(server, :rebuild_search_index, :infinity)
+
+  @doc "Exports one consistent database and object snapshot to an absent directory."
+  @spec create_backup(server(), String.t()) :: :ok | {:error, term()}
+  def create_backup(server \\ __MODULE__, destination),
+    do: GenServer.call(server, {:create_backup, destination}, :infinity)
 
   @doc "Lists active pinned masters in stable pin order, with an explicit caller bound."
   @spec list_pinned_masters(server(), pos_integer()) :: [map()]
@@ -615,6 +621,10 @@ defmodule Frameshift.Library do
       end
 
     {:reply, reply, state}
+  end
+
+  def handle_call({:create_backup, destination}, _, state) do
+    {:reply, Backup.create(state.connection, state.data_dir, destination), state}
   end
 
   def handle_call({:list_pinned_masters, limit}, _, state)

@@ -14,8 +14,12 @@ struct FrameshiftPanel: View {
     VStack(alignment: .leading, spacing: 14) {
       header
       targetPicker
-      instructionEditor
-      actionRow
+      if model.guideHandoff != nil {
+        guideHandoff
+      } else {
+        instructionEditor
+        actionRow
+      }
       status
       loopControls
       searchField
@@ -121,6 +125,62 @@ struct FrameshiftPanel: View {
         }
       }
     }
+  }
+
+  private var guideHandoff: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      HStack {
+        Label("Guide choice", systemImage: "square.on.square")
+          .font(.caption.weight(.semibold))
+          .foregroundStyle(.secondary)
+        Spacer()
+        Button {
+          model.dismissGuideHandoff()
+        } label: {
+          Image(systemName: "xmark")
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Dismiss guide choice")
+      }
+
+      if let choice = model.guideHandoff {
+        Text(choice.medium.label)
+          .font(.headline)
+        if let profile = choice.profileID {
+          Text(profile)
+            .font(.caption.monospaced())
+            .foregroundStyle(.secondary)
+            .lineLimit(2)
+            .truncationMode(.middle)
+        }
+      }
+
+      if model.guideMatchingTargets.isEmpty {
+        Text(
+          "No paired frame matches this hint. Pairing requires the frame's physical pair mode in the installed app."
+        )
+        .font(.caption)
+        .foregroundStyle(.secondary)
+      } else {
+        Menu("Select a matching paired frame") {
+          ForEach(model.guideMatchingTargets) { target in
+            Button(target.name) {
+              Task {
+                await model.selectTarget(target.id)
+                if model.snapshot.selectedTargetID == target.id {
+                  model.dismissGuideHandoff()
+                }
+              }
+            }
+          }
+        }
+        .disabled(model.isBusy)
+      }
+    }
+    .padding(12)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 7))
+    .accessibilityIdentifier("guide-handoff")
   }
 
   private var instructionEditor: some View {

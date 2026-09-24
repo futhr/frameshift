@@ -122,6 +122,10 @@ try {
   await screenshot('Frameshift-guide-mobile.png');
 
   await evaluate('document.querySelector("[data-kind=photo]").click();document.querySelector("#queue").click();document.querySelector("[data-event=loss]").click()');
+  assert.equal(
+    await evaluate('document.querySelector("#handoff").getAttribute("href")'),
+    'frameshift://setup?v=1&class=photo&profile=photo-srgb-rgb24'
+  );
   assert.equal(await evaluate('document.querySelector("#current").textContent'), 'Previous still');
   assert.match(await evaluate('document.querySelector("#desired").textContent'), /pending/);
   await evaluate('document.querySelector("[data-event=version]").click();document.querySelector("[data-event=digest]").click();document.querySelector("[data-event=unknown]").click()');

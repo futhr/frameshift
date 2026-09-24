@@ -81,6 +81,13 @@ enum AppIcon {
 
 @MainActor
 private final class FrameshiftAppDelegate: NSObject, NSApplicationDelegate {
+  func application(_ application: NSApplication, open urls: [URL]) {
+    _ = application
+    for url in urls {
+      ShellSession.model.receiveGuideURL(url)
+    }
+  }
+
   func applicationDidFinishLaunching(_ notification: Notification) {
     _ = notification
     Task {

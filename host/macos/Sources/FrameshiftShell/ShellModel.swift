@@ -13,6 +13,7 @@ public final class ShellModel {
   public private(set) var searchQuery = ""
   public private(set) var searchError: String?
   public private(set) var searchItems: [LibraryItem]?
+  public private(set) var guideHandoff: GuideHandoff?
 
   private let client: any CoreClient
   private var searchRevision = 0
@@ -83,6 +84,23 @@ public final class ShellModel {
 
   public func selectTarget(_ targetID: String) async {
     await send(CoreCommand(kind: .selectTarget, targetID: targetID))
+  }
+
+  public func receiveGuideURL(_ url: URL) {
+    guard let handoff = GuideHandoff.parse(url) else { return }
+    guideHandoff = handoff
+  }
+
+  public func dismissGuideHandoff() {
+    guideHandoff = nil
+  }
+
+  public var guideMatchingTargets: [FrameTarget] {
+    guard let handoff = guideHandoff else { return [] }
+    return snapshot.targets.filter { target in
+      target.medium == handoff.medium
+        && (handoff.profileID == nil || target.profileID == handoff.profileID)
+    }
   }
 
   public func saveInstruction() async {

@@ -46,6 +46,11 @@ bundled core; relaunch reads the durable library again. The header repeats the
 selected mark beside the name, while a native behind-window material gives the
 dropdown a translucent backdrop that follows macOS accessibility settings.
 
+The optional browser-guide URL supplies only an in-memory class/profile hint.
+The menu shows that hint and allows a matching paired target to be selected
+only after an explicit user action; it never pairs, imports, or sends artwork
+from a URL. See [guide handoff](guide-handoff.md).
+
 ### Elixir core
 
 The core is a conventional supervised OTP release. Each long-running job has

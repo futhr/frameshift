@@ -40,6 +40,9 @@ function render() {
     'The current shared selector handles RGB24 only. This candidate needs exact panel packing and a qualified renderer.';
   byId('profile-size').textContent = `${example.width} × ${example.height}`;
   byId('profile-maker').textContent = example.maker;
+  byId('handoff').href = `frameshift://setup?${new URLSearchParams({
+    v: '1', class: session.kind, profile: example.profile,
+  })}`;
   byId('dwell-basis').textContent = example.suggestionMs ?
     'Six hours is a provisional Paper cycling suggestion, not a measured battery optimum. Minimum: 180 seconds.' :
     `${example.power} This example uses a simulated 30-second minimum; interval is not an energy recommendation.`;

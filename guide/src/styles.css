@@ -68,6 +68,8 @@ input[type=file]::file-selector-button{background:#e6ebe7;border:1px solid #b9c6
 .interval-row input{width:128px;min-height:42px;background:#fff;border:1px solid #b9c6c0;padding:5px 10px;border-radius:3px}
 .interval-row output{font-size:.87rem;font-weight:650}
 .action-row{display:flex;flex-wrap:wrap;gap:9px}
+.handoff-note{font-size:.8rem;color:var(--muted);margin:16px 0 0}
+.handoff-note a{font-weight:700;color:var(--blue);text-decoration:underline;text-underline-offset:3px}
 .primary,.quiet{border-radius:3px;padding:10px 15px;font-weight:700}
 .primary{background:var(--rust);border:1px solid var(--rust);color:white}
 .quiet{background:transparent;border:1px solid #a8b5b0;color:var(--ink)}

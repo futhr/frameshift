@@ -209,7 +209,10 @@ the visible set, and withholds duplicate device IDs from selection. A row may
 show physical pair-mode availability, but it never claims a frame is paired
 or safe to contact from the advertisement alone. Browsing starts while the
 pairing settings are visible and stops when they close. The installed app
-declares its Bonjour service and local-network purpose to macOS.
+declares its Bonjour service and local-network purpose to macOS. After an
+explicit selection, the shell resolves that exact service under a deadline to
+a bounded local HTTPS origin; the core still re-resolves the host, admits only
+local addresses, and verifies the QR-pinned frame key before sending a secret.
 
 The physical bootstrap secret crosses the authenticated local socket only in
 one transient pairing operation. It is parsed under the protocol bounds and

@@ -28,14 +28,14 @@ evidence, but it must change explicitly.
 - **State:** accepted
 - **Decision:** Elixir/OTP is the host orchestration language;
   Swift/SwiftUI is the smallest practical macOS shell and Apple API bridge;
-  custom native and embedded work uses Zig. Nerves is allowed only for an
-  optional external bridge, simulator, or powered prototype where a
-  Linux-class controller is proven necessary. It is not the default frame
-  runtime.
-- **Consequence:** Python is forbidden in application code, firmware, build
-  tools, scripts, tests, examples, and documented project workflows. An
-  upstream project that uses it may inform research but cannot become a
-  Frameshift dependency or required workflow.
+  the existing isolated host renderer uses Zig. Nerves is the selected base
+  for a separately qualified dedicated Pi 5 bridge/appliance. Select MCU
+  firmware language and toolchain from exact board, display, security, and
+  recovery evidence.
+- **Consequence:** Frameshift-owned application, firmware, scripts, tests, and
+  examples contain no Python. A pinned upstream toolchain may run Python in
+  an isolated reproducible build; its provenance and output are release
+  evidence. It is never a shipped application runtime.
 - **Detail:** [Software stack research](../research/software-stack.md)
 
 ## D-004 — Host-rendered immutable artifacts
@@ -118,8 +118,11 @@ evidence, but it must change explicitly.
 - **Consequence:** Transaction and reference-protection invariants stay in one
   owner. No other module receives the database connection. The Exqlite NIF is a
   packaging and crash-recovery validation dependency and does not inherit the
-  Zig worker's process-isolation claim.
+  Zig worker's process-isolation claim. NodeDB Lite, CubDB, and analytic
+  engines do not replace the authoritative ledger; search projections remain
+  rebuildable.
 - **Detail:** [SQLite and Elixir boundary](../research/sqlite-elixir-boundary.md)
+  and [embedded persistence review](../research/embedded-persistence.md)
 
 ## D-011 — Universal WoT interaction boundary
 
@@ -152,7 +155,8 @@ evidence, but it must change explicitly.
   the cross-boundary atomic invariants.
 - **Consequence:** A context is not a separate process, database, or generic
   repository interface. Domain decisions are independent of storage and IPC
-  representations. D-010 remains in force while an Ecto candidate is measured.
+  representations. D-010 remains in force; adding Ecto is not a domain
+  architecture requirement.
 - **Detail:** [Host domain map](../architecture/domain-map.md)
 
 ## D-013 — Local diagnostic signals and OS log readers
@@ -183,3 +187,46 @@ evidence, but it must change explicitly.
   and activation are durable local host decisions; cloud tenancy and a remote
   composition service are not prerequisites.
 - **Detail:** [Qualified generations](../architecture/qualified-generations.md)
+
+## D-015 — Public guide and native installation
+
+- **State:** accepted delivery design; public release evidence remains open
+- **Decision:** Publish an accessible static installation guide first at
+  `frameshift.wotex.io`. Mac direct download, Homebrew Cask, and Sparkle consume
+  one signed and notarized release artifact. Ubuntu uses architecture-specific
+  packages authenticated by a signed release manifest or APT repository;
+  public binaries live in a separate release channel created
+  public from the outset. The private source repository's visibility is never
+  changed as part of distribution.
+- **Consequence:** `frameshift.se` is optional. No public release claim or
+  install command precedes signing, licensing, notices, clean-install tests,
+  and manifest/digest verification.
+- **Detail:** [Installation and interactive guide](../architecture/install-and-guide.md)
+
+## D-016 — Shared browser decision kernel
+
+- **State:** accepted design; generated cross-target parity passes locally,
+  while browser and installed release acceptance remain open
+- **Decision:** Extract a bounded pure decision kernel into Gleam, compiled
+  from the same source to Erlang for the host and JavaScript for the public
+  installation simulation. The browser runs locally and holds no pairing
+  credentials or delivery authority. Exact raster bytes remain the Zig
+  renderer's responsibility.
+- **Consequence:** The guide can demonstrate capability and failure behavior
+  without a hosted Elixir execution service. BEAM/JavaScript parity and safe
+  integer bounds are release gates. Native deep links carry non-secret setup
+  choices only; pairing remains an installed-app action.
+- **Detail:** [Installation and interactive guide](../architecture/install-and-guide.md)
+
+## D-017 — Linux host and Pi appliance roles
+
+- **State:** accepted platform design; installed qualification remains open
+- **Decision:** Ubuntu amd64/arm64 and Ubuntu Server arm64 on Pi 5 reuse the
+  portable host core. A Nerves Pi 5 image is a separate dedicated external
+  bridge/appliance with its own signed firmware lifecycle. No Pi enters a
+  reference frame.
+- **Consequence:** Linux service identity, credentials, journald, package
+  updates, and native dependencies need platform tests. Nerves uses persistent
+  `/data`, firmware validation/revert, and a bounded OTP log sink instead of
+  systemd facilities. Neither role needs a vendor cloud to show artwork.
+- **Detail:** [Linux host](../host/linux.md)

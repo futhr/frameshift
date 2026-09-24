@@ -18,7 +18,8 @@ These artifacts reduce rework across every track:
 4. a versioned Frame Thing Model, Host Outbox Thing Model, namespaced
    vocabulary, binding profiles, and conformance claims;
 5. golden source/preview/artifact fixtures for each display profile;
-6. repository-wide build, format, test, and license checks with no Python;
+6. repository-wide build, format, test, and license checks; no project-owned
+   Python code, with pinned upstream build tools isolated and recorded;
 7. decision/evidence records for every dependency and exact hardware revision.
 
 The simulator can be an Elixir application on macOS and need not imply Nerves
@@ -32,7 +33,8 @@ or Linux hardware inside a frame.
 - portable domain boundaries and platform adapter contracts from
   [Portable Host Core](host-core.md);
 - content-addressed store and direct Exqlite/SQLite metadata migrations under
-  D-010; measure Ecto as a candidate before changing the persistence boundary;
+  D-010, with consistent backup, object manifest, restore checks, and FTS5
+  search as specified in the [persistence review](../research/embedded-persistence.md);
 - import, pin, recoverable remove, labels, and search;
 - immutable recipe/variant relationships;
 - single-writer transactions, replay receipts, atomic audit writes, and
@@ -46,7 +48,25 @@ cache; removal cannot collect referenced/pinned content; Mac and Linux/Pi host
 contract tests preserve the same domain and protocol behavior. A failed update
 is reconstructable from command through display confirmation or pending state
 without opening the UI or exposing secrets. Metric and log storage bounds are
-measured on both host platforms.
+measured on both host platforms. Backup/restore reproduces protected references
+and rejects corrupt or missing objects before activation.
+
+### H1a — Shared decision kernel and guide
+
+- extract only pure capability admission, profile selection, state labels,
+  and simulation transitions into Gleam;
+- compile the same source to Erlang for the host and JavaScript for the public
+  guide on the pinned OTP 29/Elixir 1.20.4/Gleam 1.18.1 toolchain, with cross-target
+  fixtures, integer bounds, and generated cases;
+- turn the desktop HTML draft into the static interactive installation guide
+  at `frameshift.wotex.io`; present simulated profiles and failures honestly;
+- hand non-secret setup choices to the native app after installation, with
+  pairing and delivery still performed by the installed host.
+
+**Exit:** BEAM/JavaScript decisions agree for valid and adversarial inputs;
+the guide works without an account or hosted code execution; no browser
+simulation is described as physical display evidence. See
+[installation and guide](install-and-guide.md).
 
 ### H2 — Deterministic renderer
 
@@ -145,8 +165,8 @@ one real selected hardware track.
 
 ### Paper track
 
-Qualify one exact small color e-paper/driver assembly, build the Zig-oriented
-sleeping controller spike, implement exact packing/refresh, then measure the
+Qualify one exact small color e-paper/driver assembly, build a sleeping
+controller spike, implement exact packing/refresh, then measure the
 complete energy and depth cycle. A large-format Paper path is independent and
 does not block the smaller reference.
 
@@ -159,7 +179,7 @@ controller before the prototype identifies the actual interface risk.
 
 ### Pixel track
 
-Prove one exact module with a Zig timed-parallel/DMA driver, mapping, refresh,
+Prove one exact module with a timed-parallel/DMA driver, mapping, refresh,
 and hardware power limit. Scaling to the chosen module count is a recommended
 risk-reduction step, not a requirement on how a contributor starts. Full-array
 power and thermals remain a separate reference exit gate.
@@ -176,6 +196,37 @@ A releasable software build requires the installed end-to-end flow, compatible
 protocol bindings, authenticated lifecycle, migration/recovery, accessibility,
 signing, hardened runtime, notarization, dependency/license inventory, and
 security review appropriate to its claim.
+
+## Distribution and platform gates
+
+Mac distribution uses one signed, notarized DMG for direct download, Homebrew
+Cask, and Sparkle updates. Ubuntu amd64/arm64 and Pi 5 Ubuntu Server arm64 use
+target-specific packages authenticated by a signed release manifest or APT
+repository and the same host contracts. A dedicated Nerves Pi 5 image is a
+separately qualified bridge/appliance. The static public guide
+links only to real, digest-verified release artifacts. See
+[installation and guide](install-and-guide.md) and [Linux host](../host/linux.md).
+
+The distribution work has this dependency order:
+
+1. Freeze the release manifest, supported OS/CPU matrix, signing identities,
+   package names, and external artifact channel without changing source-repo
+   visibility.
+2. Qualify SQLite/object backup and restore, native logging/metric ceilings,
+   and the Mac signed/notarized installed lifecycle.
+3. Prove the Gleam kernel on the pinned OTP 29 release and JavaScript target;
+   build and accessibility-test the static guide against its exact fixtures.
+4. Publish the release artifact only after direct Mac, Cask, and Sparkle paths
+   pass the same artifact identity and upgrade tests and the product's
+   applicable end-to-end and hardware claims have evidence; make guide
+   download links manifest-driven.
+5. Port the same core to Ubuntu amd64/arm64, then qualify Pi 5 Ubuntu storage,
+   power, and service behavior; publish each package only after its own gates.
+6. Build the separately signed Nerves Pi 5 appliance image and test firmware
+   validation/revert, credential provisioning, persistent state, and logs.
+
+Hardware tracks can proceed independently. A guide simulation or platform
+package does not certify a frame assembly.
 
 A released hardware profile additionally requires one exact assembly with a
 reproducible build record, signed rollback-capable firmware, protocol

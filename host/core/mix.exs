@@ -111,12 +111,15 @@ defmodule FrameshiftCore.MixProject do
            title: "Networked frame simulator"},
           {"../../docs/hardware/validation-plan.md", title: "Hardware validation plan"},
           {"../../docs/architecture/domain-map.md", title: "Host domain map"},
+          {"../../docs/architecture/install-and-guide.md", title: "Installation and guide"},
           {"../../docs/architecture/qualified-generations.md", title: "Qualified generations"},
           {"../../docs/architecture/diagnostics.md", title: "Host diagnostics"},
           {"../../docs/architecture/frame-protocol.md", title: "Frame protocol"},
           {"../../docs/architecture/display-timing.md", title: "Display timing"},
           {"../../docs/architecture/verification.md", title: "Verification map"},
           {"../../docs/research/software-stack.md", title: "Software stack research"},
+          {"../../docs/research/embedded-persistence.md", title: "Embedded persistence"},
+          {"../../docs/host/linux.md", title: "Linux host"},
           {"../../docs/research/protocol-foundations.md", title: "Protocol foundations"}
         ] ++ Path.wildcard("bench/output/*.md"),
       groups_for_extras: [

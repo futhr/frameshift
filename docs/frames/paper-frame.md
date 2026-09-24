@@ -45,8 +45,8 @@ See [display timing](../architecture/display-timing.md).
 
 ## Electronics
 
-The reference direction is a sleeping MCU-class controller with project-owned
-Zig firmware, Wi-Fi, mutual TLS, secure identity, flash for two assets and
+The reference direction is a sleeping MCU-class controller with a qualified
+firmware toolchain, Wi-Fi, mutual TLS, secure identity, flash for two assets and
 recoverable firmware, SPI, a real-time wake source, and switchable display rail.
 No exact part is selected until the toolchain and whole-device power gates pass.
 

@@ -9,6 +9,12 @@ partial implementation, simulator, development bundle, or selected hardware
 prototype is evidence toward this product. It is not an alternate MVP, demo,
 or reduced delivery target.
 
+The portable host is also specified for Ubuntu amd64/arm64 and Raspberry Pi 5
+Ubuntu Server arm64, with a separately qualified Nerves Pi 5 appliance role.
+The [public installation guide](architecture/install-and-guide.md) and
+[Linux host](host/linux.md) define those distribution claims. No Windows host
+is specified.
+
 ## Product promise
 
 A person can import or generate still artwork on a Mac, preview the exact
@@ -98,6 +104,11 @@ The product is complete only when evidence covers all of the following:
     measured electrical, power, thermal, optical, mechanical, mounting, and
     interrupted-refresh evidence. Applicable independent security and
     regulatory work is complete for the release claim being made.
+11. The public guide lists only qualified installs and profiles, runs its
+    simulation without remote code execution, and hands non-secret choices to
+    the installed native flow. Mac direct/Cask/Sparkle releases and each
+    claimed Ubuntu/Pi package pass clean installation, update, recovery, and
+    data-preservation tests.
 
 ## Status and release claims
 

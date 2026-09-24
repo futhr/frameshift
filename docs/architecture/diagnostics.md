@@ -114,8 +114,9 @@ exceeded. Pipe and bridge failure must not
 block a command. A small rotating OTP file captures sanitized critical
 failures when the bridge is unavailable. Console.app and `/usr/bin/log` are the
 macOS log readers; the product does not build a logs UI. Apple controls
-unified-log persistence, so it is not the audit store. Linux uses a journald
-adapter or an equivalent bounded local sink with `journalctl` access.
+unified-log persistence, so it is not the audit store. Ubuntu sends sanitized
+operational logs to journald for `journalctl`. The Nerves Pi appliance has no
+journal and uses a bounded OTP circular disk log.
 
 `frameshiftctl diagnostics health|metrics|audit` is a read-only client of the
 versioned local IPC contract. Responses are size-limited and audit queries use

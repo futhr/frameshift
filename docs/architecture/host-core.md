@@ -55,26 +55,29 @@ offline activation and recovery alongside this storage boundary.
 
 SQLite remains the embedded metadata store; content-addressed files remain
 the byte store. The accepted [D-010](../decisions/README.md#d-010--host-metadata-boundary)
-keeps direct Exqlite and numbered SQL migrations until a measured persistence
-spike justifies superseding it. Ecto with `ecto_sqlite3` is a candidate for
-ordinary records and migrations, not a prerequisite for domain organization.
-If adopted, keep explicit parameterized SQL where SQLite-specific DDL,
-constraints, or a measured query are clearer. Neither Ecto schemas nor an Ash
-resource layer define the domain model. No Ash layer is required for the
-current single-host command design.
+keeps direct Exqlite and numbered SQL migrations. The
+[embedded persistence review](../research/embedded-persistence.md) rejects a
+second authoritative database for this ledger. Neither Ecto schemas nor an
+Ash resource layer define the domain model. Change the driver only for a
+measured defect while retaining SQLite's database-enforced invariants.
 
 One writer owns mutations. Keep a single write connection, immediate
 transactions, a finite busy timeout, foreign keys, WAL, and
-`synchronous: :full` to retain the existing crash contract. An Ecto candidate
-must override its pool size, transaction mode, and synchronous defaults. Read
+`synchronous: :full` to retain the existing crash contract. Read
 concurrency may be added only after measuring a need and proving snapshot
 semantics. The store must preserve digest checks, uniqueness, referential
 integrity, replay receipts, monotonic delivery revisions, and audit records.
-SQLite-specific `STRICT` tables and checks may remain explicit migration SQL;
-the ORM must not weaken database-enforced invariants. File writes and database
-commits are not one atomic transaction: retain the stage/flush/rename/commit
-ordering and startup reconciliation described in
+SQLite-specific `STRICT` tables and checks remain explicit migration SQL;
+the data access layer must not weaken database-enforced invariants. File writes
+and database commits are not one atomic transaction: retain the stage, flush,
+rename, commit ordering and startup reconciliation described in
 [software stack research](../research/software-stack.md#host-persistence).
+Backup takes a consistent SQLite snapshot plus a manifest of referenced
+objects, protecting those objects from collection until the copy completes;
+restore verifies database constraints and object digests before
+activation. Text search begins with SQLite FTS5 after target-build support is
+verified. Search indexes are rebuildable projections, never display or custody
+truth.
 
 Because no product release has shipped, the persistence refactor may replace
 the existing schema and APIs rather than maintain a public upgrade path.
@@ -101,6 +104,10 @@ and a shell appropriate to that platform; unavailable optional capabilities
 are reported explicitly and cannot silently switch to a cloud provider.
 Platform selection occurs at the composition root, not throughout the domain.
 The renderer wire contract and WoT semantics are shared across hosts.
+The small pure capability/transition decision kernel is shared with the public
+browser guide through Gleam's Erlang and JavaScript targets. It owns no I/O or
+authoritative display state; see the
+[installation guide contract](install-and-guide.md).
 
 ## Diagnostics contract
 
@@ -137,7 +144,6 @@ supported Linux/Pi host configuration:
 6. Native dependencies and the Zig worker build for each supported CPU/OS
    target; optional Apple capabilities fail closed on Linux.
 
-Relevant upstream behavior: [Ecto SQLite3 adapter](https://ecto-sqlite3.hexdocs.pm/),
-[Ecto transactions](https://ecto.hexdocs.pm/Ecto.Multi.html),
-[Ecto migrations](https://ecto-sql.hexdocs.pm/Ecto.Migration.html), and
-[AshSqlite transaction guidance](https://hexdocs.pm/ash_sqlite/transactions.html).
+Relevant upstream behavior: [SQLite WAL](https://www.sqlite.org/wal.html),
+[SQLite backup API](https://www.sqlite.org/backup.html), and
+[Gleam targets](https://gleam.run/documentation/command-line-reference/).

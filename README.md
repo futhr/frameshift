@@ -55,13 +55,25 @@ only a timed sequence of cached still images.
 
 - Elixir/OTP for the macOS orchestration core.
 - Swift/SwiftUI only for the native menu-bar shell and Apple frameworks.
-- Zig for project-owned native transforms and embedded firmware.
-- Nerves only for an optional external bridge, simulator, or evidence-backed
-  powered prototype—not as default hardware inside a frame.
+- Zig for the existing isolated raster worker. Select MCU firmware tooling
+  from exact controller, update, power, and protocol evidence.
+- Ubuntu amd64/arm64 hosts and a Raspberry Pi 5 Ubuntu host reuse the core;
+  a dedicated Nerves Pi 5 appliance is a separate release target.
 - Local-first image generation with explicit provider and cloud disclosure.
-- No Python in application code, firmware, tooling, tests, examples, or project
-  workflows.
+- No project-owned Python application or firmware code. Pinned upstream
+  toolchains may use Python inside isolated reproducible builds.
 - No Raspberry Pi hardware in Frameshift reference builds.
+
+## Installation direction
+
+The first public guide is planned for `frameshift.wotex.io`. It will lead from
+frame choice through a browser simulation that runs locally after loading to a
+signed Mac download or Homebrew Cask, with separate Ubuntu and Pi
+instructions. The browser simulation cannot pair a physical frame; installed
+native software performs pairing and
+delivery. See the [installation and guide contract](docs/architecture/install-and-guide.md)
+and [Linux host specification](docs/host/linux.md). No public download is
+available until signing, packaging, licensing, and installed release gates pass.
 
 ## Principles
 

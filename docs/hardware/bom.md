@@ -29,7 +29,7 @@ frame path.
 | --- | --- | --- |
 | Display | Waveshare 13.3-inch e-Paper HAT+ (E), E6, 1600×1200 | Candidate; verify exact revision and inspect glass/FPC on arrival |
 | Development driver | Driver HAT supplied for that exact panel | Bench-only; headers/connectors are not final thickness |
-| Frame controller | MCU-class Wi-Fi controller with Zig-compatible no-Python build | **Unselected**; must pass TLS, SPI, atomic flash, sleep-power gates |
+| Frame controller | MCU-class Wi-Fi controller with a qualified SDK and reproducible build | **Unselected**; must pass TLS, SPI, atomic flash, sleep-power gates |
 | Storage | Onboard flash or low-profile serial flash with two asset slots | Size after exact packed E6 artifact is measured |
 | Power | Current-limited lab supply first; protected thin battery only after energy profile | Battery chemistry/capacity and charging remain unselected |
 | Mechanics | Rigid nonconductive carrier, FPC restraint, mat, removable backing | Must protect fragile 0.85 mm panel without point load |
@@ -66,7 +66,7 @@ and panel revision must all match.
 | Item | Candidate | Status / gate |
 | --- | --- | --- |
 | Panel | One Waveshare P3 64×64 HUB75E, 1/32 scan | Candidate; inspect driver IC and revision |
-| Controller | Non-Raspberry DMA-capable MCU, with project firmware in Zig | **Unselected**; an STM32H7-class part is a feasibility candidate, not a recommendation |
+| Controller | Non-Raspberry DMA-capable MCU with qualified firmware tooling | **Unselected**; an STM32H7-class part is a feasibility candidate, not a recommendation |
 | Logic | Voltage translation appropriate to the selected MCU and panel timing | Select after signal-integrity measurement |
 | Power | Current-limited 5 V supply rated for at least one module's documented 4 A ceiling | Fuse at source; do not power through controller board |
 | Fixture | Open non-combustible carrier with guarded rear electronics | Required before wood enclosure |
@@ -95,4 +95,4 @@ fault/worst-case design requirement. Evidence: [Waveshare P3 specification](http
 - Unprotected pouch cells, improvised charging circuits, or charging during an
   unattended enclosure test.
 - Components selected solely from marketplace titles without primary data.
-- Any required Python-based project build or flashing workflow.
+- Unpinned or non-reproducible build/flashing tools; project-owned Python code.

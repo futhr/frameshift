@@ -30,15 +30,16 @@ match. Record rear IC markings for every received batch.
 
 No controller has been selected. The reference direction is a non-Raspberry MCU
 that can continuously emit HUB75 bitplanes through synchronized timers and DMA
-without a Linux computer. Project-owned firmware is Zig. An STM32H7-class part
-is a feasibility candidate because that family has timer, DMA, external-memory,
+without a Linux computer. Firmware language and tooling are selected with the
+exact controller. An STM32H7-class part is a feasibility candidate because
+that family has timer, DMA, external-memory,
 and cryptographic facilities; it is not a recommendation until an exact part
 and toolchain pass the gates below. Candidate topology is three parallel chains
 of two modules to protect refresh rate and color depth.
 
 This is not yet validated. The spike must prove:
 
-- exact MCU and board support in a pinned Zig/MicroZig toolchain with no Python;
+- exact MCU and board support in a pinned reproducible firmware toolchain;
 - timed parallel output and DMA that remain stable under network/flash load;
 - three parallel HUB75E outputs or a justified alternative;
 - exact panel initialization and mapping;

@@ -27,6 +27,7 @@ protocol branches.
 - [Display timing and pinned artwork loops](architecture/display-timing.md)
 - [Content pipeline](architecture/content-pipeline.md)
 - [Qualified render and transfer generations](architecture/qualified-generations.md)
+- [Installation and interactive guide](architecture/install-and-guide.md)
 - [Browser guide simulation](architecture/guide-simulation.md)
 - [Implementation plan](architecture/implementation-plan.md)
 - [Software verification map](architecture/verification.md)
@@ -35,6 +36,7 @@ protocol branches.
 
 - [macOS controller](host/macos.md)
 - [Browser guide handoff](host/guide-handoff.md)
+- [Linux and Raspberry Pi hosts](host/linux.md)
 - [Menu-bar interface](host/menu-bar-interface.md)
 
 ## Reference frames
@@ -54,6 +56,7 @@ protocol branches.
 - [Hardware platforms and power feasibility](research/hardware-platforms.md)
 - [Software stack](research/software-stack.md)
 - [SQLite and Elixir boundary](research/sqlite-elixir-boundary.md)
+- [Embedded persistence review](research/embedded-persistence.md)
 - [Host diagnostics research](research/host-diagnostics.md)
 - [AI image generation](research/ai-image-generation.md)
 - [Protocol foundations](research/protocol-foundations.md)

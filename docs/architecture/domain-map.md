@@ -68,6 +68,10 @@ Pure transition functions should accept domain values and return typed
 decisions or errors. Persistence mappings, IPC JSON, Wotex bindings, Keychain,
 Image I/O, and the Zig worker stay outside those functions. A port is introduced
 for a real external or platform boundary, not for every table.
+Only bounded capability admission, profile selection, state labels, and
+simulation transitions move into the shared Gleam kernel. The Elixir
+application service still owns commands, durable Delivery decisions, audit,
+and effect reconciliation. A browser run cannot commit a domain transition.
 
 ## Public operations
 
@@ -92,10 +96,11 @@ and do not expose a database connection or framework schema.
 Extract Delivery transition rules first because they carry the most complex
 cross-table invariant. Characterize existing push, pull, replay, interruption,
 and collection behavior before changing their storage paths. Then extract
-Library and Frames decisions, followed by Rendering and Generation. Keep the
-existing single-writer transactions while modules move. Only change the
-persistence technology after comparing the candidate against the same tests,
-contention cases, crash checkpoints, packaged release, and resource baseline.
+Library and Frames decisions, followed by Rendering and Generation. Extract
+the small cross-target kernel only after its existing rules have fixtures.
+Keep the existing single-writer SQLite transactions while modules move; the
+[persistence review](../research/embedded-persistence.md) supplies the storage
+decision and backup/recovery requirements.
 
 This follows the consistency-boundary meaning of aggregates in
 [Eric Evans' DDD reference](https://www.domainlanguage.com/wp-content/uploads/2016/05/DDD_Reference_2015-03.pdf)

@@ -1,11 +1,17 @@
 # Software Stack Research
 
 **Research date:** 2026-09-22
+**Architecture review:** 2026-09-23
 
 **Outcome:** use a portable Elixir/OTP host core, a thin SwiftUI shell on macOS,
-and isolated Zig executables/firmware. Linux and Raspberry Pi-class Linux hosts
-use platform adapters around the same core. Nerves is optional for Linux-based
-roles, not the MCU frame's default runtime. Do not use Membrane or Python.
+and an isolated Zig host renderer. Ubuntu and Pi 5 hosts use platform adapters
+around the same core. A dedicated Pi 5 appliance uses Nerves. MCU firmware
+language and toolchain are selected for the exact hardware. No project-owned
+Python code or Membrane is part of the stack.
+The public static guide shares a small Gleam decision kernel with the host;
+it does not host Elixir execution or control frames in the browser. The
+[installation contract](../architecture/install-and-guide.md) defines its
+cross-target and distribution gates.
 
 ## Recommended topology
 
@@ -26,7 +32,7 @@ Frameshift Core (Elixir/OTP release)
 LAN: W3C WoT TD/TM + advertised authenticated Forms
      reference HTTPS binding; qualified constrained bindings may coexist
   v
-Thin Frame Agent (MCU-class; Zig reference direction)
+Thin Frame Agent (MCU-class; exact firmware toolchain unselected)
   | verified asset store, desired/current state, playlist, health
   +--> Photo adapter
   +--> Paper adapter
@@ -36,8 +42,8 @@ Thin Frame Agent (MCU-class; Zig reference direction)
 This is one product with explicit process boundaries, not a collection of
 microservices. The boundaries isolate native crashes, protect secrets, and let
 the platform shell restart without interrupting queued work.
-On Linux, a native shell and platform adapters replace Apple-only facilities;
-the core, renderer wire contract, and frame protocol remain shared.
+On Linux, a local command CLI and platform adapters replace Apple-only
+facilities; the core, renderer wire contract, and frame protocol remain shared.
 
 ## Elixir/OTP host core
 
@@ -55,8 +61,8 @@ Selected libraries and bounded candidates are tracked independently:
 | WoT HTTP mapping | Pinned `wotex_binding_http` plus a Frameshift-owned client | JSON Property/Action and SSE mapping only. It is not the binary artifact binding, TLS policy, HTTP server, or physical-effect proof. |
 | HTTP client | `Mint` one-shot connections | Keep client certificates and keys inside one caller-owned callback; resolve and authorize every destination, disable pooling/proxies/redirects/retries, pin the frame SPKI, and enforce an absolute operation deadline plus incremental response bounds. |
 | HTTP server for simulator/optional Nerves bridge | `Plug` + `Bandit` | Small explicit router; not a dependency of MCU firmware. |
-| Metadata database | Direct Exqlite/SQLite under D-010; Ecto + `ecto_sqlite3` remains a measured candidate | Host only; one writer, durable transactions, database-enforced invariants, and content-store reconciliation. An Ecto adoption must explicitly supersede D-010; see the [portable host core](../architecture/host-core.md). |
-| Host JSON | `Jason` or OTP-native equivalent available at implementation time | Bounded decode; reject duplicate/unknown required fields; preserve TD extensions. MCU parsing is a separate Zig selection. |
+| Metadata database | Direct Exqlite/SQLite under D-010 | Host only; one writer, durable transactions, database-enforced invariants, content-store reconciliation, and consistent backup. See the [persistence review](embedded-persistence.md). |
+| Host JSON | `Jason` or OTP-native equivalent available at implementation time | Bounded decode; reject duplicate/unknown required fields; preserve TD extensions. MCU parsing is selected with its exact firmware stack. |
 | Discovery | macOS Network framework/Bonjour through Swift; `mdns_lite` on Nerves | Advertise only the privacy-minimal introduction record. |
 
 The selected Wotex packages are fetched from their upstream Git repository at
@@ -118,11 +124,11 @@ serializes display changes so two host requests cannot drive hardware
 concurrently. The adapter reports prepared, refreshing, displayed, or failed;
 only displayed advances `currentAsset`.
 
-Zig is the reference direction for project-owned firmware. Exact networking
-silicon is deliberately not selected: the choice must demonstrate Wi-Fi,
-mutual TLS, secure key storage, atomic flash slots, and a build that respects
-the no-Python rule. A factory-programmed network coprocessor is acceptable if
-its protocol and update lifecycle are documented.
+Exact firmware tooling and networking silicon are deliberately not selected:
+the choice must demonstrate Wi-Fi, mutual TLS, secure key storage, atomic flash
+slots, measured power/refresh behavior, and a pinned reproducible build. A
+factory-programmed network coprocessor is acceptable if its protocol and
+update lifecycle are documented.
 
 The Paper frame cannot remain available on the LAN while asleep. It wakes on a
 timer or button, checks the host outbox for a committed still, refreshes if
@@ -130,29 +136,21 @@ needed, then powers down its radio and display rails. The protocol therefore
 supports host push for continuously powered frames and authenticated pull for
 sleeping frames.
 
-### Where Nerves still fits
+### Nerves appliance boundary
 
-Nerves remains attractive for an optional always-powered home bridge, a frame
-simulator, protocol conformance target, or powered display prototype whose
-controller must run Linux. It supplies OTP supervision and update semantics the
-MCU design should emulate. It does not override the frame's mechanical and
-energy constraints, and no reference BOM may quietly add a Linux SBC.
-
-Nerves 1.15 documents custom systems for hardware outside its prebuilt targets;
-that proves extensibility, not mechanical or power suitability for a frame.
-VintageNet provides persisted Wi-Fi/network state and `mdns_lite` provides
-small Nerves-oriented mDNS advertisement/discovery. They are candidates for the
-optional bridge or simulator, not dependencies of Zig MCU firmware. Sources:
-[Nerves custom systems](https://nerves.hexdocs.pm/customizing-systems.html),
-[VintageNet](https://hexdocs.pm/vintage_net/VintageNet.html), and
-[`mdns_lite`](https://hexdocs.pm/mdns_lite/).
+The official Pi 5 Nerves system is the selected base for a separately
+qualified, always-powered external bridge/appliance. It is not inside a
+reference frame. The image has its own signed firmware validation/revert,
+persistent `/data`, identity provisioning, and bounded logging gates; see
+[Linux and Pi hosts](../host/linux.md). A full library on the appliance uses
+the same SQLite/object store. Nerves does not alter MCU controller selection.
+Source: [Nerves Pi 5 system](https://github.com/nerves-project/nerves_system_rpi5).
 
 ### Firmware updates
 
 Firmware updates must be signed and atomic before remote update is enabled.
 The frame needs two firmware slots or an equivalent recoverable scheme.
-Nerves/NervesHub may serve as a behavioral reference for an optional bridge,
-but the MCU implementation must continue to display the last valid image during
+The MCU implementation must continue to display the last valid image during
 update, reboot, failed download, or unavailable update service.
 
 ## Swift/SwiftUI boundary
@@ -179,13 +177,11 @@ It submits commands and subscribes to snapshots from the Elixir core.
 
 ## Zig boundary
 
-Custom native code is Zig. Two distinct artifacts are anticipated:
-
-1. `frameshift-raster`, a host-platform executable that accepts a length-framed binary
-   protocol on stdin/stdout and never receives credentials;
-2. frame firmware, including a non-Raspberry timed-parallel/DMA Pixel
-   controller if a validation spike proves its Zig toolchain, networking,
-   refresh, and update path dependable.
+The existing project-owned host raster executable is Zig. It accepts a
+length-framed binary protocol on stdin/stdout and never receives credentials.
+MCU firmware uses the exact controller's qualified SDK/language after a
+reproducible build, signed update, TLS, and power/refresh spike. Keeping Zig
+there is allowed only if it passes those gates.
 
 The raster protocol carries a versioned job header plus paths or file
 descriptors to canonical decoded buffers. It emits progress and one terminal
@@ -195,22 +191,20 @@ and restarts the port.
 
 Zig is not a reason to rewrite high-quality system facilities. SQLite, image
 codecs supplied by Apple, and vendor kernel drivers can remain upstream native
-dependencies when their license and attack surface are reviewed. Frameshift's
-own native logic stays Zig.
+dependencies when their license and attack surface are reviewed. Keep the
+existing Zig renderer while it passes its isolated-worker gates.
 
 ## Explicit exclusions
 
 - **Membrane:** no role because Frameshift has no video, audio, animation, or
   streaming pipeline.
-- **AtomVM as an assumed frame runtime:** it demonstrates that Elixir semantics
-  and deep sleep can coexist on ESP32-class MCUs, but the normal ESP-IDF
-  toolchain conflicts with the repository's no-Python build rule. It remains
-  research until a compliant, reproducible toolchain is demonstrated.
 - **A browser/Electron shell:** unnecessary for a tiny menu-bar utility and
   weaker access to the desired native lifecycle and Vision APIs.
 - **In-process NIFs for custom raster work:** a memory error can crash the BEAM;
   an executable port is the safer first boundary.
-- **Python:** prohibited throughout the project stack and tooling.
+- **Project-owned Python:** absent from application, firmware, scripts, tests,
+  and examples. Pinned upstream build tools may require it inside an isolated
+  reproducible firmware/system build environment.
 
 ## Qualification gates
 
@@ -224,6 +218,6 @@ The stack is release-qualified only after these gates:
 5. drive one exact display revision for whichever hardware track is being
    implemented; each other adapter qualifies independently when its track is
    chosen;
-6. prove the selected Zig MCU toolchain and Wi-Fi/TLS path before naming any
+6. prove the selected MCU toolchain and Wi-Fi/TLS path before naming any
    controller reference hardware, plus sleep current for Paper or refresh under
    load for Pixel when those tracks are chosen.

@@ -63,7 +63,7 @@ the panel electronics; that scan is not animation.
 The difficult work is timed parallel output, module-revision mapping, level
 translation, current distribution, brightness enforcement, electromagnetic
 behavior, and heat. The controller is unselected. Frameshift is researching a
-non-Raspberry DMA-capable MCU with Zig firmware; an STM32H7-class part is only a
+non-Raspberry DMA-capable MCU with qualified firmware; an STM32H7-class part is only a
 feasibility candidate. See the [Pixel frame specification](../frames/pixel-frame.md).
 
 ## Prototype guidance

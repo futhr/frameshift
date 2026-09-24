@@ -9,6 +9,8 @@ The current host implementation uses Exqlite directly behind one Frameshift-owne
 OTP process. Ecto is not part of the initial persistence boundary. The choice
 remains subject to macOS bundle, migration, crash-recovery, and license review
 before a prototype release.
+The broader engine comparison in [embedded persistence](embedded-persistence.md)
+keeps SQLite as the authoritative store across all specified hosts.
 
 ## Question
 
@@ -20,8 +22,8 @@ duplicating domain state or adding an external database process?
 `docs/host/macos.md` assigns metadata ownership to the Elixir core and names
 `metadata.sqlite` as the store. `docs/architecture/implementation-plan.md`
 requires transactional migrations, restart durability, cache reuse, and
-reference-safe removal. The repository forbids Python tooling and keeps custom
-raster code outside the BEAM.
+reference-safe removal. The repository forbids project-owned Python tooling
+and keeps custom raster code outside the BEAM.
 
 ## Evaluation criteria
 

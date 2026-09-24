@@ -6,9 +6,9 @@ security review, or explicit later product choice.
 
 ## Cross-cutting blockers
 
-- Which MCU/module provides Wi-Fi, mutual TLS, secure identity, recoverable
-  updates, adequate storage, and a reproducible Zig-oriented build with no
-  Python dependency?
+- Which exact MCU/module and supported SDK provide Wi-Fi, mutual TLS, secure
+  identity, recoverable updates, adequate storage, and a pinned reproducible
+  build with acceptable whole-device power and refresh behavior?
 - What exact commissioning transport works across selected hardware: temporary
   USB, BLE, temporary access point, or a subset?
 - Does the v0.1 QR/bootstrap/mTLS design pass independent security review?
@@ -27,6 +27,17 @@ security review, or explicit later product choice.
   worker through login, upgrade, crash, sleep, and logout?
 - Does the prototype-selected direct Exqlite boundary pass hardened-runtime,
   notarization, upgrade, and crash-recovery tests in the bundled macOS host?
+- Do the SQLite/object backup and restore procedure, filesystem assumptions,
+  and full-disk/power-loss behavior pass on APFS, Ubuntu, and Pi storage?
+- Can one signed Mac DMG pass clean direct, Homebrew Cask, and Sparkle update
+  paths, including nested BEAM/NIF/renderer signatures and rollback?
+- Which exact Ubuntu amd64/arm64 and Pi 5 images, credential stores, and
+  supported upgrade paths pass installed portability and idle-resource gates?
+- Do the shared Gleam kernel's remaining capability-admission cases and the
+  guide's supported browser matrix preserve the locally passing BEAM/JavaScript
+  fixtures and generated-case parity?
+- Does the exact OTP 29/Elixir 1.20.4/Gleam 1.18.1 release set package and run on the
+  clean Mac, Ubuntu, and Pi targets without NIF or Nerves image incompatibility?
 - What is the oldest supported macOS version for current Vision,
   MediaGenerationKit, MenuBarExtra, and ServiceManagement behavior?
 - Does MediaGenerationKit's LGPL-3.0 distribution and model-license set fit the
@@ -71,7 +82,7 @@ security review, or explicit later product choice.
 
 ## Pixel
 
-- Select and prove a non-Raspberry MCU with a Zig timed-parallel/DMA driver for
+- Select and prove a non-Raspberry MCU with a timed-parallel/DMA driver for
   the exact P3 module revision.
 - Determine one versus three chain topology, bit depth, refresh, and signal
   integrity at 192×128.

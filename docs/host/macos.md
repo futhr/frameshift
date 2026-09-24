@@ -166,8 +166,12 @@ queued, current, previous-known-good, or inside the trash retention window.
 
 ## Background operation
 
-The first distribution target is a directly downloaded, signed, notarized Mac
-app. App Store constraints are a separate research gate.
+The first distribution target is one Developer ID signed, hardened-runtime,
+notarized, stapled DMG. Direct download, Homebrew Cask, and Sparkle updates
+consume that same versioned artifact under the
+[installation contract](../architecture/install-and-guide.md). The current
+development bundle does not satisfy these release claims. App Store
+constraints are a separate product decision.
 
 Use Apple's `SMAppService` to register a bundled per-user login item or launch
 agent only after the user enables background synchronization. The app must show
@@ -243,4 +247,9 @@ Cloud labeling is a separate explicit opt-in and is disabled by default.
 6. Keychain denial/lock behavior;
 7. migration and rollback with a copy of real metadata;
 8. no undeclared network requests during local-only operation;
-9. repository build and test workflow contains no Python dependency.
+9. project-owned app/build scripts contain no Python; any upstream toolchain
+   exception follows the pinned isolated-build policy;
+10. direct download, Homebrew Cask, and Sparkle update paths preserve the
+    same signed bundle identity, data, and background registration state;
+11. nested OTP runtime, Exqlite NIF, Zig worker, and update helpers pass
+    Developer ID/hardened-runtime validation in the installed artifact.

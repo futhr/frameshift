@@ -13,6 +13,9 @@ retention, scheduling, and its exact display update.
 The portable host core is specified in [Portable Host Core](host-core.md).
 macOS is the first shell; Linux and Raspberry Pi-class Linux hosts reuse the
 same core and frame semantics through platform adapters.
+The public [installation guide](install-and-guide.md) is static and runs a
+bounded browser simulation. It is outside the authenticated command path.
+Ubuntu and Pi roles are defined in the [Linux host specification](../host/linux.md).
 The [domain map](domain-map.md) assigns host transition ownership. The
 [diagnostics contract](diagnostics.md) defines audit, logs, metrics, and
 read-only access independently of the shell UI.
@@ -47,6 +50,12 @@ Elixir/OTP Core ─────── content-addressed library + metadata datab
        \_________|__________/
           immutable asset slots
           desired/current state
+
+Public static guide ── Gleam/JavaScript decision simulation
+                              |
+                    non-secret native handoff
+                              v
+                         Host shell
 ```
 
 ## Component ownership

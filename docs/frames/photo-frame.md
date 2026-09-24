@@ -60,9 +60,9 @@ need desktop applications, video decoding, or a Linux development board.
 
 MCU-class MIPI display parts such as ESP32-P4 show that thin high-resolution
 controllers are plausible, but do not yet prove 2560×1440 LVDS/eDP compatibility.
-An exact controller remains the primary technical blocker. Custom project-owned
-native firmware is Zig; vendor display-controller firmware can be a qualified
-opaque component when its update and security behavior are documented.
+An exact controller remains the primary technical blocker. Project-owned
+firmware tooling is selected with the exact controller; vendor firmware can be
+a qualified opaque component when its update and security behavior are documented.
 
 ## Power and cable design
 

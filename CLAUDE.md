@@ -41,13 +41,15 @@ design record; implementation status does not reduce their scope.
    `git config core.hooksPath .githooks` before committing.
 10. Never change repository visibility. Visibility changes are manual,
     user-only actions on every hosting provider.
-11. Python is forbidden in the repository's application stack, firmware,
-    build tooling, scripts, examples, tests, and documented workflows. Prefer
-    Elixir/OTP for host orchestration. Use Nerves only for an optional external
-    bridge, simulator, or evidence-backed powered prototype. Use Zig for native
-    code and project-owned MCU firmware when BEAM or platform APIs cannot meet
-    the requirement. A thin Swift/SwiftUI shell is permitted for macOS-only
-    lifecycle, menu-bar UI, Vision, Core Image, and system APIs.
+11. Do not write Python in Frameshift application code, firmware, scripts,
+    examples, or tests. A pinned upstream firmware/system toolchain may require
+    Python inside an isolated, reproducible build environment; record its
+    version, inputs, license, and output, and never ship it as an application
+    runtime. Prefer Elixir/OTP for host orchestration. Use Nerves for a
+    separately qualified external Pi appliance or bridge. Use Zig for the
+    existing native renderer; select MCU firmware language and vendor tooling
+    from exact hardware and recovery evidence rather than language preference.
+    A thin Swift/SwiftUI shell owns macOS-only lifecycle and system APIs.
 12. Frameshift reference builds contain no Raspberry Pi hardware. Prior art
     built around it may be cited only as research evidence, not adopted as the
     reference architecture.

@@ -83,7 +83,7 @@ module PSRAM, regulators, flash, battery monitor, and development-board LEDs can
 raise whole-board sleep current dramatically. Source: [ESP32-S3 datasheet](https://documentation.espressif.com/esp32_s3_datasheet_en.pdf).
 
 That is evidence for the power class, not a selected controller. Selection is
-blocked on a Zig-compatible, reproducible, no-Python build plus Wi-Fi, mTLS,
+blocked on a pinned reproducible firmware build plus Wi-Fi, mTLS,
 secure identity, SPI throughput, and measured whole-board sleep current.
 
 The panel-only refresh claim corresponds to less than 0.003 Wh at 0.5 W for
@@ -148,8 +148,8 @@ and timers while application code handles only infrequent still-image swaps.
 An STM32H7-class part is a feasibility candidate because the family exposes
 high-resolution timers, substantial DMA/display facilities, external-memory
 interfaces, and cryptographic acceleration. Those capabilities do **not** prove
-an exact HUB75 design, Zig support, Wi-Fi/TLS integration, or acceptable board
-depth. Sources: [STM32H7 family](https://www.st.com/en/microcontrollers-microprocessors/stm32h7-series.html)
+an exact HUB75 design, qualified firmware support, Wi-Fi/TLS integration, or
+acceptable board depth. Sources: [STM32H7 family](https://www.st.com/en/microcontrollers-microprocessors/stm32h7-series.html)
 and [STM32H7 example catalogue](https://www.st.com/content/ccc/resource/technical/document/application_note/group0/6b/36/9b/ef/1d/91/4e/6b/DM00393275/files/DM00393275.pdf/jcr%3Acontent/translations/en.DM00393275.pdf).
 
 An STM32 community driver demonstrates that two chained 64×64 HUB75E modules
@@ -182,7 +182,8 @@ specify user-installed mains wiring.
 No MCU or module becomes reference hardware until it passes all of these:
 
 - maximum assembled PCB height and connector/bend envelope;
-- clean build from a pinned toolchain with no Python dependency;
+- clean build from a pinned toolchain; any upstream Python tools run only in an
+  isolated reproducible environment and never in shipped firmware;
 - Wi-Fi association, reconnect, and local discovery behavior;
 - TLS 1.3 or appropriate current TLS, mutual authentication, and key storage;
 - two recoverable firmware slots or equivalent;
@@ -203,7 +204,7 @@ or finishing an enclosure. It is not a participation requirement:
   and the complete battery/control-board depth.
 - **Photo:** a donor-monitor or exact panel/controller mule that measures depth,
   heat, idle power, glare, and cable/mount options.
-- **Pixel:** a one-module electrical mule that validates Zig timed-parallel/DMA,
+- **Pixel:** a one-module electrical mule that validates timed-parallel/DMA,
   mapping, brightness, and power before a six-module power/mechanical build.
 
 A software frame simulator and golden artifact set benefit every path but do

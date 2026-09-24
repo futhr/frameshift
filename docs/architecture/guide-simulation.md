@@ -51,6 +51,9 @@ never invents a compatible replacement profile for Paper.
 - Every event reports a short textual outcome in an `aria-live` region. All
   controls are native buttons, selects, and file inputs with visible focus.
   No color alone conveys state.
+  The browser smoke checks accessible names for interactive controls and
+  activates core choices by keyboard. It also checks invalid file rejection;
+  manual VoiceOver and cross-browser inspection remain release gates.
 
 ## Delivery and acceptance
 

@@ -75,6 +75,11 @@ profile, exact renderer build, and transfer contract. One work digest combines
 that reusable binding with the source and recipe before rendering; a result
 binds it to the final wire-byte digest. A renderer revision label alone is not
 proof that the same binary produced the bytes.
+The renderer owner reads a bounded executable once into a private temporary
+copy, hashes the copied bytes, and launches that copy. It retains the copy until
+the worker exits, then removes it. A change to the configured executable path
+after that snapshot cannot change the active worker's build identity; a worker
+restart reads and qualifies a new snapshot before accepting work.
 
 ## Photo renderer
 

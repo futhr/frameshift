@@ -28,6 +28,27 @@ that each corresponding regular file has the recorded size and digest. It
 rejects symlinks and never follows a path outside the supplied artifact
 directory.
 
+## Manifest creation
+
+The release operator supplies a compact UTF-8 plan containing the same product
+and stable version plus 1–16 artifact entries with only platform,
+architecture, format, flat filename, and immutable HTTPS URL. The signer reads
+each regular local archive without following a symlink, derives its byte count
+and SHA-256, constructs the canonical manifest above, and signs those exact
+bytes with an Ed25519 private key supplied as an owner-only regular file. It
+derives the public key from that private key and refuses to sign unless its
+SPKI SHA-256 equals the separately supplied owner-pinned fingerprint. It
+never prints key bytes or accepts a private key from a command argument or
+environment variable.
+
+The signer writes a manifest, detached 64-byte signature, and derived public
+key into a new private output directory. It does not overwrite existing
+release material. It verifies its own output with the ordinary local verifier
+before making that directory available to the next release step. Signing does
+not publish or claim that a DMG, package, firmware image, or public URL passed
+its independent acceptance gate. An owner may instead use an offline signing
+system that emits the same exact manifest and detached signature contract.
+
 There is no manifest of placeholder downloads. The guide keeps installation
 links absent until a fully verified signed manifest and its exact artifact
 files exist. A release-mode guide build takes explicit paths for the manifest,
@@ -50,7 +71,9 @@ does not change to publish release artifacts.
 Reject an unknown schema or platform tuple, malformed signature, changed
 manifest byte, duplicate or missing artifact, path traversal, symlink,
 size/digest mismatch, non-HTTPS or mutable URL, and a key other than the
-configured trust root. A partial release is never presented as complete for a
+configured trust root. Refuse a group/world-readable private key, a changed
+artifact during hashing, an unsafe output parent, or an existing output
+directory. A partial release is never presented as complete for a
 claimed platform. A failed verification cannot overwrite the last published
 manifest or guide. Key rotation needs a separately reviewed transition signed
 by the previous trusted key and installed-client update compatibility tests.

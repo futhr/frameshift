@@ -4,7 +4,7 @@ import { mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { parseManifest, verifyRelease } from './manifest.mjs';
+import { parseManifest, verifyPublishedArtifacts, verifyRelease } from './manifest.mjs';
 
 const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');
 
@@ -86,4 +86,38 @@ test('schema rejects duplicate JSON, mutable URLs, duplicate targets, and traver
   assert.throws(() => parseManifest(encoded({ ...manifest, artifacts: [{
     ...manifest.artifacts[0], platform: 'windows',
   }] })), /unsupported release target/);
+});
+
+test('publication fetch follows bounded HTTPS redirects and hashes the served bytes', async () => {
+  const bytes = Buffer.from('public artifact bytes');
+  const manifest = manifestFor(bytes);
+  const calls = [];
+  const fetcher = async (url, options) => {
+    calls.push({ url, options });
+    if (calls.length === 1) {
+      return new Response(null, { status: 302,
+        headers: { location: 'https://assets.example.com/signed-artifact' } });
+    }
+    return new Response(bytes, { status: 200,
+      headers: { 'content-length': String(bytes.length) } });
+  };
+  await verifyPublishedArtifacts(manifest, fetcher);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].options.redirect, 'manual');
+  assert.equal(calls[0].options.headers['accept-encoding'], 'identity');
+  assert.equal(calls[1].url, 'https://assets.example.com/signed-artifact');
+
+  await assert.rejects(verifyPublishedArtifacts(manifest,
+    async () => new Response(Buffer.from('public artifact byte!'))), /digest mismatch/);
+  await assert.rejects(verifyPublishedArtifacts(manifest,
+    async () => new Response(bytes, { status: 206 })), /response refused/);
+  await assert.rejects(verifyPublishedArtifacts(manifest,
+    async () => new Response(bytes, { headers: { 'content-encoding': 'gzip' } })),
+  /response refused/);
+  await assert.rejects(verifyPublishedArtifacts(manifest,
+    async () => new Response(null, { status: 302,
+      headers: { location: 'http://internal.invalid/artifact' } })), /left HTTPS/);
+  await assert.rejects(verifyPublishedArtifacts(manifest,
+    async () => new Response(null, { status: 302,
+      headers: { location: 'https://assets.example.com/loop' } })), /redirect limit/);
 });

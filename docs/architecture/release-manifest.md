@@ -35,7 +35,11 @@ detached signature, public key, pinned key fingerprint, and local artifact
 directory; a partial set of inputs fails the build. It substitutes a bounded
 version and platform-specific link list into the static install section only
 after local verification. The publication pipeline must then fetch each public
-URL and compare its exact bytes before deploying the guide. Publication
+URL with a finite redirect chain that remains HTTPS, requests identity
+encoding, rejects partial or compressed responses, streams at most the
+declared byte count, and compares the downloaded size and SHA-256 before
+deploying the guide. GitHub Releases may redirect to its asset CDN; a redirect
+is never taken as evidence by itself. Publication
 additionally requires owner-pinned trust root,
 Developer ID/notarization, Sparkle and Cask acceptance, licenses/notices,
 installed platform tests, and applicable frame evidence. Repository visibility

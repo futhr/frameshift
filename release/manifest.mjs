@@ -123,3 +123,51 @@ export async function verifyRelease({ manifestPath, signaturePath, publicKeyPath
   for (const artifact of manifest.artifacts) await verifyArtifact(artifactDirectory, artifact);
   return manifest;
 }
+
+async function downloadDigest(artifact, fetcher) {
+  let url = artifact.url;
+  const signal = AbortSignal.timeout(15 * 60 * 1000);
+  for (let redirects = 0; redirects <= 5; redirects += 1) {
+    const response = await fetcher(url, {
+      redirect: 'manual', signal, headers: { 'accept-encoding': 'identity' },
+    });
+    if ([301, 302, 303, 307, 308].includes(response.status)) {
+      const location = response.headers.get('location');
+      if (!location || redirects === 5) throw new Error('release redirect limit exceeded');
+      const next = new URL(location, url);
+      if (next.protocol !== 'https:' || next.username || next.password) {
+        throw new Error('release redirect left HTTPS');
+      }
+      url = next.href;
+      continue;
+    }
+    if (response.status !== 200 || !response.body ||
+        (response.headers.get('content-encoding') &&
+         response.headers.get('content-encoding') !== 'identity')) {
+      throw new Error(`public release response refused: ${artifact.file}`);
+    }
+    const length = response.headers.get('content-length');
+    if (length !== null && (!/^[0-9]+$/.test(length) || Number(length) !== artifact.bytes)) {
+      throw new Error(`public release length mismatch: ${artifact.file}`);
+    }
+    const hash = createHash('sha256');
+    let count = 0;
+    for await (const chunk of response.body) {
+      count += chunk.byteLength;
+      if (count > artifact.bytes) {
+        await response.body.cancel().catch(() => {});
+        throw new Error(`public release exceeds declared size: ${artifact.file}`);
+      }
+      hash.update(chunk);
+    }
+    if (count !== artifact.bytes || hash.digest('hex') !== artifact.sha256) {
+      throw new Error(`public release digest mismatch: ${artifact.file}`);
+    }
+    return;
+  }
+}
+
+export async function verifyPublishedArtifacts(manifest, fetcher = fetch) {
+  const admitted = parseManifest(Buffer.from(JSON.stringify(manifest) + '\n'));
+  for (const artifact of admitted.artifacts) await downloadDigest(artifact, fetcher);
+}

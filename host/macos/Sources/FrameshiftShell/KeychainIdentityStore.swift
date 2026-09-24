@@ -6,6 +6,7 @@ public enum KeychainIdentityError: Error, Sendable {
   case identityUnavailable
   case unsupportedKey
   case signingFailed
+  case storageFailed
 }
 
 public struct KeychainIdentityDescription: Sendable {
@@ -15,7 +16,99 @@ public struct KeychainIdentityDescription: Sendable {
 
 /// Looks up a paired identity by persistent Keychain reference without exporting its private key.
 public struct KeychainIdentityStore: Sendable {
+  private static let hostIdentityService = "io.frameshift.host-identity.v1"
+  private static let hostIdentityTag = Data("io.frameshift.host-key.v1".utf8)
+
   public init() {}
+
+  /// Creates or reuses the local host identity without exporting its private key.
+  public func ensureHostIdentity() throws -> String {
+    if let existing = try storedHostReference() {
+      let description = try describe(reference: existing)
+      guard description.algorithm == "ecdsa" else { throw KeychainIdentityError.unsupportedKey }
+      return existing
+    }
+
+    let attributes: [String: Any] = [
+      kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
+      kSecAttrKeySizeInBits as String: 256,
+      kSecPrivateKeyAttrs as String: [
+        kSecAttrIsPermanent as String: true,
+        kSecAttrApplicationTag as String: Self.hostIdentityTag,
+      ],
+    ]
+    var error: Unmanaged<CFError>?
+    guard let privateKey = SecKeyCreateRandomKey(attributes as CFDictionary, &error) else {
+      error?.release()
+      throw KeychainIdentityError.storageFailed
+    }
+
+    var storedCertificate: SecCertificate?
+    var committed = false
+    defer {
+      if !committed {
+        if let storedCertificate {
+          SecItemDelete(
+            [
+              kSecClass as String: kSecClassCertificate,
+              kSecValueRef as String: storedCertificate,
+            ] as CFDictionary)
+        }
+        SecItemDelete(
+          [
+            kSecClass as String: kSecClassKey,
+            kSecAttrApplicationTag as String: Self.hostIdentityTag,
+            kSecAttrKeyClass as String: kSecAttrKeyClassPrivate,
+          ] as CFDictionary)
+      }
+    }
+
+    let certificate = try HostCertificate.issue(privateKey: privateKey)
+    let certificateQuery: [String: Any] = [
+      kSecClass as String: kSecClassCertificate,
+      kSecValueRef as String: certificate,
+    ]
+    guard SecItemAdd(certificateQuery as CFDictionary, nil) == errSecSuccess else {
+      throw KeychainIdentityError.storageFailed
+    }
+    storedCertificate = certificate
+
+    var identity: SecIdentity?
+    guard SecIdentityCreateWithCertificate(nil, certificate, &identity) == errSecSuccess,
+      let identity
+    else { throw KeychainIdentityError.identityUnavailable }
+    let reference = try persistentReference(for: identity)
+
+    let referenceQuery: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: Self.hostIdentityService,
+      kSecAttrAccount as String: "default",
+      kSecValueData as String: Data(reference.utf8),
+    ]
+    guard SecItemAdd(referenceQuery as CFDictionary, nil) == errSecSuccess else {
+      throw KeychainIdentityError.storageFailed
+    }
+    committed = true
+    return reference
+  }
+
+  private func storedHostReference() throws -> String? {
+    let query: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: Self.hostIdentityService,
+      kSecAttrAccount as String: "default",
+      kSecReturnData as String: true,
+      kSecMatchLimit as String: kSecMatchLimitOne,
+    ]
+    var result: CFTypeRef?
+    let status = SecItemCopyMatching(query as CFDictionary, &result)
+    if status == errSecItemNotFound { return nil }
+    guard status == errSecSuccess,
+      let data = result as? Data,
+      let reference = String(data: data, encoding: .utf8)
+    else { throw KeychainIdentityError.identityUnavailable }
+    return reference
+  }
 
   /// Produces the opaque reference stored with a paired frame, never private-key bytes.
   public func persistentReference(for identity: SecIdentity) throws -> String {

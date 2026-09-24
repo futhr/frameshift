@@ -8,6 +8,7 @@ private enum ShellSession {
   static let panelState = PanelState()
   static let loginSettings = LoginSettingsModel(service: SystemLoginItemService())
   static let discovery = FrameDiscovery()
+  static let pairingSettings = PairingSettingsModel()
 }
 
 @main
@@ -25,7 +26,12 @@ struct FrameshiftMenuApp: App {
     .menuBarExtraStyle(.window)
 
     Settings {
-      SettingsView(model: ShellSession.loginSettings, discovery: ShellSession.discovery)
+      SettingsView(
+        model: ShellSession.loginSettings,
+        discovery: ShellSession.discovery,
+        pairing: ShellSession.pairingSettings,
+        shell: ShellSession.model
+      )
     }
   }
 }

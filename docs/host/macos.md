@@ -199,7 +199,7 @@ The Swift layer uses Bonjour/Network framework to browse privacy-minimal WoT
 Introduction records. The core retrieves and admits the full TD only after
 binding authentication, then selects interactions from its Forms. Full metadata
 appears only after authorization. Pairing
-shows the device fingerprint or QR confirmation, requires the frame's physical
+shows the selected physical QR image for explicit confirmation, requires the frame's physical
 pair mode, stores host credentials in Keychain, and records a friendly name
 only on the Mac unless the user explicitly writes it to the frame.
 

@@ -34,10 +34,13 @@ interface.
   touching its target. It refuses to replace a live socket. Group ownership
   and admission need installed Linux tests; the current Mac private-user socket
   policy does not establish that access model.
-  Each accepted Linux connection reads `SO_PEERCRED` from the connected Unix
-  stream socket. If the named OTP socket option is unavailable, the adapter
-  uses the Linux native option and validates the returned structure length
-  before accepting its UID. A read error or malformed credential fails closed.
+  Each accepted Linux connection reads the kernel PID, UID, and primary GID
+  from `SO_PEERCRED` on the connected Unix stream socket. If the named OTP
+  socket option is unavailable, the adapter uses the Linux native option and
+  validates the exact 12-byte structure before accepting those fields. A read
+  error or malformed credential fails closed. The primary GID does not prove
+  supplementary group membership; filesystem permissions on the group-owned
+  socket enforce that access, while the peer UID supplies attribution.
   A container contract test must exercise the actual Linux kernel and the
   pinned OTP release; a same-UID result alone does not qualify group admission.
   The Linux CLI must cover import, target discovery/pairing, send, state, and

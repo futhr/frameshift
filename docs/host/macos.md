@@ -220,7 +220,8 @@ must never enter the durable command receipt, audit, native log, or metric
 record. The operation matches the selected discovery ID to the QR record,
 resolves a Keychain identity at the transport boundary, pins the frame's SPKI
 before sending the secret, retrieves the fixed authenticated TD introduction,
-checks its device ID, then commits the paired record. A failed or uncertain
+checks its device ID and reference HTTPS origin, then commits the paired record.
+A TD that changes the credential audience is refused. A failed or uncertain
 network exchange must not invent a paired target. The shell retains no QR
 secret after the operation completes.
 

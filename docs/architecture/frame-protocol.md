@@ -189,6 +189,9 @@ certificate fingerprint but never echoes the secret. Errors use bounded
 problem documents without disclosing whether the ID, secret, or certificate
 was wrong. The host then retrieves the full TD through the authenticated
 DNS-SD introduction URL and checks its device ID against the QR record.
+The reference simulator serves `GET /.well-known/wot` only to the exact host
+certificate admitted by the physical pairing state. The pre-pair route never
+exposes the TD, including to a TLS client presenting another certificate.
 
 Persisting that admitted identity is idempotent only for the same canonical TD,
 credential reference, and pinned frame SPKI. A changed pin, credential

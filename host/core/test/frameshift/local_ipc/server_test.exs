@@ -8,6 +8,22 @@ defmodule Frameshift.LocalIPC.ServerTest do
   alias Frameshift.LocalIPC.Server
 
   @token String.duplicate("a", 64)
+  @pairing_device_id "sim-photo-00000001"
+  @pairing_thing File.read!(
+                   Path.expand(
+                     "../../../../../protocol/fixtures/valid/thing-description.json",
+                     __DIR__
+                   )
+                 )
+
+  defmodule PairingResolver do
+    @moduledoc false
+
+    @spec resolve(term(), map()) :: {:ok, map()}
+    def resolve(_, _) do
+      {:ok, %{certificate: <<1, 2, 3>>, private_key: {:rsa, :test_key}}}
+    end
+  end
 
   setup do
     root =
@@ -285,6 +301,64 @@ defmodule Frameshift.LocalIPC.ServerTest do
              request(context.socket_path, %{
                "version" => 1,
                "requestId" => "still-live",
+               "operation" => "snapshot"
+             })
+  end
+
+  test "transient pairing admits a frame without a durable secret-bearing command", context do
+    {:ok, supervisor} = Task.Supervisor.start_link()
+    path = Path.join(Path.dirname(context.socket_path), "pair.sock")
+    owner = self()
+
+    pairer = fn bootstrap, _, request_id ->
+      send(owner, {:physical_pair, bootstrap.device_id, request_id})
+      {:ok, %{device_id: bootstrap.device_id}}
+    end
+
+    {:ok, server} =
+      Server.start_link(
+        path: path,
+        token: @token,
+        library: context.library,
+        task_supervisor: supervisor,
+        pairing: [
+          resolver: {PairingResolver, %{}},
+          pairer: pairer,
+          fetcher: fn _, _ -> {:ok, @pairing_thing} end
+        ],
+        name: nil
+      )
+
+    on_exit(fn ->
+      stop_process(server)
+      stop_process(supervisor)
+    end)
+
+    bootstrap =
+      Jason.encode!(%{
+        "version" => 1,
+        "deviceId" => @pairing_device_id,
+        "serverSpki" => "sha256:" <> String.duplicate("b", 64),
+        "secret" => Base.url_encode64(:binary.copy(<<37>>, 16), padding: false)
+      })
+
+    assert %{"ok" => true, "frame" => %{"frameId" => @pairing_device_id}} =
+             request(path, %{
+               "version" => 1,
+               "requestId" => "pair-physical-1",
+               "operation" => "pair",
+               "bootstrap" => bootstrap,
+               "discoveredId" => @pairing_device_id,
+               "origin" => "https://frame.local",
+               "credentialRef" => "keychain:pair-test"
+             })
+
+    assert_receive {:physical_pair, @pairing_device_id, "pair-physical-1"}
+
+    assert %{"ok" => true, "snapshot" => %{"targets" => [%{"id" => @pairing_device_id}]}} =
+             request(path, %{
+               "version" => 1,
+               "requestId" => "after-pair",
                "operation" => "snapshot"
              })
   end

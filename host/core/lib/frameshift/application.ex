@@ -123,6 +123,10 @@ defmodule Frameshift.Application do
           Application.put_env(:frameshift_core, :direct_delivery,
             credential_resolver: {KeychainBroker, %{socket_path: expanded, token: token}}
           )
+
+          Application.put_env(:frameshift_core, :pairing,
+            resolver: {KeychainBroker, %{socket_path: expanded, token: token}}
+          )
         else
           _ -> raise "credential broker socket failed local admission"
         end

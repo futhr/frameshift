@@ -24,6 +24,18 @@ public enum CoreClientError: Error, Equatable, Sendable {
   case loopStorageFull
   case itemNotFound
   case protocolFailure
+  case pairingIncomplete
+  case pairingOutcomeUnknown
+  case pairingPreflightFailed
+  case pairingRejected
   case targetNotFound
   case unsupportedMedia
+}
+
+public struct PairedFrameResult: Decodable, Sendable {
+  public let frameID: String
+
+  private enum CodingKeys: String, CodingKey {
+    case frameID = "frameId"
+  }
 }

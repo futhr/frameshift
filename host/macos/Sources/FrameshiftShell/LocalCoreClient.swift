@@ -30,6 +30,48 @@ public actor LocalCoreClient: CoreClient {
     return try await exchange(operation: "command", command: prepared.command)
   }
 
+  /// Sends a physical bootstrap only through the transient IPC operation.
+  /// A lost response is not retried because the one-time secret may have been consumed.
+  public func pair(
+    bootstrap: String, discoveredID: String, origin: String, credentialReference: String
+  ) async throws -> PairedFrameResult {
+    guard bootstrap.utf8.count <= 2_048,
+      discoveredID.utf8.count <= 128,
+      origin.utf8.count <= 1_024,
+      credentialReference.utf8.count <= 1_024
+    else { throw CoreClientError.pairingPreflightFailed }
+
+    try await BundledCore.shared.ensureRunning(socketPath: socketPath)
+    let auth = try await BundledCore.shared.sessionToken(socketPath: socketPath)
+    let request = PairingWireRequest(
+      auth: auth, bootstrap: bootstrap, discoveredID: discoveredID,
+      origin: origin, credentialReference: credentialReference
+    )
+    let payload = try encoder.encode(request)
+    guard payload.count <= Self.maximumRequestBytes else {
+      throw CoreClientError.pairingPreflightFailed
+    }
+
+    let responseData: Data
+    do {
+      responseData = try await send(payload)
+    } catch {
+      throw CoreClientError.pairingOutcomeUnknown
+    }
+
+    guard let response = try? decoder.decode(WireResponse.self, from: responseData),
+      response.version == 1, response.requestID == request.requestID
+    else { throw CoreClientError.pairingOutcomeUnknown }
+
+    if response.ok, let frame = response.frame { return frame }
+    switch response.error?.code {
+    case "pairing_preflight_failed": throw CoreClientError.pairingPreflightFailed
+    case "pairing_rejected": throw CoreClientError.pairingRejected
+    case "pairing_incomplete": throw CoreClientError.pairingIncomplete
+    default: throw CoreClientError.pairingOutcomeUnknown
+    }
+  }
+
   public static func defaultSocketPath() -> String {
     if let configured = ProcessInfo.processInfo.environment["FRAMESHIFT_SOCKET_PATH"],
       !configured.isEmpty
@@ -354,11 +396,34 @@ private struct WireRequest: Encodable, Sendable {
   }
 }
 
+private struct PairingWireRequest: Encodable, Sendable {
+  let version = 1
+  let requestID = UUID().uuidString.lowercased()
+  let operation = "pair"
+  let auth: String
+  let bootstrap: String
+  let discoveredID: String
+  let origin: String
+  let credentialReference: String
+
+  private enum CodingKeys: String, CodingKey {
+    case version
+    case requestID = "requestId"
+    case operation
+    case auth
+    case bootstrap
+    case discoveredID = "discoveredId"
+    case origin
+    case credentialReference = "credentialRef"
+  }
+}
+
 private struct WireResponse: Decodable, Sendable {
   let version: Int
   let requestID: String?
   let ok: Bool
   let snapshot: CoreSnapshot?
+  let frame: PairedFrameResult?
   let error: WireError?
 
   private enum CodingKeys: String, CodingKey {
@@ -366,6 +431,7 @@ private struct WireResponse: Decodable, Sendable {
     case requestID = "requestId"
     case ok
     case snapshot
+    case frame
     case error
   }
 }

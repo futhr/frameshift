@@ -15,6 +15,7 @@ defmodule Frameshift.LocalIPC.Server do
   alias Frameshift.Library
   alias Frameshift.LocalAPI
   alias Frameshift.LocalIPC.SocketDirectory
+  alias Frameshift.Pairing.Admission
 
   @maximum_request_bytes 64 * 1024
   @maximum_response_bytes 1024 * 1024
@@ -49,12 +50,13 @@ defmodule Frameshift.LocalIPC.Server do
     token = Keyword.fetch!(options, :token)
     library = Keyword.get(options, :library, Frameshift.Library)
     task_supervisor = Keyword.get(options, :task_supervisor, Frameshift.TaskSupervisor)
+    pairing = Keyword.get(options, :pairing, Application.get_env(:frameshift_core, :pairing, []))
 
     with :ok <- validate_token(token),
          :ok <- prepare_path(path),
          {:ok, listener} <- listen(path),
          :ok <- File.chmod(path, 0o600),
-         {:ok, acceptor} <- start_acceptor(task_supervisor, listener, library, token) do
+         {:ok, acceptor} <- start_acceptor(task_supervisor, listener, library, token, pairing) do
       Process.monitor(acceptor)
       {:ok, %State{acceptor: acceptor, listener: listener, path: path}}
     else
@@ -123,17 +125,17 @@ defmodule Frameshift.LocalIPC.Server do
     ])
   end
 
-  defp start_acceptor(task_supervisor, listener, library, token) do
+  defp start_acceptor(task_supervisor, listener, library, token, pairing) do
     Task.Supervisor.start_child(task_supervisor, fn ->
-      accept_loop(task_supervisor, listener, library, token)
+      accept_loop(task_supervisor, listener, library, token, pairing)
     end)
   end
 
-  defp accept_loop(task_supervisor, listener, library, token) do
+  defp accept_loop(task_supervisor, listener, library, token, pairing) do
     case :gen_tcp.accept(listener) do
       {:ok, socket} ->
-        hand_off(task_supervisor, socket, library, token)
-        accept_loop(task_supervisor, listener, library, token)
+        hand_off(task_supervisor, socket, library, token, pairing)
+        accept_loop(task_supervisor, listener, library, token, pairing)
 
       {:error, :closed} ->
         :ok
@@ -143,10 +145,10 @@ defmodule Frameshift.LocalIPC.Server do
     end
   end
 
-  defp hand_off(task_supervisor, socket, library, token) do
+  defp hand_off(task_supervisor, socket, library, token, pairing) do
     case Task.Supervisor.start_child(task_supervisor, fn ->
            receive do
-             {:serve, ^socket} -> serve(socket, library, token)
+             {:serve, ^socket} -> serve(socket, library, token, pairing)
            after
              @request_timeout_ms -> :gen_tcp.close(socket)
            end
@@ -162,10 +164,10 @@ defmodule Frameshift.LocalIPC.Server do
     end
   end
 
-  defp serve(socket, library, token) do
+  defp serve(socket, library, token, pairing) do
     response =
       case :gen_tcp.recv(socket, 0, @request_timeout_ms) do
-        {:ok, payload} -> dispatch(payload, library, token)
+        {:ok, payload} -> dispatch(payload, library, token, pairing)
         {:error, :timeout} -> error_response(nil, :request_timeout)
         {:error, _} -> error_response(nil, :invalid_request)
       end
@@ -185,10 +187,10 @@ defmodule Frameshift.LocalIPC.Server do
       :gen_tcp.close(socket)
   end
 
-  defp dispatch(payload, library, token) do
+  defp dispatch(payload, library, token, pairing) do
     with {:ok, request} <- decode_request(payload),
          :ok <- authenticate(request, token),
-         {:ok, response} <- execute_request(request, library) do
+         {:ok, response} <- execute_request(request, library, pairing) do
       response
     else
       {:error, {request_id, code}} -> error_response(request_id, code)
@@ -222,6 +224,7 @@ defmodule Frameshift.LocalIPC.Server do
       case operation do
         "command" -> ~w(version requestId operation auth command)
         "snapshot" -> ~w(version requestId operation auth query)
+        "pair" -> ~w(version requestId operation auth bootstrap discoveredId origin credentialRef)
         _ -> ~w(version requestId operation auth)
       end
 
@@ -230,7 +233,8 @@ defmodule Frameshift.LocalIPC.Server do
          :ok <- validate_auth_shape(auth),
          :ok <- validate_request_keys(request, allowed, request_id),
          :ok <- validate_command_shape(request, operation, request_id),
-         :ok <- validate_query_shape(request, operation, request_id) do
+         :ok <- validate_query_shape(request, operation, request_id),
+         :ok <- validate_pairing_shape(request, operation, request_id) do
       {:ok, request}
     end
   end
@@ -248,7 +252,9 @@ defmodule Frameshift.LocalIPC.Server do
   defp validate_request_id(request_id),
     do: {:error, {safe_request_id(request_id), :invalid_request}}
 
-  defp validate_operation(operation) when operation in ["snapshot", "command"], do: :ok
+  defp validate_operation(operation) when operation in ["snapshot", "command", "pair"],
+    do: :ok
+
   defp validate_operation(_), do: {:error, :invalid_request}
 
   defp validate_auth_shape(auth) when is_binary(auth) and byte_size(auth) == 64, do: :ok
@@ -281,6 +287,23 @@ defmodule Frameshift.LocalIPC.Server do
 
   defp validate_query_shape(_, _, _), do: :ok
 
+  defp validate_pairing_shape(request, "pair", request_id) do
+    with bootstrap when is_binary(bootstrap) and byte_size(bootstrap) in 1..2_048 <-
+           Map.get(request, "bootstrap"),
+         discovered_id when is_binary(discovered_id) and byte_size(discovered_id) in 16..128 <-
+           Map.get(request, "discoveredId"),
+         origin when is_binary(origin) and byte_size(origin) in 1..1_024 <-
+           Map.get(request, "origin"),
+         reference when is_binary(reference) and byte_size(reference) in 1..1_024 <-
+           Map.get(request, "credentialRef") do
+      :ok
+    else
+      _ -> {:error, {request_id, :invalid_request}}
+    end
+  end
+
+  defp validate_pairing_shape(_, _, _), do: :ok
+
   defp safe_request_id(request_id)
        when is_binary(request_id) and byte_size(request_id) in 1..64,
        do: request_id
@@ -312,14 +335,19 @@ defmodule Frameshift.LocalIPC.Server do
 
   defp secure_equal?(_, _), do: false
 
-  defp execute_request(%{"requestId" => request_id, "operation" => "snapshot"} = request, library) do
+  defp execute_request(
+         %{"requestId" => request_id, "operation" => "snapshot"} = request,
+         library,
+         _
+       ) do
     {:ok,
      success_response(request_id, LocalAPI.snapshot(library, nil, Map.get(request, "query", "")))}
   end
 
   defp execute_request(
          %{"requestId" => request_id, "operation" => "command", "command" => command},
-         library
+         library,
+         _
        ) do
     started = System.monotonic_time(:millisecond)
     Logger.metadata(request_id: request_id, command_id: command["id"])
@@ -354,6 +382,29 @@ defmodule Frameshift.LocalIPC.Server do
     )
 
     result
+  end
+
+  defp execute_request(
+         %{
+           "requestId" => request_id,
+           "operation" => "pair",
+           "bootstrap" => bootstrap,
+           "discoveredId" => discovered_id,
+           "origin" => origin,
+           "credentialRef" => reference
+         },
+         library,
+         pairing
+       ) do
+    options = Keyword.put(pairing, :library, library)
+
+    case Admission.pair(bootstrap, discovered_id, origin, reference, request_id, options) do
+      {:ok, frame} ->
+        {:ok, %{"version" => 1, "requestId" => request_id, "ok" => true, "frame" => frame}}
+
+      {:error, code} ->
+        {:error, {request_id, code}}
+    end
   end
 
   defp execute_command(:execute, request_id, command, command_hash, library) do

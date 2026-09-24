@@ -46,7 +46,8 @@ Apple explicitly positions window style for richer popover-like content:
 Target a compact width in the 360–420 point range and let content scroll before
 growing into a large editor.
 The approved perspective-frame mark sits beside the app name and short purpose
-line at the top, without a colored tile or other background. The mark has a
+line at the top, optically centered against the two text lines, without a
+colored tile or other background. The mark has a
 transparent field and uses a dark silhouette in light appearance and a white
 silhouette in dark appearance. The labeled Quit icon sits opposite it. The
 backdrop uses an active native

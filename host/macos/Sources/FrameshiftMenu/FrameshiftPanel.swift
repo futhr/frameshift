@@ -49,6 +49,7 @@ struct FrameshiftPanel: View {
           .resizable()
           .interpolation(.high)
           .frame(width: 38, height: 38)
+          .offset(y: -3)
           .accessibilityHidden(true)
       }
 

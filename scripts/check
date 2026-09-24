@@ -136,6 +136,8 @@ check_macos() {
   test "$(plutil -extract CFBundleIconFile raw "$app_bundle/Contents/Info.plist")" = "FrameshiftLight.icns"
   test "$(plutil -extract LSUIElement raw "$app_bundle/Contents/Info.plist")" = "true"
   test "$(plutil -extract CFBundleURLTypes.0.CFBundleURLSchemes.0 raw "$app_bundle/Contents/Info.plist")" = "frameshift"
+  test "$(plutil -extract NSBonjourServices.0 raw "$app_bundle/Contents/Info.plist")" = "_frameshift._tcp"
+  test -n "$(plutil -extract NSLocalNetworkUsageDescription raw "$app_bundle/Contents/Info.plist")"
 
   "$repository_root/scripts/check-packaged-app" "$app_bundle"
 }

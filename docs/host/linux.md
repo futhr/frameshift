@@ -34,6 +34,12 @@ interface.
   touching its target. It refuses to replace a live socket. Group ownership
   and admission need installed Linux tests; the current Mac private-user socket
   policy does not establish that access model.
+  Each accepted Linux connection reads `SO_PEERCRED` from the connected Unix
+  stream socket. If the named OTP socket option is unavailable, the adapter
+  uses the Linux native option and validates the returned structure length
+  before accepting its UID. A read error or malformed credential fails closed.
+  A container contract test must exercise the actual Linux kernel and the
+  pinned OTP release; a same-UID result alone does not qualify group admission.
   The Linux CLI must cover import, target discovery/pairing, send, state, and
   recovery as well as diagnostics. No general LAN control endpoint is exposed.
 - For import, the CLI opens the caller's file and streams bounded bytes into a
@@ -78,7 +84,9 @@ frame interoperability. Measure idle CPU, memory, wakeups, storage wear, and
 the metrics/log disk ceiling. A Pi appliance claim additionally needs signed
 firmware recovery, physical service access, and secure identity provisioning.
 
-Upstream evidence: [Nerves Pi 5 system](https://github.com/nerves-project/nerves_system_rpi5),
+Upstream evidence: [Linux Unix sockets and `SO_PEERCRED`](https://man7.org/linux/man-pages/man7/unix.7.html),
+[OTP socket options](https://www.erlang.org/doc/apps/kernel/socket.html),
+[Nerves Pi 5 system](https://github.com/nerves-project/nerves_system_rpi5),
 [NervesHub firmware signing](https://docs.nerves-hub.org/nerves-hub/setup/firmware-signing-keys),
 [systemd credentials](https://systemd.io/CREDENTIALS/), and
 [OTP circular logger](https://www.erlang.org/docs/26/man/logger_disk_log_h.html).

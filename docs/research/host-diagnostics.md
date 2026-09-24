@@ -55,3 +55,11 @@ The installed Mac CLI uses a separate peer-authenticated socket because the
 mutation token is private to the shell. Linux peer-credential behavior and
 installed lifecycle still need qualification. These observations do not
 validate a release.
+
+On 2026-09-24, the local `elixir:1.20.4-otp-29-slim` arm64 Linux container
+reported `{:error, {:invalid, ...}}` for the named OTP `:peercred` option on a
+connected Unix stream socket, while Linux native `{SOL_SOCKET, SO_PEERCRED}`
+returned the 12-byte PID/UID/GID structure. This supports exercising the
+adapter's native fallback in a container contract test. It does not establish
+the permissions of an installed service or admission of another user's group
+membership.

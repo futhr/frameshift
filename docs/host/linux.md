@@ -29,6 +29,11 @@ interface.
   credentials and private permissions. An administrator grants command access
   to an explicit local control group and diagnostic access to a distinct
   observer group; commands retain durable replay receipts and user attribution.
+  Before changing permissions or binding either socket, the service checks the
+  directory itself with `lstat` and rejects a symlink or non-directory without
+  touching its target. It refuses to replace a live socket. Group ownership
+  and admission need installed Linux tests; the current Mac private-user socket
+  policy does not establish that access model.
   The Linux CLI must cover import, target discovery/pairing, send, state, and
   recovery as well as diagnostics. No general LAN control endpoint is exposed.
 - For import, the CLI opens the caller's file and streams bounded bytes into a

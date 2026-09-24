@@ -104,6 +104,9 @@ bounded JSON depth/node/string/collection admission, duplicate-member
 rejection, request correlation, a 5 second socket deadline, and explicit
 command field allowlists. The application-support directory is mode `0700`
 and the socket is mode `0600`; the server refuses to replace a non-socket path.
+Both local listeners inspect the socket directory with `lstat` before changing
+its permissions or binding. A symlink or non-directory at that path fails
+startup without changing the target. A live socket is never removed as stale.
 On every core launch the Swift owner generates a fresh 256-bit token, writes it
 to a uniquely named mode `0600` file inside the private directory, and passes
 only that path to the release. The core validates and removes the bootstrap

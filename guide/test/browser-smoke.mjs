@@ -102,6 +102,14 @@ try {
     });
     writeFileSync(join(directory, name), Buffer.from(result.data, 'base64'));
   };
+  const press = async (key, code, virtualKeyCode) => {
+    await command('Input.dispatchKeyEvent', {
+      type: 'keyDown', key, code, windowsVirtualKeyCode: virtualKeyCode,
+    });
+    await command('Input.dispatchKeyEvent', {
+      type: 'keyUp', key, code, windowsVirtualKeyCode: virtualKeyCode,
+    });
+  };
 
   await command('Page.enable');
   await command('Runtime.enable');
@@ -119,9 +127,24 @@ try {
   const widths = await evaluate('({viewport:innerWidth,document:document.documentElement.scrollWidth})');
   assert.equal(widths.document, widths.viewport, 'mobile has no horizontal overflow');
   assert.match(await evaluate('document.querySelector("#profile-result").textContent'), /not yet supported/);
+  const accessibility = await command('Accessibility.getFullAXTree');
+  const interactiveRoles = new Set(['button', 'link', 'textField', 'spinButton', 'comboBox']);
+  const unnamed = accessibility.nodes.filter(node =>
+    !node.ignored && interactiveRoles.has(node.role?.value) &&
+    !String(node.name?.value || '').trim()
+  );
+  assert.deepEqual(unnamed.map(node => node.role?.value), [], 'interactive controls have names');
   await screenshot('Frameshift-guide-mobile.png');
 
-  await evaluate('document.querySelector("[data-kind=photo]").click();document.querySelector("#queue").click();document.querySelector("[data-event=loss]").click()');
+  await evaluate('document.querySelector("[data-kind=photo]").focus()');
+  await press(' ', 'Space', 32);
+  assert.equal(
+    await evaluate('document.querySelector("[data-kind=photo]").getAttribute("aria-pressed")'),
+    'true'
+  );
+  await evaluate('document.querySelector("#queue").focus()');
+  await press(' ', 'Space', 32);
+  await evaluate('document.querySelector("[data-event=loss]").click()');
   assert.equal(
     await evaluate('document.querySelector("#handoff").getAttribute("href")'),
     'frameshift://setup?v=1&class=photo&profile=photo-srgb-rgb24'
@@ -136,6 +159,15 @@ try {
 
   const root = await command('DOM.getDocument');
   const input = await command('DOM.querySelector', { nodeId: root.root.nodeId, selector: '#sample' });
+  const invalidFile = join(profile, 'invalid.txt');
+  writeFileSync(invalidFile, 'not an image');
+  await command('DOM.setFileInputFiles', { nodeId: input.nodeId, files: [invalidFile] });
+  await waitFor(() => evaluate('document.querySelector("#sample-detail").textContent.includes("Choose a PNG")'), 'invalid file refusal');
+  assert.equal(await evaluate('document.querySelector("#preview").hidden'), true);
+  const largeFile = join(profile, 'large.png');
+  writeFileSync(largeFile, Buffer.alloc(8 * 1024 * 1024 + 1));
+  await command('DOM.setFileInputFiles', { nodeId: input.nodeId, files: [largeFile] });
+  assert.match(await evaluate('document.querySelector("#sample-detail").textContent'), /8 MiB/);
   await command('DOM.setFileInputFiles', {
     nodeId: input.nodeId, files: [join(guide, 'src/assets/photo.jpg')],
   });
@@ -151,7 +183,7 @@ try {
   await new Promise(resolveClose => server.close(resolveClose));
   await evaluate('document.querySelector("#reset").click();document.querySelector("#queue").click();document.querySelector("[data-event=confirm]").click()');
   assert.equal(await evaluate('document.querySelector("#current").textContent'), 'Still 1');
-  console.log('Chrome guide smoke passed: mobile layout, kernel, transfer recovery, local still.');
+  console.log('Chrome guide smoke passed: layout, accessible names, keyboard, file bounds, transfer recovery, and offline interaction.');
 } finally {
   if (socket) socket.close();
   if (chrome && chrome.exitCode === null && chrome.signalCode === null) {

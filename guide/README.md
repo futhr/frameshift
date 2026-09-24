@@ -9,9 +9,11 @@ physical frame validation. The requirements are in
 Run `./scripts/check guide` from the repository root to compile the pinned
 Gleam JavaScript target, produce `guide/dist`, and test the lab state model.
 On a Mac with Chrome, run `./scripts/check guide-browser` to exercise the
-page at a real mobile viewport, load a local still, and verify delivery
-recovery. Set `FRAMESHIFT_GUIDE_SCREENSHOT_DIR` to a directory to save the
-desktop, mobile, and lab screenshots from that smoke test.
+page at a real mobile viewport, check accessible names and keyboard actions,
+reject invalid files, load a local still, and verify delivery recovery after
+the local HTTP server stops. Set `FRAMESHIFT_GUIDE_SCREENSHOT_DIR` to a
+directory to save the desktop, mobile, and lab screenshots from that smoke
+test.
 
 `guide/wrangler.jsonc` points Workers Static Assets at `guide/dist`. Its
 `workers_dev` setting is disabled. A domain owner must separately configure

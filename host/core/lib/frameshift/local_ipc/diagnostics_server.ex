@@ -11,6 +11,7 @@ defmodule Frameshift.LocalIPC.DiagnosticsServer do
   alias Frameshift.Diagnostics.{Catalog, Metrics}
   alias Frameshift.Library
   alias Frameshift.LocalIPC.PeerIdentity
+  alias Frameshift.LocalIPC.SocketDirectory
 
   @maximum_request_bytes 8_192
   @maximum_response_bytes 256 * 1024
@@ -75,20 +76,10 @@ defmodule Frameshift.LocalIPC.DiagnosticsServer do
   end
 
   defp prepare_path(path) do
-    if byte_size(path) > 100 do
-      {:error, :socket_path_too_long}
-    else
-      parent = Path.dirname(path)
-
-      with :ok <- File.mkdir_p(parent),
-           {:ok, %File.Stat{type: :directory}} <- File.lstat(parent),
-           :ok <- File.chmod(parent, 0o700),
-           {:ok, %File.Stat{type: :directory, mode: mode}} <- File.lstat(parent),
-           true <- Bitwise.band(mode, 0o077) == 0 do
-        remove_stale_socket(path)
-      else
-        _ -> {:error, :unsafe_diagnostics_directory}
-      end
+    case SocketDirectory.prepare(path) do
+      :ok -> remove_stale_socket(path)
+      {:error, :unsafe_socket_directory} -> {:error, :unsafe_diagnostics_directory}
+      error -> error
     end
   end
 

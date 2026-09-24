@@ -14,6 +14,7 @@ defmodule Frameshift.LocalIPC.Server do
   alias Frameshift.Digest
   alias Frameshift.Library
   alias Frameshift.LocalAPI
+  alias Frameshift.LocalIPC.SocketDirectory
 
   @maximum_request_bytes 64 * 1024
   @maximum_response_bytes 1024 * 1024
@@ -77,13 +78,8 @@ defmodule Frameshift.LocalIPC.Server do
   end
 
   defp prepare_path(path) do
-    if byte_size(path) > 100 do
-      {:error, :socket_path_too_long}
-    else
-      with :ok <- File.mkdir_p(Path.dirname(path)),
-           :ok <- File.chmod(Path.dirname(path), 0o700) do
-        remove_stale_socket(path)
-      end
+    with :ok <- SocketDirectory.prepare(path) do
+      remove_stale_socket(path)
     end
   end
 

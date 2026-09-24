@@ -254,6 +254,41 @@ defmodule Frameshift.LocalIPC.ServerTest do
     assert File.read!(path) == "owner data"
   end
 
+  test "refuses a symlinked socket directory without changing its target" do
+    root = Path.join(System.tmp_dir!(), "fs-ipc-link-#{System.unique_integer([:positive])}")
+    target = Path.join(root, "target")
+    link = Path.join(root, "linked")
+    File.mkdir_p!(target)
+    File.chmod!(target, 0o755)
+    :ok = File.ln_s(target, link)
+    on_exit(fn -> File.rm_rf!(root) end)
+
+    previous = Process.flag(:trap_exit, true)
+
+    assert {:error, :unsafe_socket_directory} =
+             Server.start_link(path: Path.join(link, "core.sock"), token: @token, name: nil)
+
+    Process.flag(:trap_exit, previous)
+    assert Bitwise.band(File.stat!(target).mode, 0o777) == 0o755
+    refute File.exists?(Path.join(target, "core.sock"))
+  end
+
+  test "refuses a second listener without disturbing the live socket", context do
+    previous = Process.flag(:trap_exit, true)
+
+    assert {:error, :socket_already_active} =
+             Server.start_link(path: context.socket_path, token: @token, name: nil)
+
+    Process.flag(:trap_exit, previous)
+
+    assert %{"ok" => true} =
+             request(context.socket_path, %{
+               "version" => 1,
+               "requestId" => "still-live",
+               "operation" => "snapshot"
+             })
+  end
+
   defp request(path, document) do
     document
     |> Map.put_new("auth", @token)

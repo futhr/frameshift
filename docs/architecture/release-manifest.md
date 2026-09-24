@@ -59,7 +59,11 @@ after local verification. The publication pipeline must then fetch each public
 URL with a finite redirect chain that remains HTTPS, requests identity
 encoding, rejects partial or compressed responses, streams at most the
 declared byte count, and compares the downloaded size and SHA-256 before
-deploying the guide. GitHub Releases may redirect to its asset CDN; a redirect
+building the release guide. The dedicated publication build command takes all
+five signed-release inputs, performs local and public verification first, and
+leaves the prior guide output untouched on refusal. The ordinary development
+build may use local signed fixtures without a public URL. GitHub Releases may
+redirect to its asset CDN; a redirect
 is never taken as evidence by itself. Publication
 additionally requires owner-pinned trust root,
 Developer ID/notarization, Sparkle and Cask acceptance, licenses/notices,

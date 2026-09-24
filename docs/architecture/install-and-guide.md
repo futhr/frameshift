@@ -26,6 +26,8 @@ the private source repository's visibility is never changed by automation.
 Publish one Developer ID signed, hardened-runtime, notarized, stapled Mac DMG
 for direct download, Homebrew Cask, and Sparkle updates. Its version, digest,
 bundle identity, and minimum macOS version are fixed in a release manifest.
+The [release artifact manifest](release-manifest.md) is detached-signed and
+checked against each local archive before any guide link is published.
 The first Cask can live in a project tap; upstream Homebrew acceptance is a
 separate gate. The Cask pins the artifact digest and marks in-app updates
 accurately. Sparkle

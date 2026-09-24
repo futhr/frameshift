@@ -28,6 +28,7 @@ protocol branches.
 - [Content pipeline](architecture/content-pipeline.md)
 - [Qualified render and transfer generations](architecture/qualified-generations.md)
 - [Installation and interactive guide](architecture/install-and-guide.md)
+- [Release artifact manifest](architecture/release-manifest.md)
 - [Browser guide simulation](architecture/guide-simulation.md)
 - [Implementation plan](architecture/implementation-plan.md)
 - [Software verification map](architecture/verification.md)

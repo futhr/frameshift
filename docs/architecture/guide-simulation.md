@@ -48,12 +48,20 @@ never invents a compatible replacement profile for Paper.
 - The lab uses no account, storage, service worker, analytics, browser-to-host
   request, or remote code. Its imported decision module and all assets are
   local. Once loaded, it must remain usable without a network connection.
+  A reload after connectivity is lost is outside this contract because the
+  browser may need to fetch the document and modules again.
 - Every event reports a short textual outcome in an `aria-live` region. All
   controls are native buttons, selects, and file inputs with visible focus.
   No color alone conveys state.
   The browser smoke checks accessible names for interactive controls and
   activates core choices by keyboard. It also checks invalid file rejection;
   manual VoiceOver and cross-browser inspection remain release gates.
+
+On 2026-09-24, the built guide was served locally and inspected in desktop
+Safari on macOS 26.6.2 arm64. The page rendered and Safari's accessibility tree
+included the live unsupported Paper result and named delivery controls. A
+Desktop screenshot records that layout. This observation does not cover Safari
+keyboard operation, file import, mobile Safari, VoiceOver, or other browsers.
 
 ## Delivery and acceptance
 

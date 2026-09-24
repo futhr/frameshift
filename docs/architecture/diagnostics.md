@@ -23,7 +23,13 @@ network I/O. It records the terminal attempt outcome afterward; a crash can
 leave only the started fact and a pending intent. A confirmed display fact
 carries the exact attempt ID that observed it. Native logs carry the same
 allowlisted attempt ID, while the attempt-count metric uses only mode and
-outcome dimensions. A sleeping pull contact spans separate manifest, asset, and
+outcome dimensions. A transport timeout or lost response after the intent is
+durable has an `unknown` attempt outcome: the request may have reached the
+frame, so the host retains the pending intent and reconciles by read-only
+observation. `failed` is reserved for a definite local or protocol refusal.
+An unknown attempt never advances current display state and is counted
+separately in audit, native logs, and the bounded attempt metric. A sleeping
+pull contact spans separate manifest, asset, and
 acknowledgement requests. Frame Protocol v0.1 has no contact ID echoed in the
 acknowledgement, so revision and frame identity alone cannot attribute a
 confirmation to one contact attempt. A versioned protocol change must carry

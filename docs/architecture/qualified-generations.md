@@ -102,7 +102,7 @@ neither path may create new unqualified work under the active binding.
 
 Audit and native logs include work, qualification, command, and attempt IDs with bounded
 public fields. Metrics count qualification refusal, render outcome, transfer
-attempt, ambiguous outcome, and confirmed display with bounded dimensions such
+attempt, unknown network outcome, and confirmed display with bounded dimensions such
 as outcome and mode. Work, qualification, frame, recipe, and attempt IDs are excluded
 from metric labels. Health exposes qualification coverage and loss/reset status.
 

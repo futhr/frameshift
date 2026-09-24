@@ -26,6 +26,7 @@ defmodule Frameshift.Renderer do
     @type t :: %__MODULE__{
             port: port() | pid(),
             build_digest: String.t() | nil,
+            staged_path: String.t() | nil,
             pending: term(),
             expected: term(),
             prefix: binary(),
@@ -34,7 +35,16 @@ defmodule Frameshift.Renderer do
           }
 
     @enforce_keys [:port]
-    defstruct [:port, :build_digest, :pending, :expected, prefix: <<>>, chunks: [], received: 0]
+    defstruct [
+      :port,
+      :build_digest,
+      :staged_path,
+      :pending,
+      :expected,
+      prefix: <<>>,
+      chunks: [],
+      received: 0
+    ]
   end
 
   @type server :: GenServer.server()
@@ -76,9 +86,8 @@ defmodule Frameshift.Renderer do
     path = options |> Keyword.fetch!(:path) |> Path.expand()
 
     with :ok <- validate_options(path),
-         {:ok, build_digest} <- executable_digest(path),
-         {:ok, port} <- open_worker(path) do
-      {:ok, %State{port: port, build_digest: build_digest}}
+         {:ok, port, staged_path, build_digest} <- open_staged_worker(path) do
+      {:ok, %State{port: port, staged_path: staged_path, build_digest: build_digest}}
     else
       {:error, reason} -> {:stop, reason}
     end
@@ -153,20 +162,27 @@ defmodule Frameshift.Renderer do
   def format_status(status) do
     status
     |> Map.update(:state, nil, fn
-      %State{} = state -> %{state | prefix: "<redacted>", chunks: [:redacted]}
-      _ -> :redacted
+      %State{} = state ->
+        %{state | prefix: "<redacted>", chunks: [:redacted], staged_path: "<redacted>"}
+
+      _ ->
+        :redacted
     end)
     |> Map.put(:message, :redacted)
     |> Map.put(:log, [:redacted])
   end
 
   @impl true
-  def terminate(_, %{port: port}) when is_port(port) do
+  def terminate(_, %{port: port} = state) when is_port(port) do
     if Port.info(port), do: Port.close(port)
+    cleanup_staged_path(state.staged_path)
     :ok
   end
 
-  def terminate(_, _), do: :ok
+  def terminate(_, state) do
+    cleanup_staged_path(state.staged_path)
+    :ok
+  end
 
   defp receive_data(%{pending: nil} = state, _),
     do: fail_worker(state, :unexpected_response)
@@ -251,15 +267,55 @@ defmodule Frameshift.Renderer do
     if File.regular?(path), do: :ok, else: {:error, :renderer_not_found}
   end
 
-  defp executable_digest(path) do
+  defp read_executable(path) do
     with {:ok, %{size: size}} when size <= @maximum_executable_bytes <- File.stat(path),
          {:ok, bytes} when byte_size(bytes) <= @maximum_executable_bytes <- File.read(path) do
-      {:ok, Digest.sha256(bytes)}
+      {:ok, bytes}
     else
       {:ok, _} -> {:error, :renderer_binary_too_large}
       {:error, _} -> {:error, :renderer_not_found}
     end
   end
+
+  defp open_staged_worker(path) do
+    with {:ok, bytes} <- read_executable(path),
+         {:ok, staged_path, build_digest} <- stage_executable(bytes) do
+      case open_worker(staged_path) do
+        {:ok, port} ->
+          {:ok, port, staged_path, build_digest}
+
+        {:error, reason} ->
+          cleanup_staged_path(staged_path)
+          {:error, reason}
+      end
+    end
+  end
+
+  defp stage_executable(bytes) do
+    suffix = :crypto.strong_rand_bytes(16) |> Base.encode16(case: :lower)
+    directory = Path.join(System.tmp_dir!(), "frameshift-renderer-#{suffix}")
+    staged_path = Path.join(directory, "worker")
+
+    with :ok <- File.mkdir(directory),
+         :ok <- File.chmod(directory, 0o700),
+         :ok <- File.write(staged_path, bytes, [:exclusive]),
+         :ok <- File.chmod(staged_path, 0o500),
+         {:ok, staged_bytes} <- File.read(staged_path),
+         true <- staged_bytes == bytes do
+      {:ok, staged_path, Digest.sha256(staged_bytes)}
+    else
+      _ ->
+        File.rm_rf(directory)
+        {:error, :renderer_stage_failed}
+    end
+  end
+
+  defp cleanup_staged_path(path) when is_binary(path) do
+    File.rm_rf(Path.dirname(path))
+    :ok
+  end
+
+  defp cleanup_staged_path(_), do: :ok
 
   defp validate_timeout(timeout) when is_integer(timeout) and timeout > 0, do: :ok
   defp validate_timeout(_), do: {:error, :invalid_timeout}

@@ -28,8 +28,11 @@ defmodule Frameshift.RendererTest do
 
   test "a real Zig worker returns the exact framed RGB artifact" do
     {:ok, renderer} = Renderer.start_link(path: @renderer_path, name: nil)
+    staged_path = :sys.get_state(renderer).staged_path
 
     assert Renderer.build_digest(renderer) == Digest.sha256(File.read!(@renderer_path))
+    assert staged_path != @renderer_path
+    assert Digest.sha256(File.read!(staged_path)) == Renderer.build_digest(renderer)
 
     assert {:error, :renderer_build_mismatch} =
              Renderer.render_qualified(renderer, job(), Digest.sha256("other executable"))
@@ -41,6 +44,7 @@ defmodule Frameshift.RendererTest do
     assert rendered == %{format: :rgb24, width: 2, height: 1, bytes: <<1, 2, 3, 4, 5, 6>>}
 
     GenServer.stop(renderer)
+    refute File.exists?(staged_path)
   end
 
   test "host validation rejects malformed work before it reaches the port" do
@@ -112,6 +116,7 @@ defmodule Frameshift.RendererTest do
 
       first_owner = Process.whereis(@timeout_name)
       assert is_pid(first_owner)
+      staged_path = :sys.get_state(first_owner).staged_path
 
       task = Task.async(fn -> Renderer.render(@timeout_name, job(), deadline_ms: 20) end)
       Process.sleep(5)
@@ -122,6 +127,8 @@ defmodule Frameshift.RendererTest do
                owner = Process.whereis(@timeout_name)
                is_pid(owner) and owner != first_owner
              end)
+
+      refute File.exists?(staged_path)
 
       Supervisor.stop(supervisor)
     end)
@@ -146,6 +153,7 @@ defmodule Frameshift.RendererTest do
     assert redacted.log == [:redacted]
     assert redacted.state.prefix == "<redacted>"
     assert redacted.state.chunks == [:redacted]
+    assert redacted.state.staged_path == "<redacted>"
   end
 
   defp job do

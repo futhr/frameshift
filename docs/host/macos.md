@@ -40,9 +40,10 @@ core and sends commands; it does not create a second source of truth.
 The packaged app runs as a menu-bar agent. Its dropdown is the sole shell
 control surface and remains available after it is dismissed. The selected
 perspective-frame mark appears directly on a transparent field in Finder and
-the dropdown, with a dark silhouette in light appearance and a white
-silhouette in dark appearance. A monochrome template silhouette appears in
-the menu bar. A small labeled
+the dropdown. Finder uses the dark silhouette from the bundle icon; the running
+app selects a dark silhouette in light appearance and a white silhouette in
+dark appearance. A monochrome template silhouette appears in the menu bar. A
+small labeled
 power control in the dropdown header and Command-Q quit the agent and its
 bundled core; relaunch reads the durable library again. The header repeats the
 selected mark beside the name, while a native behind-window material gives the

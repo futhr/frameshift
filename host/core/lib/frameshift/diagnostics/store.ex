@@ -8,7 +8,7 @@ defmodule Frameshift.Diagnostics.Store do
 
   @audit_detail_keys ~w(kind outcome revision sourceKind)
   @audit_kinds ~w(composition generation succeeded failed push reconcile)
-  @audit_outcomes ~w(started displayed pending failed)
+  @audit_outcomes ~w(started displayed pending unknown failed)
   @audit_sources ~w(import generated)
   @maximum_page 100
   @maximum_rows 20_000

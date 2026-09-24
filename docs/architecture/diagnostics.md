@@ -45,9 +45,11 @@ redaction policy for export. Diagnostic failures cannot change domain outcomes.
 
 ## Metric catalog
 
-Each metric has a documented owner, event, type, unit, allowed dimensions,
-aggregation, retention, and coverage rule. Names are versioned. Allowed
-dimensions are bounded enums such as `operation`, `outcome`, `delivery_mode`,
+The catalog is version 2 when `unknown` is added to the direct-attempt outcome
+dimension; historical version 1 rollups retain their stored labels. Each
+metric has a documented owner, event, type, unit, allowed dimensions,
+aggregation, retention, and coverage rule. The catalog definition is versioned.
+Allowed dimensions are bounded enums such as `operation`, `outcome`, `delivery_mode`,
 and `error_class`; unknown values map to `other`. Frame IDs, command IDs,
 artwork digests, provider inputs, and network addresses are forbidden labels.
 

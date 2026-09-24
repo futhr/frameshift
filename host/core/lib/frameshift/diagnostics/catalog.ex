@@ -56,7 +56,7 @@ defmodule Frameshift.Diagnostics.Catalog do
       unit: :count,
       dimensions: %{
         mode: ~w(push reconcile other),
-        outcome: ~w(displayed pending failed other)
+        outcome: ~w(displayed pending unknown failed other)
       },
       buckets: []
     },
@@ -130,7 +130,7 @@ defmodule Frameshift.Diagnostics.Catalog do
   @spec describe() :: map()
   def describe do
     %{
-      "version" => 1,
+      "version" => 2,
       "retentionMs" => %{"minute" => 86_400_000, "hour" => 2_592_000_000},
       "metrics" =>
         Enum.map(@specs, fn spec ->

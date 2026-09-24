@@ -2468,7 +2468,7 @@ defmodule Frameshift.Library do
 
   defp record_direct_attempt_record(state, frame_id, request_id, attempt_id, mode, phase)
        when mode in [:push, :reconcile] and
-              phase in [:started, :displayed, :pending, :failed] and
+              phase in [:started, :displayed, :pending, :unknown, :failed] and
               is_binary(request_id) and byte_size(request_id) in 1..64 and
               is_binary(attempt_id) and byte_size(attempt_id) == 32 do
     if valid_attempt_id?(attempt_id) do

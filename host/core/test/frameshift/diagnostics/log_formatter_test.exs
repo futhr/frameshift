@@ -63,5 +63,16 @@ defmodule Frameshift.Diagnostics.LogFormatterTest do
     refute String.contains?(line, "secret-attempt-id")
   end
 
+  test "uncertain transfer keeps its distinct public outcome" do
+    line =
+      LogFormatter.format(:warning, "private", nil,
+        frameshift_event: :delivery_attempt,
+        frameshift_outcome: :unknown
+      )
+      |> IO.iodata_to_binary()
+
+    assert %{"event" => "delivery_attempt", "outcome" => "unknown"} = decode(line)
+  end
+
   defp decode("FSLOG|" <> json), do: Jason.decode!(json)
 end

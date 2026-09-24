@@ -3,6 +3,7 @@ defmodule Frameshift.DirectDeliveryTest do
 
   use ExUnit.Case, async: true
 
+  alias Frameshift.Diagnostics.Catalog
   alias Frameshift.Digest
   alias Frameshift.DirectDelivery
   alias Frameshift.Library
@@ -294,6 +295,18 @@ defmodule Frameshift.DirectDeliveryTest do
   end
 
   test "a transport timeout leaves a durable desired asset for later reconciliation", context do
+    handler_id = {__MODULE__, make_ref()}
+
+    :ok =
+      :telemetry.attach(
+        handler_id,
+        [:frameshift, :delivery, :attempt],
+        &__MODULE__.capture_attempt/4,
+        self()
+      )
+
+    on_exit(fn -> :telemetry.detach(handler_id) end)
+
     digest = register_artifact!(context.library, <<1, 2, 3, 4, 5, 6>>)
     {:ok, frame} = Library.get_paired_frame(context.library, @frame_id)
     [profile | _] = frame["capabilities"]["storage"]["artifactProfiles"]
@@ -322,6 +335,8 @@ defmodule Frameshift.DirectDeliveryTest do
                synchronizer: TimedOutSynchronizer
              )
 
+    assert_receive {:delivery_attempt_metric, :push, :unknown}
+
     assert {:ok, %{"request_id" => "timed-out-push", "status" => "pending"}} =
              Library.direct_delivery(context.library, @frame_id)
 
@@ -331,8 +346,15 @@ defmodule Frameshift.DirectDeliveryTest do
     desired = Enum.find(audit, &(&1["operation"] == "direct.desired"))
     assert started["attemptId"] =~ ~r/\A[0-9a-f]{32}\z/
     assert completed["attemptId"] == started["attemptId"]
-    assert completed["detail"] == %{"kind" => "push", "outcome" => "failed"}
+    assert completed["detail"] == %{"kind" => "push", "outcome" => "unknown"}
     assert started["correlationId"] == desired["correlationId"]
+
+    assert [%{dimensions: %{"mode" => "push", "outcome" => "unknown"}}] =
+             Catalog.samples(
+               [:frameshift, :delivery, :attempt],
+               %{count: 1},
+               %{mode: :push, outcome: :unknown, attempt_id: started["attemptId"]}
+             )
 
     assert {:error, :invalid_direct_attempt} =
              Library.record_direct_attempt(
@@ -365,6 +387,33 @@ defmodule Frameshift.DirectDeliveryTest do
              )
 
     assert [{"desired", ^digest}] = references(context.data_dir)
+
+    assert {:error, :timeout} =
+             DirectDelivery.push(
+               context.library,
+               frame,
+               %{"digest" => digest},
+               profile,
+               "timed-out-push",
+               credential_resolver: {StaticCredentialResolver, nil},
+               synchronizer: TimedOutSynchronizer
+             )
+
+    assert_receive {:delivery_attempt_metric, :push, :unknown}
+
+    assert {:ok, %{"revision" => 1, "request_id" => "timed-out-push", "status" => "pending"}} =
+             Library.direct_delivery(context.library, @frame_id)
+
+    assert %{"entries" => repeated_audit} = Library.audit_page(context.library)
+    assert Enum.count(repeated_audit, &(&1["operation"] == "direct.desired")) == 1
+    assert Enum.count(repeated_audit, &(&1["operation"] == "direct.attempt.started")) == 2
+    assert Enum.count(repeated_audit, &(&1["operation"] == "direct.attempt.completed")) == 2
+    assert [{"desired", ^digest}] = references(context.data_dir)
+  end
+
+  @spec capture_attempt(term(), map(), map(), pid()) :: term()
+  def capture_attempt(_, %{count: 1}, %{mode: mode, outcome: outcome}, owner) do
+    if self() == owner, do: send(owner, {:delivery_attempt_metric, mode, outcome})
   end
 
   defp stop_if_alive(process) do

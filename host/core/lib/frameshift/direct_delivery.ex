@@ -329,6 +329,18 @@ defmodule Frameshift.DirectDelivery do
 
   defp attempt_outcome({:ok, :displayed}), do: :displayed
   defp attempt_outcome({:ok, :pending}), do: :pending
+
+  defp attempt_outcome({:error, reason})
+       when reason in [
+              :timeout,
+              :transport_failure,
+              :direct_sync_failure,
+              :direct_sync_contract_violation
+            ],
+       do: :unknown
+
+  defp attempt_outcome({:error, {:database, _}}), do: :unknown
+
   defp attempt_outcome(_), do: :failed
 
   defp record_attempt_result(library, frame_id, request_id, attempt_id, mode, outcome) do

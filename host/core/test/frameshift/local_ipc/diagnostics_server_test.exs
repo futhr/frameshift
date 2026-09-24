@@ -73,7 +73,7 @@ defmodule Frameshift.LocalIPC.DiagnosticsServerTest do
              "ok" => true,
              "diagnostics" => %{
                "entries" => entries,
-               "catalog" => %{"version" => 1, "metrics" => catalog},
+               "catalog" => %{"version" => 2, "metrics" => catalog},
                "coverage" => coverage
              }
            } =

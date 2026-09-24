@@ -34,6 +34,7 @@ protocol branches.
 ## Host
 
 - [macOS controller](host/macos.md)
+- [Browser guide handoff](host/guide-handoff.md)
 - [Menu-bar interface](host/menu-bar-interface.md)
 
 ## Reference frames

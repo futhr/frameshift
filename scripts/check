@@ -24,6 +24,7 @@ check_policy() {
     "$repository_root/scripts/check-elixir-docs" \
     "$repository_root/scripts/check-core-release" \
     "$repository_root/scripts/check-kernel-parity" \
+    "$repository_root/scripts/check-keychain-pairing" \
     "$repository_root/scripts/check-packaged-app" \
     "$repository_root/scripts/format" \
     "$repository_root/scripts/frameshift-maintenance" \
@@ -188,8 +189,9 @@ case "${1:-all}" in
   macos) check_macos ;;
   container) check_container ;;
   linux-ipc) check_linux_ipc ;;
+  keychain-pairing) "$repository_root/scripts/check-keychain-pairing" ;;
   *)
-    echo "usage: scripts/check [all|policy|renderer|kernel|guide|guide-browser|core|release|macos|container|linux-ipc]" >&2
+    echo "usage: scripts/check [all|policy|renderer|kernel|guide|guide-browser|core|release|macos|container|linux-ipc|keychain-pairing]" >&2
     exit 64
     ;;
 esac

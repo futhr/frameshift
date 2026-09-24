@@ -16,10 +16,59 @@ public struct KeychainIdentityDescription: Sendable {
 
 /// Looks up a paired identity by persistent Keychain reference without exporting its private key.
 public struct KeychainIdentityStore: Sendable {
-  private static let hostIdentityService = "io.frameshift.host-identity.v1"
-  private static let hostIdentityTag = Data("io.frameshift.host-key.v1".utf8)
+  private let hostIdentityService: String
+  private let hostIdentityTag: Data
+  private let temporaryProbe: Bool
 
-  public init() {}
+  public init() {
+    hostIdentityService = "io.frameshift.host-identity.v1"
+    hostIdentityTag = Data("io.frameshift.host-key.v1".utf8)
+    temporaryProbe = false
+  }
+
+  /// Isolated Keychain namespace for a live signing probe; remove it when the probe exits.
+  public static func temporaryProbeStore() -> Self {
+    let identifier = UUID().uuidString.lowercased()
+    return Self(
+      service: "io.frameshift.probe-identity.\(identifier)",
+      tag: Data("io.frameshift.probe-key.\(identifier)".utf8),
+      temporaryProbe: true
+    )
+  }
+
+  private init(service: String, tag: Data, temporaryProbe: Bool) {
+    hostIdentityService = service
+    hostIdentityTag = tag
+    self.temporaryProbe = temporaryProbe
+  }
+
+  public func removeTemporaryProbeIdentity() {
+    guard temporaryProbe else { return }
+    if let reference = try? storedHostReference(),
+      let identity = try? lookup(reference: reference)
+    {
+      var certificate: SecCertificate?
+      if SecIdentityCopyCertificate(identity, &certificate) == errSecSuccess,
+        let certificate
+      {
+        SecItemDelete(
+          [kSecClass as String: kSecClassCertificate, kSecValueRef as String: certificate]
+            as CFDictionary)
+      }
+    }
+    SecItemDelete(
+      [
+        kSecClass as String: kSecClassGenericPassword,
+        kSecAttrService as String: hostIdentityService,
+        kSecAttrAccount as String: "default",
+      ] as CFDictionary)
+    SecItemDelete(
+      [
+        kSecClass as String: kSecClassKey,
+        kSecAttrApplicationTag as String: hostIdentityTag,
+        kSecAttrKeyClass as String: kSecAttrKeyClassPrivate,
+      ] as CFDictionary)
+  }
 
   /// Creates or reuses the local host identity without exporting its private key.
   public func ensureHostIdentity() throws -> String {
@@ -34,7 +83,7 @@ public struct KeychainIdentityStore: Sendable {
       kSecAttrKeySizeInBits as String: 256,
       kSecPrivateKeyAttrs as String: [
         kSecAttrIsPermanent as String: true,
-        kSecAttrApplicationTag as String: Self.hostIdentityTag,
+        kSecAttrApplicationTag as String: hostIdentityTag,
       ],
     ]
     var error: Unmanaged<CFError>?
@@ -57,7 +106,7 @@ public struct KeychainIdentityStore: Sendable {
         SecItemDelete(
           [
             kSecClass as String: kSecClassKey,
-            kSecAttrApplicationTag as String: Self.hostIdentityTag,
+            kSecAttrApplicationTag as String: hostIdentityTag,
             kSecAttrKeyClass as String: kSecAttrKeyClassPrivate,
           ] as CFDictionary)
       }
@@ -81,7 +130,7 @@ public struct KeychainIdentityStore: Sendable {
 
     let referenceQuery: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
-      kSecAttrService as String: Self.hostIdentityService,
+      kSecAttrService as String: hostIdentityService,
       kSecAttrAccount as String: "default",
       kSecValueData as String: Data(reference.utf8),
     ]
@@ -95,7 +144,7 @@ public struct KeychainIdentityStore: Sendable {
   private func storedHostReference() throws -> String? {
     let query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
-      kSecAttrService as String: Self.hostIdentityService,
+      kSecAttrService as String: hostIdentityService,
       kSecAttrAccount as String: "default",
       kSecReturnData as String: true,
       kSecMatchLimit as String: kSecMatchLimitOne,

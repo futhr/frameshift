@@ -1,0 +1,64 @@
+#!/bin/sh
+set -eu
+
+repository_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+umask 077
+runtime_root=$(mktemp -d /tmp/fs-keychain.XXXXXX)
+broker_pid=''
+
+cleanup() {
+  if [ -n "$broker_pid" ] && kill -0 "$broker_pid" 2>/dev/null; then
+    rm -f "$runtime_root/run"
+    wait "$broker_pid" 2>/dev/null || true
+  fi
+  rm -rf "$runtime_root"
+}
+
+trap cleanup EXIT HUP INT TERM
+
+swift build --package-path "$repository_root/host/macos" \
+  --product frameshift-keychain-probe >/dev/null
+
+credential_socket="$runtime_root/k.sock"
+ipc_token=$(openssl rand -hex 32)
+: >"$runtime_root/run"
+FRAMESHIFT_CREDENTIAL_SOCKET="$credential_socket" \
+FRAMESHIFT_IPC_TOKEN="$ipc_token" \
+FRAMESHIFT_PROBE_RUN_FILE="$runtime_root/run" \
+  "$repository_root/host/macos/.build/debug/frameshift-keychain-probe" \
+  >"$runtime_root/broker.out" 2>"$runtime_root/broker.err" &
+broker_pid=$!
+
+attempt=0
+while [ "$attempt" -lt 200 ]; do
+  if ! kill -0 "$broker_pid" 2>/dev/null; then
+    cat "$runtime_root/broker.err" >&2
+    exit 1
+  fi
+  if [ -S "$credential_socket" ] && [ -s "$runtime_root/broker.out" ]; then
+    break
+  fi
+  attempt=$((attempt + 1))
+  sleep 0.1
+done
+
+if [ ! -S "$credential_socket" ] || [ ! -s "$runtime_root/broker.out" ]; then
+  echo "Keychain broker did not become ready" >&2
+  cat "$runtime_root/broker.err" >&2
+  exit 1
+fi
+
+reference=$(head -n 1 "$runtime_root/broker.out")
+case "$reference" in
+  keychain:*) ;;
+  *) echo "Keychain probe did not produce a reference" >&2; exit 1 ;;
+esac
+
+(
+  cd "$repository_root/host/core"
+  mise exec -- env -u MIX_HOME -u MIX_ARCHIVES \
+    FRAMESHIFT_KEYCHAIN_PROBE_REFERENCE="$reference" \
+    FRAMESHIFT_CREDENTIAL_SOCKET="$credential_socket" \
+    FRAMESHIFT_IPC_TOKEN="$ipc_token" \
+    mix test test/frameshift/pairing/admission_live_test.exs
+)

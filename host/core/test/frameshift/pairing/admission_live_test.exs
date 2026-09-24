@@ -6,6 +6,7 @@ defmodule Frameshift.Pairing.AdmissionLiveTest do
   alias Frameshift.Library
   alias Frameshift.Pairing.{Admission, TLSServer}
   alias Frameshift.Simulator
+  alias Frameshift.Transport.KeychainBroker
   alias Frameshift.Transport.SPKIPin
 
   @device_id "sim-photo-00000001"
@@ -96,26 +97,43 @@ defmodule Frameshift.Pairing.AdmissionLiveTest do
         "secret" => Base.url_encode64(@secret, padding: false)
       })
 
-    client_identity = %{
-      certificate: Keyword.fetch!(context.certificates.client_config, :cert),
-      private_key: Keyword.fetch!(context.certificates.client_config, :key)
-    }
+    {reference, resolver} = identity_for_test(context)
 
     assert {:ok, %{"frameId" => @device_id}} =
              Admission.pair(
                bootstrap,
                @device_id,
                origin,
-               "keychain:live-pair-test",
+               reference,
                "live-pair-1",
                library: library,
-               resolver: {Resolver, client_identity},
+               resolver: resolver,
                transport_config: %{allow_loopback: true}
              )
 
     assert {:ok, paired} = Library.get_paired_frame(library, @device_id)
     assert paired["server_spki_fingerprint"] == context.server_pin
-    assert paired["credential_ref"] == "keychain:live-pair-test"
+    assert paired["credential_ref"] == reference
+  end
+
+  defp identity_for_test(context) do
+    case System.get_env("FRAMESHIFT_KEYCHAIN_PROBE_REFERENCE") do
+      nil ->
+        identity = %{
+          certificate: Keyword.fetch!(context.certificates.client_config, :cert),
+          private_key: Keyword.fetch!(context.certificates.client_config, :key)
+        }
+
+        {"keychain:live-pair-test", {Resolver, identity}}
+
+      reference ->
+        config = %{
+          socket_path: System.fetch_env!("FRAMESHIFT_CREDENTIAL_SOCKET"),
+          token: System.fetch_env!("FRAMESHIFT_IPC_TOKEN")
+        }
+
+        {reference, {KeychainBroker, config}}
+    end
   end
 
   defp stop_if_alive(process) do

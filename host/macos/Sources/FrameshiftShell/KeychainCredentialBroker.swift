@@ -7,17 +7,19 @@ public final class KeychainCredentialBroker: @unchecked Sendable {
   private let listener: Int32
   private let socketPath: String
   private let token: Data
-  private let store = KeychainIdentityStore()
+  private let store: KeychainIdentityStore
   private let lock = NSLock()
   private var stopped = false
 
-  public static func start(socketPath: String, token: String) throws -> KeychainCredentialBroker {
-    let broker = try KeychainCredentialBroker(socketPath: socketPath, token: token)
+  public static func start(
+    socketPath: String, token: String, store: KeychainIdentityStore = .init()
+  ) throws -> KeychainCredentialBroker {
+    let broker = try KeychainCredentialBroker(socketPath: socketPath, token: token, store: store)
     Thread.detachNewThread { broker.acceptConnections() }
     return broker
   }
 
-  private init(socketPath: String, token: String) throws {
+  private init(socketPath: String, token: String, store: KeychainIdentityStore) throws {
     guard token.utf8.count == 64, !FileManager.default.fileExists(atPath: socketPath) else {
       throw CoreClientError.coreUnavailable
     }
@@ -54,6 +56,7 @@ public final class KeychainCredentialBroker: @unchecked Sendable {
     listener = descriptor
     self.socketPath = socketPath
     self.token = Data(token.utf8)
+    self.store = store
   }
 
   public func stop() {

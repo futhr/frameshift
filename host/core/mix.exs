@@ -112,6 +112,7 @@ defmodule FrameshiftCore.MixProject do
           {"../../docs/hardware/validation-plan.md", title: "Hardware validation plan"},
           {"../../docs/architecture/domain-map.md", title: "Host domain map"},
           {"../../docs/architecture/install-and-guide.md", title: "Installation and guide"},
+          {"../../docs/architecture/release-manifest.md", title: "Release artifact manifest"},
           {"../../docs/architecture/qualified-generations.md", title: "Qualified generations"},
           {"../../docs/architecture/diagnostics.md", title: "Host diagnostics"},
           {"../../docs/architecture/frame-protocol.md", title: "Frame protocol"},

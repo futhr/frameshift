@@ -49,6 +49,13 @@ struct CoreLogBridgeTests {
     #expect(CoreLogBridge.parse(record)?.attemptID == attemptID)
   }
 
+  @Test("accepts a bounded outbox listener failure")
+  func outboxUnavailable() {
+    let record = Data(
+      "FSLOG|{\"event\":\"outbox_listener_unavailable\",\"level\":\"warning\"}".utf8)
+    #expect(CoreLogBridge.parse(record)?.event == "outbox_listener_unavailable")
+  }
+
   @Test("core log queue bounds a slow sink and accounts for dropped records")
   func boundedEmissionQueue() {
     var queue = CoreLogBridge.BoundedRecordQueue()

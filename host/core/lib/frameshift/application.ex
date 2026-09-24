@@ -14,6 +14,7 @@ defmodule Frameshift.Application do
   alias Frameshift.Diagnostics.Metrics
   alias Frameshift.LocalIPC.DiagnosticsServer
   alias Frameshift.LocalIPC.Token
+  alias Frameshift.Outbox.Service
   alias Frameshift.Transport.KeychainBroker
 
   @impl true
@@ -94,21 +95,27 @@ defmodule Frameshift.Application do
           {:error, reason} -> raise "could not consume local IPC bootstrap token: #{reason}"
         end
 
-      configure_credential_broker(token)
+      broker = configure_credential_broker(token)
 
       [
         {Frameshift.LocalIPC.Server, path: Frameshift.Paths.socket_path(), token: token},
         {DiagnosticsServer, path: Frameshift.Paths.diagnostics_socket_path()}
-      ]
+      ] ++ outbox_children(broker)
     else
       []
     end
   end
 
+  defp outbox_children(nil), do: []
+
+  defp outbox_children(config) do
+    [{Service, resolver: {KeychainBroker, config}, task_supervisor: Frameshift.TaskSupervisor}]
+  end
+
   defp configure_credential_broker(token) do
     case System.get_env("FRAMESHIFT_CREDENTIAL_SOCKET") do
       nil ->
-        :ok
+        nil
 
       path ->
         expanded = Path.expand(path)
@@ -120,13 +127,15 @@ defmodule Frameshift.Application do
              true <-
                Bitwise.band(mode, 0o077) == 0 and
                  Bitwise.band(directory_mode, 0o077) == 0 do
+          broker = %{socket_path: expanded, token: token}
+
           Application.put_env(:frameshift_core, :direct_delivery,
-            credential_resolver: {KeychainBroker, %{socket_path: expanded, token: token}}
+            credential_resolver: {KeychainBroker, broker}
           )
 
-          Application.put_env(:frameshift_core, :pairing,
-            resolver: {KeychainBroker, %{socket_path: expanded, token: token}}
-          )
+          Application.put_env(:frameshift_core, :pairing, resolver: {KeychainBroker, broker})
+
+          broker
         else
           _ -> raise "credential broker socket failed local admission"
         end

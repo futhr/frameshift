@@ -8,6 +8,7 @@ defmodule Frameshift.Pairing.Admission do
   """
 
   alias Frameshift.Library
+  alias Frameshift.Outbox.Service
   alias Frameshift.Pairing.{Bootstrap, Client}
   alias Frameshift.Protocol.Thing
   alias Frameshift.Transport.{HTTPClient, MTLSCredential}
@@ -137,6 +138,7 @@ defmodule Frameshift.Pairing.Admission do
          :ok <- verify_thing_origin(td_source, credential),
          {:ok, frame} <-
            Library.register_paired_frame(library, td_source, reference, bootstrap.server_spki) do
+      Service.refresh()
       {:ok, %{"frameId" => frame["frame_id"]}}
     else
       _ -> {:error, :pairing_incomplete}

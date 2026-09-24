@@ -15,6 +15,7 @@ defmodule Frameshift.LocalIPC.Server do
   alias Frameshift.Library
   alias Frameshift.LocalAPI
   alias Frameshift.LocalIPC.SocketDirectory
+  alias Frameshift.Outbox.Service
   alias Frameshift.Pairing.Admission
 
   @maximum_request_bytes 64 * 1024
@@ -260,7 +261,7 @@ defmodule Frameshift.LocalIPC.Server do
     do: {:error, {safe_request_id(request_id), :invalid_request}}
 
   defp validate_operation(operation)
-       when operation in ["snapshot", "command", "pair", "recoverPair"],
+       when operation in ["snapshot", "command", "pair", "recoverPair", "outboxStatus"],
        do: :ok
 
   defp validate_operation(_), do: {:error, :invalid_request}
@@ -351,6 +352,27 @@ defmodule Frameshift.LocalIPC.Server do
        ) do
     {:ok,
      success_response(request_id, LocalAPI.snapshot(library, nil, Map.get(request, "query", "")))}
+  end
+
+  defp execute_request(
+         %{"requestId" => request_id, "operation" => "outboxStatus"},
+         _,
+         _
+       ) do
+    status =
+      if Process.whereis(Service) do
+        Service.status()
+      else
+        %{available: false, port: nil}
+      end
+
+    {:ok,
+     %{
+       "version" => 1,
+       "requestId" => request_id,
+       "ok" => true,
+       "outbox" => %{"available" => status.available, "port" => status.port}
+     }}
   end
 
   defp execute_request(

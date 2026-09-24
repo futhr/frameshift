@@ -306,6 +306,18 @@ defmodule Frameshift.LocalIPC.ServerTest do
              })
   end
 
+  test "reports the authenticated outbox port without exposing identity", context do
+    assert %{
+             "ok" => true,
+             "outbox" => %{"available" => false, "port" => nil}
+           } =
+             request(context.socket_path, %{
+               "version" => 1,
+               "requestId" => "outbox-status",
+               "operation" => "outboxStatus"
+             })
+  end
+
   test "transient pairing admits a frame without a durable secret-bearing command", context do
     {:ok, supervisor} = Task.Supervisor.start_link()
     path = Path.join(Path.dirname(context.socket_path), "pair.sock")

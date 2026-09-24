@@ -202,7 +202,10 @@ final class CoreLogBridge: @unchecked Sendable {
       let parsed = try? JSONSerialization.jsonObject(with: record.dropFirst(prefix.count)),
       let fields = parsed as? [String: Any],
       let event = fields["event"] as? String,
-      ["command_completed", "delivery_attempt", "ipc_failure", "runtime"].contains(event),
+      [
+        "command_completed", "delivery_attempt", "ipc_failure", "outbox_listener_available",
+        "outbox_listener_stopped", "outbox_listener_unavailable", "runtime",
+      ].contains(event),
       let level = fields["level"] as? String,
       ["debug", "info", "notice", "warning", "error", "critical", "alert", "emergency"].contains(
         level)

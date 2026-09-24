@@ -8,7 +8,7 @@ defmodule Frameshift.Diagnostics.LogFormatter do
 
   alias Frameshift.Digest
 
-  @allowed_events ~w(command_completed delivery_attempt ipc_failure runtime)
+  @allowed_events ~w(command_completed delivery_attempt ipc_failure outbox_listener_available outbox_listener_stopped outbox_listener_unavailable runtime)
   @allowed_outcomes ~w(succeeded failed replay unknown displayed pending other)
 
   @doc "Formats one Elixir Logger console record for the macOS native bridge."

@@ -82,6 +82,15 @@ defmodule Frameshift.Diagnostics.Catalog do
       buckets: []
     },
     %{
+      name: "frameshift.outbox.listener.count",
+      event: [:frameshift, :outbox, :listener],
+      measure: :count,
+      kind: :sum,
+      unit: :count,
+      dimensions: %{state: ~w(started stopped unavailable other)},
+      buckets: []
+    },
+    %{
       name: "frameshift.outbox.exchange.duration.ms",
       event: [:frameshift, :outbox, :exchange],
       measure: :duration_ms,

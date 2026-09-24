@@ -13,6 +13,9 @@ private struct FrameshiftIPCProbe {
     let initial = try await client.snapshot()
     guard initial.targets.isEmpty else { throw ProbeFailure() }
 
+    let outbox = try await client.outboxStatus()
+    guard !outbox.available, outbox.port == nil else { throw ProbeFailure() }
+
     let marker = "release-smoke-\(UUID().uuidString.lowercased())\nsecond line"
     let updated = try await client.send(
       CoreCommand(kind: .updateInstruction, instruction: marker)

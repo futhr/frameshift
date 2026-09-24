@@ -4,6 +4,7 @@ defmodule Frameshift.Pairing.AdmissionLiveTest do
   use ExUnit.Case, async: false
 
   alias Frameshift.Library
+  alias Frameshift.Outbox.TLSServer, as: OutboxTLSServer
   alias Frameshift.Pairing.{Admission, TLSServer}
   alias Frameshift.Simulator
   alias Frameshift.Transport.KeychainBroker
@@ -127,7 +128,54 @@ defmodule Frameshift.Pairing.AdmissionLiveTest do
                resolver: resolver,
                transport_config: %{allow_loopback: true}
              )
+
+    assert {:ok, host_identity} = resolve_identity(resolver, reference)
+    assert {:ok, host_pin} = SPKIPin.fingerprint_der(host_identity.certificate)
+
+    assert {:ok, outbox} =
+             OutboxTLSServer.start_link(
+               name: nil,
+               library: library,
+               task_supervisor: workers,
+               bind_address: {127, 0, 0, 1},
+               port: 0,
+               certificate: host_identity.certificate,
+               private_key: host_identity.private_key
+             )
+
+    on_exit(fn -> stop_if_alive(outbox) end)
+    assert {:ok, outbox_port} = OutboxTLSServer.port(outbox)
+
+    assert {:ok, outbox_socket} =
+             :ssl.connect(
+               ~c"127.0.0.1",
+               outbox_port,
+               [
+                 active: false,
+                 mode: :binary,
+                 verify: :verify_peer,
+                 cacerts: [],
+                 cert: Keyword.fetch!(context.certificates.server_config, :cert),
+                 key: Keyword.fetch!(context.certificates.server_config, :key),
+                 verify_fun: {&SPKIPin.verify/3, %{expected: host_pin}},
+                 versions: [:"tlsv1.3"],
+                 server_name_indication: :disable
+               ],
+               5_000
+             )
+
+    assert :ok =
+             :ssl.send(
+               outbox_socket,
+               "GET /v0/outbox/manifest HTTP/1.1\r\nHost: host.local\r\n\r\n"
+             )
+
+    assert {:ok, response} = :ssl.recv(outbox_socket, 0, 5_000)
+    assert response =~ "HTTP/1.1 204 No Content"
+    :ssl.close(outbox_socket)
   end
+
+  defp resolve_identity({module, config}, reference), do: module.resolve(reference, config)
 
   defp identity_for_test(context) do
     case System.get_env("FRAMESHIFT_KEYCHAIN_PROBE_REFERENCE") do

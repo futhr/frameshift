@@ -30,6 +30,21 @@ public actor LocalCoreClient: CoreClient {
     return try await exchange(operation: "command", command: prepared.command)
   }
 
+  public func outboxStatus() async throws -> OutboxServiceStatus {
+    try await BundledCore.shared.ensureRunning(socketPath: socketPath)
+    let auth = try await BundledCore.shared.sessionToken(socketPath: socketPath)
+    let request = WireRequest(auth: auth, operation: "outboxStatus", command: nil, query: nil)
+    let payload = try encoder.encode(request)
+    let responseData = try await send(payload)
+    guard let response = try? decoder.decode(WireResponse.self, from: responseData),
+      response.version == 1, response.requestID == request.requestID,
+      response.ok, let status = response.outbox,
+      (!status.available && status.port == nil)
+        || (status.available && status.port.map({ (1...65_535).contains($0) }) == true)
+    else { throw CoreClientError.protocolFailure }
+    return status
+  }
+
   /// Sends a physical bootstrap only through the transient IPC operation.
   /// A lost response is not retried because the one-time secret may have been consumed.
   public func pair(
@@ -442,6 +457,7 @@ private struct WireResponse: Decodable, Sendable {
   let ok: Bool
   let snapshot: CoreSnapshot?
   let frame: PairedFrameResult?
+  let outbox: OutboxServiceStatus?
   let error: WireError?
 
   private enum CodingKeys: String, CodingKey {
@@ -450,8 +466,14 @@ private struct WireResponse: Decodable, Sendable {
     case ok
     case snapshot
     case frame
+    case outbox
     case error
   }
+}
+
+public struct OutboxServiceStatus: Decodable, Sendable {
+  public let available: Bool
+  public let port: Int?
 }
 
 private struct WireError: Decodable, Sendable {

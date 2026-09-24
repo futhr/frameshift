@@ -7,7 +7,7 @@ defmodule Frameshift.Diagnostics.CatalogTest do
 
   test "definitions and samples use bounded semantic dimensions" do
     definitions = Catalog.metrics()
-    assert length(definitions) == 11
+    assert length(definitions) == 12
     assert Enum.all?(definitions, &(&1.event_name in Catalog.events()))
 
     samples =
@@ -87,6 +87,15 @@ defmodule Frameshift.Diagnostics.CatalogTest do
 
     assert playlist_count.dimensions == %{"route" => "playlist", "outcome" => "succeeded"}
     assert playlist_duration.dimensions == playlist_count.dimensions
+  end
+
+  test "outbox listener events retain only a bounded lifecycle state" do
+    assert [%{dimensions: %{"state" => "unavailable"}}] =
+             Catalog.samples(
+               [:frameshift, :outbox, :listener],
+               %{count: 1},
+               %{state: :unavailable, credential_ref: "private"}
+             )
   end
 
   test "only catalog rollups with bounded dimensions and aligned buckets are valid" do

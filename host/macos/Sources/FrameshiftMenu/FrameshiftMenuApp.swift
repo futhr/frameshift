@@ -88,6 +88,8 @@ enum AppIcon {
 
 @MainActor
 private final class FrameshiftAppDelegate: NSObject, NSApplicationDelegate {
+  private let outboxAdvertisement = OutboxAdvertisement()
+
   func application(_ application: NSApplication, open urls: [URL]) {
     _ = application
     for url in urls {
@@ -97,6 +99,7 @@ private final class FrameshiftAppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     _ = notification
+    outboxAdvertisement.start()
     Task {
       _ = try? await LocalCoreClient().snapshot()
     }
@@ -104,6 +107,7 @@ private final class FrameshiftAppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationWillTerminate(_ notification: Notification) {
     _ = notification
+    outboxAdvertisement.stop()
     let stopped = DispatchSemaphore(value: 0)
     Task.detached {
       await LocalCoreClient.shutdownBundledCore()

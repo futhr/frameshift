@@ -203,6 +203,14 @@ shows the device fingerprint or QR confirmation, requires the frame's physical
 pair mode, stores host credentials in Keychain, and records a friendly name
 only on the Mac unless the user explicitly writes it to the frame.
 
+The native discovery list treats Bonjour TXT as an untrusted hint. It accepts
+only the bounded v0.1 reference keys and an HTTPS introduction path, limits
+the visible set, and withholds duplicate device IDs from selection. A row may
+show physical pair-mode availability, but it never claims a frame is paired
+or safe to contact from the advertisement alone. Browsing starts while the
+pairing settings are visible and stops when they close. The installed app
+declares its Bonjour service and local-network purpose to macOS.
+
 USB commissioning is allowed for initial Wi-Fi and identity setup. A cable used
 during commissioning is not an installed power architecture.
 

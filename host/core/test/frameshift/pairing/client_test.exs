@@ -107,7 +107,7 @@ defmodule Frameshift.Pairing.ClientTest do
         name: nil
       )
 
-    on_exit(fn -> if Process.alive?(frame), do: GenServer.stop(frame) end)
+    on_exit(fn -> Frameshift.TestSupport.stop_if_running(frame) end)
     assert :ok = Simulator.open_pairing(frame, 100)
 
     {:ok, credential} =

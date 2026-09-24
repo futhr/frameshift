@@ -76,7 +76,7 @@ defmodule Frameshift.Diagnostics.MetricsTest do
     {:ok, collector} = Metrics.start_link(library: library_name, name: nil)
 
     on_exit(fn ->
-      if Process.alive?(collector), do: GenServer.stop(collector)
+      Frameshift.TestSupport.stop_if_running(collector)
       File.rm_rf!(root)
     end)
 
@@ -92,7 +92,7 @@ defmodule Frameshift.Diagnostics.MetricsTest do
     assert Metrics.status(collector)["pendingSeries"] == 2
 
     {:ok, restarted} = Library.start_link(data_dir: root, name: library_name)
-    on_exit(fn -> if Process.alive?(restarted), do: GenServer.stop(restarted) end)
+    on_exit(fn -> Frameshift.TestSupport.stop_if_running(restarted) end)
 
     assert :ok = Metrics.flush(collector)
     assert Metrics.status(collector)["pendingSeries"] == 0

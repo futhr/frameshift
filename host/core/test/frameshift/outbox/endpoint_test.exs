@@ -48,7 +48,8 @@ defmodule Frameshift.Outbox.EndpointTest do
 
     on_exit(fn -> File.rm_rf!(root) end)
     {:ok, library} = Library.start_link(data_dir: Path.join(root, "library"), name: nil)
-    on_exit(fn -> if Process.alive?(library), do: GenServer.stop(library) end)
+
+    on_exit(fn -> Frameshift.TestSupport.stop_if_running(library) end)
 
     assert {:ok, _} =
              Library.register_paired_frame(

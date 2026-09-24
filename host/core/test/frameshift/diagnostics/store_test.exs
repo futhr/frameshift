@@ -10,7 +10,7 @@ defmodule Frameshift.Diagnostics.StoreTest do
     {:ok, connection} = Exqlite.start_link(database: ":memory:")
     Process.unlink(connection)
 
-    on_exit(fn -> if Process.alive?(connection), do: GenServer.stop(connection) end)
+    on_exit(fn -> Frameshift.TestSupport.stop_if_running(connection) end)
 
     Exqlite.query!(
       connection,
@@ -60,7 +60,7 @@ defmodule Frameshift.Diagnostics.StoreTest do
   test "metric maintenance removes the oldest rows beyond its capacity" do
     {:ok, connection} = Exqlite.start_link(database: ":memory:")
     Process.unlink(connection)
-    on_exit(fn -> if Process.alive?(connection), do: GenServer.stop(connection) end)
+    on_exit(fn -> Frameshift.TestSupport.stop_if_running(connection) end)
 
     Exqlite.query!(
       connection,

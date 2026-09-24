@@ -122,7 +122,7 @@ defmodule Frameshift.LocalIPC.DiagnosticsServerTest do
     {:ok, restarted} =
       Library.start_link(data_dir: Path.join(Path.dirname(context.path), "../data"), name: nil)
 
-    on_exit(fn -> if Process.alive?(restarted), do: GenServer.stop(restarted) end)
+    on_exit(fn -> Frameshift.TestSupport.stop_if_running(restarted) end)
 
     assert %{"entries" => persisted} = Library.metric_page(restarted)
     assert Enum.any?(persisted, &(&1["metric"] == "frameshift.command.duration.ms"))

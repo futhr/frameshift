@@ -24,9 +24,7 @@ defmodule Frameshift.SimulatorTest do
     {:ok, simulator} =
       Simulator.start_link(data_dir: data_dir, capabilities: capabilities, name: nil)
 
-    on_exit(fn ->
-      if Process.alive?(simulator), do: GenServer.stop(simulator)
-    end)
+    on_exit(fn -> Frameshift.TestSupport.stop_if_running(simulator) end)
 
     %{simulator: simulator, data_dir: data_dir, capabilities: capabilities}
   end

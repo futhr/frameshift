@@ -114,11 +114,16 @@ records:
 These steps are acceptance gates for one final product, not optional product
 tiers. Passing the tooling gate below does not close them.
 
-Run all implemented software checks from the repository root:
+Run the default software gate from the repository root:
 
 ```sh
 make check
 ```
+
+The Docker-backed receiver and Linux peer-credential lanes run separately in
+CI. Locally, run `./scripts/check container` and `./scripts/check linux-ipc`
+with a Docker-compatible daemon. Neither lane substitutes for physical frame
+or installed Linux service evidence.
 
 ## Formal verification target
 

@@ -78,6 +78,9 @@ timing, optics, and physical persistence remain hardware gates. Run
 `scripts/check container` from the repository root with a Docker-compatible
 daemon. CI runs this lane independently of the ordinary core gate. See the
 [receiver contract](../../docs/architecture/container-frame-simulator.md).
+The separate `scripts/check linux-ipc` lane exercises actual Linux kernel
+peer credentials on pinned OTP in a network-disabled container; it does not
+qualify an installed Linux service or its group permissions.
 
 Run the complete core check from this directory:
 

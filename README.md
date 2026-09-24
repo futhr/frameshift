@@ -96,12 +96,16 @@ validation gates.
 
 The current partial implementation includes an Elixir library/simulator core,
 an isolated Zig raster worker, and a SwiftUI shell. This is implementation
-status, not the product scope or a release tier. Run every implemented format,
+status, not the product scope or a release tier. Run the default format,
 static-analysis, test, fuzz, and release-build gate with:
 
 ```sh
 make check
 ```
+
+The Docker-backed live receiver and Linux peer-credential checks are separate
+lanes in CI. Run them locally with `./scripts/check container` and
+`./scripts/check linux-ipc` when a Docker-compatible daemon is available.
 
 The core's `mix check` configuration covers compilation, formatting, strict
 Credo, Doctor, ExDoc, coverage, Dialyzer, and dependency audits. Swift Package

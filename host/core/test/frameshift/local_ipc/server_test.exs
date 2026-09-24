@@ -15,6 +15,7 @@ defmodule Frameshift.LocalIPC.ServerTest do
                      __DIR__
                    )
                  )
+                 |> String.replace("https://frame.invalid/", "https://frame.local/")
 
   defmodule PairingResolver do
     @moduledoc false

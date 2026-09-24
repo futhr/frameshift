@@ -26,6 +26,7 @@ defmodule Frameshift.Simulator.State do
             playlist_retry_at_ms: nil,
             playlist_suspended: false,
             pairing: nil,
+            thing_source: nil,
             faults: %{}
 
   @type t :: %__MODULE__{}

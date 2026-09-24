@@ -12,6 +12,7 @@ defmodule Frameshift.Pairing.HTTP1 do
   alias Frameshift.Simulator
 
   @path "/.well-known/frameshift/pair"
+  @thing_path "/.well-known/wot"
   @maximum_wire_bytes 8_192
   @maximum_body_bytes 2_048
 
@@ -27,6 +28,22 @@ defmodule Frameshift.Pairing.HTTP1 do
 
   def exchange(frame, peer_der, wire, now_ms),
     do: respond(RequestParser.decode(wire), frame, peer_der, now_ms, byte_size(wire))
+
+  defp respond(
+         {:ok, %{method: "GET", path: @thing_path, body: <<>>}},
+         frame,
+         peer_der,
+         _,
+         _
+       ) do
+    case Simulator.authorized_thing(frame, peer_der) do
+      {:ok, source} ->
+        {:ok, encode(%{status: 200, content_type: "application/json", body: source})}
+
+      {:error, _} ->
+        error(404, "not-found", "Resource not found")
+    end
+  end
 
   defp respond(
          {:ok, %{method: "POST", path: @path, content_type: "application/json", body: body}},

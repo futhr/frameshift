@@ -12,6 +12,7 @@ defmodule Frameshift.Pairing.AdmissionTest do
                     __DIR__
                   )
                 )
+                |> String.replace("https://frame.invalid/", "https://frame.local/")
   @device_id "sim-photo-00000001"
   @pin "sha256:" <> String.duplicate("a", 64)
   @secret :binary.copy(<<17, 29, 43, 61>>, 4)
@@ -127,6 +128,24 @@ defmodule Frameshift.Pairing.AdmissionTest do
                  fn bootstrap, _, _ -> {:ok, %{device_id: bootstrap.device_id}} end,
                  fn _, _ ->
                    {:ok, mismatched_td}
+                 end
+               )
+             )
+
+    other_origin = String.replace(@thing_source, "https://frame.local/", "https://other.local/")
+
+    assert {:error, :pairing_incomplete} =
+             Admission.pair(
+               bootstrap(),
+               @device_id,
+               "https://frame.local",
+               "keychain:admission-test",
+               "pair-request-5",
+               options(
+                 context,
+                 fn bootstrap, _, _ -> {:ok, %{device_id: bootstrap.device_id}} end,
+                 fn _, _ ->
+                   {:ok, other_origin}
                  end
                )
              )

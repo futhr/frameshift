@@ -9,8 +9,10 @@ defmodule Frameshift.Pairing.Admission do
 
   alias Frameshift.Library
   alias Frameshift.Pairing.{Bootstrap, Client}
+  alias Frameshift.Protocol.Thing
   alias Frameshift.Transport.{HTTPClient, MTLSCredential}
   alias Wotex.Binding.HTTP.{Headers, Request, Response}
+  alias Wotex.ThingDescription
 
   @thing_path "/.well-known/wot"
   @maximum_thing_bytes 262_144
@@ -22,8 +24,21 @@ defmodule Frameshift.Pairing.Admission do
   def pair(bootstrap_source, discovered_id, origin, credential_ref, request_id, options \\ []) do
     resolver = Keyword.get(options, :resolver)
     library = Keyword.get(options, :library, Library)
-    pairer = Keyword.get(options, :pairer, &Client.pair/3)
-    fetcher = Keyword.get(options, :fetcher, &fetch_thing/2)
+    transport_config = Keyword.get(options, :transport_config, %{})
+
+    pairer =
+      Keyword.get(options, :pairer, fn bootstrap, credential, id ->
+        Client.pair(bootstrap, credential, id,
+          transport: fn request, resolved ->
+            HTTPClient.request(request, resolved, transport_config)
+          end
+        )
+      end)
+
+    fetcher =
+      Keyword.get(options, :fetcher, fn credential, path ->
+        fetch_thing(credential, path, transport_config)
+      end)
 
     with {:ok, bootstrap} <- Bootstrap.parse(bootstrap_source),
          :ok <- match_discovery(bootstrap, discovered_id),
@@ -88,6 +103,7 @@ defmodule Frameshift.Pairing.Admission do
   defp admit_after_pair(bootstrap, credential, reference, library, fetcher) do
     with {:ok, td_source} <- fetcher.(credential, @thing_path),
          :ok <- Bootstrap.verify_thing_description(bootstrap, td_source),
+         :ok <- verify_thing_origin(td_source, credential),
          {:ok, frame} <-
            Library.register_paired_frame(library, td_source, reference, bootstrap.server_spki) do
       {:ok, %{"frameId" => frame["frame_id"]}}
@@ -96,7 +112,21 @@ defmodule Frameshift.Pairing.Admission do
     end
   end
 
-  defp fetch_thing(credential, path) do
+  defp verify_thing_origin(source, credential) do
+    with {:ok, thing} <- Thing.parse_frame(source),
+         %{"base" => base} when is_binary(base) <- ThingDescription.to_map(thing),
+         {:ok, uri} <- URI.new(base),
+         true <- uri.scheme == "https" and String.downcase(uri.host || "") == credential.host,
+         true <- (uri.port || 443) == credential.port,
+         true <- uri.path in [nil, "", "/"],
+         true <- is_nil(uri.userinfo) and is_nil(uri.query) and is_nil(uri.fragment) do
+      :ok
+    else
+      _ -> {:error, :thing_origin_mismatch}
+    end
+  end
+
+  defp fetch_thing(credential, path, transport_config) do
     with {:ok, request} <-
            Request.new(
              "GET",
@@ -114,7 +144,7 @@ defmodule Frameshift.Pairing.Admission do
              max_header_bytes: 8_192,
              max_uri_bytes: 1_024
            ),
-         {:ok, response} <- HTTPClient.request(request, credential, %{}),
+         {:ok, response} <- HTTPClient.request(request, credential, transport_config),
          200 <- Response.status(response),
          "application/json" <- Headers.get(Response.headers(response), "content-type"),
          body when is_binary(body) and byte_size(body) in 1..@maximum_thing_bytes <-

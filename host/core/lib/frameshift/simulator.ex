@@ -13,8 +13,10 @@ defmodule Frameshift.Simulator do
   alias Frameshift.Digest
   alias Frameshift.Pairing.{Endpoint, Store, Window}
   alias Frameshift.Protocol.Schema
+  alias Frameshift.Protocol.Thing
   alias Frameshift.Simulator.Persistence
   alias Frameshift.Simulator.State
+  alias Wotex.ThingDescription
 
   @allowed_faults [
     :corrupt_upload,
@@ -116,6 +118,16 @@ defmodule Frameshift.Simulator do
   def pair(server \\ __MODULE__, peer_der, body, now_ms),
     do: GenServer.call(server, {:pair, peer_der, body, now_ms})
 
+  @doc "Returns the full TD only to the exact TLS certificate admitted by physical pairing."
+  @spec authorized_thing(server(), binary()) :: {:ok, binary()} | {:error, :not_authorized}
+  def authorized_thing(server \\ __MODULE__, peer_der),
+    do: GenServer.call(server, {:authorized_thing, peer_der})
+
+  @doc "Sets a simulator introduction after its ephemeral listener port is known, before pairing."
+  @spec set_thing_source(server(), binary()) :: :ok | {:error, atom()}
+  def set_thing_source(server \\ __MODULE__, source),
+    do: GenServer.call(server, {:set_thing_source, source})
+
   @impl true
   def init(options) do
     capabilities = Keyword.fetch!(options, :capabilities)
@@ -130,9 +142,10 @@ defmodule Frameshift.Simulator do
              capabilities["deviceId"],
              Keyword.get(options, :pairing_secret)
            ),
+         {:ok, thing_source} <- validate_thing(Keyword.get(options, :thing_source), capabilities),
          :ok <- verify_assets(state),
          {:ok, recovered} <- recover_interrupted(state) do
-      {:ok, %{recovered | pairing: pairing}}
+      {:ok, %{recovered | pairing: pairing, thing_source: thing_source}}
     else
       {:error, reason} -> {:stop, reason}
     end
@@ -172,6 +185,24 @@ defmodule Frameshift.Simulator do
       end
     end
   end
+
+  def handle_call({:authorized_thing, peer_der}, _, state) do
+    {:reply, authorized_thing_record(state, peer_der), state}
+  end
+
+  def handle_call(
+        {:set_thing_source, source},
+        _,
+        %{thing_source: nil, pairing: %Window{host_certificate_fingerprint: nil}} = state
+      ) do
+    case validate_thing(source, state.capabilities) do
+      {:ok, accepted} -> {:reply, :ok, %{state | thing_source: accepted}}
+      {:error, reason} -> {:reply, {:error, reason}, state}
+    end
+  end
+
+  def handle_call({:set_thing_source, _}, _, state),
+    do: {:reply, {:error, :thing_already_configured}, state}
 
   def handle_call(:state, _, state) do
     {:reply, %{state: State.public(state), etag: State.etag(state)}, state}
@@ -263,6 +294,52 @@ defmodule Frameshift.Simulator do
         {:reply, {:error, reason}, state}
     end
   end
+
+  defp authorized_thing_record(
+         %{pairing: %Window{host_certificate_fingerprint: fingerprint}, thing_source: source},
+         peer_der
+       )
+       when is_binary(fingerprint) and is_binary(source) and is_binary(peer_der) and
+              byte_size(peer_der) in 1..65_536 do
+    presented = "sha256:" <> Base.encode16(:crypto.hash(:sha256, peer_der), case: :lower)
+    if presented == fingerprint, do: {:ok, source}, else: {:error, :not_authorized}
+  end
+
+  defp authorized_thing_record(_, _), do: {:error, :not_authorized}
+
+  defp validate_thing(nil, _), do: {:ok, nil}
+
+  defp validate_thing(source, capabilities) when is_binary(source) do
+    with true <- byte_size(source) in 1..262_144,
+         {:ok, thing} <- Thing.parse_frame(source),
+         %{"frameshift:capabilities" => advertised} <- ThingDescription.to_map(thing),
+         true <- capability_subset?(advertised, capabilities) do
+      {:ok, source}
+    else
+      _ -> {:error, :invalid_thing_description}
+    end
+  end
+
+  defp validate_thing(_, _), do: {:error, :invalid_thing_description}
+
+  defp capability_subset?(advertised, actual)
+       when is_map(advertised) and is_map(actual) do
+    Enum.all?(advertised, fn {key, value} ->
+      case Map.fetch(actual, key) do
+        {:ok, actual_value} -> capability_subset?(value, actual_value)
+        :error -> false
+      end
+    end)
+  end
+
+  defp capability_subset?(advertised, actual)
+       when is_list(advertised) and is_list(actual) do
+    length(advertised) == length(actual) and
+      Enum.zip(advertised, actual)
+      |> Enum.all?(fn {left, right} -> capability_subset?(left, right) end)
+  end
+
+  defp capability_subset?(advertised, actual), do: advertised == actual
 
   defp load_state(data_dir, capabilities) do
     case Persistence.load(data_dir) do

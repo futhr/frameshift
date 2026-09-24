@@ -3,7 +3,7 @@ defmodule Frameshift.Pairing.TLSServerTest do
 
   use ExUnit.Case, async: false
 
-  alias Frameshift.Pairing.TLSServer
+  alias Frameshift.Pairing.{HTTP1, TLSServer}
   alias Frameshift.Simulator
   alias Frameshift.Transport.SPKIPin
 
@@ -68,10 +68,16 @@ defmodule Frameshift.Pairing.TLSServerTest do
       |> Jason.decode!()
       |> Map.put("deviceId", @device_id)
 
+    thing_source =
+      Path.expand("../../../../../protocol/fixtures/valid/thing-description.json", __DIR__)
+      |> File.read!()
+      |> String.replace("sim-photo-00000001", @device_id)
+
     {:ok, frame} =
       Simulator.start_link(
         data_dir: data_dir,
         capabilities: capabilities,
+        thing_source: thing_source,
         pairing_secret: @secret,
         name: nil
       )
@@ -95,6 +101,13 @@ defmodule Frameshift.Pairing.TLSServerTest do
 
     on_exit(fn -> stop_if_alive(server) end)
     assert {:ok, port} = TLSServer.port(server)
+
+    introduction = "GET /.well-known/wot HTTP/1.1\r\nHost: frame.local\r\n\r\n"
+
+    assert {:ok, before_pair} =
+             HTTP1.exchange(frame, Keyword.fetch!(context.client_config, :cert), introduction, 0)
+
+    assert before_pair =~ "HTTP/1.1 404 Not Found\r\n"
 
     assert {:ok, socket} =
              :ssl.connect(
@@ -133,6 +146,23 @@ defmodule Frameshift.Pairing.TLSServerTest do
     assert {:ok, response} = recv_until_close(socket, <<>>)
     assert response =~ "HTTP/1.1 201 Created\r\n"
     assert response =~ "\"requestId\":\"pair-1\""
+
+    assert {:ok, admitted_thing} =
+             HTTP1.exchange(
+               frame,
+               Keyword.fetch!(context.client_config, :cert),
+               introduction,
+               0
+             )
+
+    assert admitted_thing =~ "HTTP/1.1 200 OK\r\n"
+    [_, admitted_body] = String.split(admitted_thing, "\r\n\r\n", parts: 2)
+
+    assert get_in(Jason.decode!(admitted_body), ["frameshift:capabilities", "deviceId"]) ==
+             @device_id
+
+    assert {:ok, refused_thing} = HTTP1.exchange(frame, <<1, 2, 3>>, introduction, 0)
+    assert refused_thing =~ "HTTP/1.1 404 Not Found\r\n"
     :ssl.close(socket)
   end
 

@@ -221,6 +221,14 @@ checks its device ID, then commits the paired record. A failed or uncertain
 network exchange must not invent a paired target. The shell retains no QR
 secret after the operation completes.
 
+For the local reference binding, the Mac creates one P-256 host key in
+Keychain and a bounded self-issued X.509 certificate with client and server
+authentication purposes. It reuses that identity for paired frames and the
+host outbox. The private key never crosses the local broker or enters a file;
+OTP receives only the certificate and a bounded signing callback. Keychain
+denial or an incomplete certificate/key record fails closed. Identity rotation
+remains an explicit authenticated operation rather than an automatic retry.
+
 USB commissioning is allowed for initial Wi-Fi and identity setup. A cable used
 during commissioning is not an installed power architecture.
 

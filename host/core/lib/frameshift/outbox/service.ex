@@ -60,9 +60,8 @@ defmodule Frameshift.Outbox.Service do
 
   @impl true
   def handle_call(:status, _, state) do
-    {:reply,
-     %{available: is_pid(state.listener) and Process.alive?(state.listener), port: state.port},
-     state}
+    available = is_pid(state.listener) and Process.alive?(state.listener)
+    {:reply, %{available: available, port: if(available, do: state.port)}, state}
   end
 
   @impl true

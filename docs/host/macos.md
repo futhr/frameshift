@@ -248,7 +248,9 @@ paired to one shared host identity. It uses the same broker signing callback,
 chooses an available local port, and reports its bound port through the
 authenticated read-only local IPC. The shell advertises that port through a
 privacy-minimal Bonjour record while it is available. A failed listener or
-broker lookup does not invalidate paired records or pending work.
+broker lookup does not invalidate paired records or pending work. A Bonjour
+publication failure is retried with a delay while the listener remains active;
+the shell withdraws the record when the listener becomes unavailable.
 
 USB commissioning is allowed for initial Wi-Fi and identity setup. A cable used
 during commissioning is not an installed power architecture.

@@ -64,8 +64,9 @@ returned the 12-byte PID/UID/GID structure. This supports exercising the
 adapter's native fallback in a container contract test. It does not establish
 the permissions of an installed service or admission of another user's group
 membership.
-The pinned container contract subsequently read UID 0 for its root client and
-UID 65534 for a `runuser` client over actual Unix stream sockets on arm64.
+The pinned container contract subsequently read PID, UID, and primary GID for
+its root client and a distinct `runuser` client with UID/GID 65534 over actual
+Unix stream sockets on arm64.
 The amd64 image could not start OTP under the local Docker Desktop emulation
 (`prim_tty` NIF startup failure); the native amd64 CI lane is required for
 that architecture and remains unobserved here.

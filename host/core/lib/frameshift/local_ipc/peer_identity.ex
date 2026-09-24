@@ -17,6 +17,17 @@ defmodule Frameshift.LocalIPC.PeerIdentity do
     end
   end
 
+  @doc "Returns the Linux kernel PID, UID, and primary GID for one connected Unix socket."
+  @spec credentials(:socket.socket()) ::
+          {:ok, %{pid: pos_integer(), uid: non_neg_integer(), gid: non_neg_integer()}}
+          | {:error, term()}
+  def credentials(socket) do
+    case :os.type() do
+      {:unix, :linux} -> linux_credentials(socket)
+      _ -> {:error, :unsupported_peer_identity}
+    end
+  end
+
   defp darwin_uid(socket) do
     case :socket.getopt_native(socket, {0, 1}, 80) do
       {:ok,
@@ -32,23 +43,37 @@ defmodule Frameshift.LocalIPC.PeerIdentity do
   end
 
   defp linux_uid(socket) do
+    case linux_credentials(socket) do
+      {:ok, %{uid: uid}} -> {:ok, uid}
+      error -> error
+    end
+  end
+
+  defp linux_credentials(socket) do
     case :socket.getopt(socket, :socket, :peercred) do
-      {:ok, %{uid: uid}} when is_integer(uid) and uid >= 0 ->
-        {:ok, uid}
+      {:ok, %{pid: pid, uid: uid, gid: gid}}
+      when is_integer(pid) and pid > 0 and is_integer(uid) and uid >= 0 and
+             is_integer(gid) and gid >= 0 ->
+        {:ok, %{pid: pid, uid: uid, gid: gid}}
 
       _ ->
-        case :socket.getopt_native(socket, {1, 17}, 12) do
-          {:ok,
-           <<_::native-signed-integer-size(32), uid::native-unsigned-integer-size(32),
-             _::native-unsigned-integer-size(32)>>} ->
-            {:ok, uid}
+        linux_native_credentials(socket)
+    end
+  end
 
-          {:ok, _} ->
-            {:error, :invalid_peer_credential}
+  defp linux_native_credentials(socket) do
+    case :socket.getopt_native(socket, {1, 17}, 12) do
+      {:ok,
+       <<pid::native-signed-integer-size(32), uid::native-unsigned-integer-size(32),
+         gid::native-unsigned-integer-size(32)>>}
+      when pid > 0 ->
+        {:ok, %{pid: pid, uid: uid, gid: gid}}
 
-          {:error, reason} ->
-            {:error, reason}
-        end
+      {:ok, _} ->
+        {:error, :invalid_peer_credential}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 end

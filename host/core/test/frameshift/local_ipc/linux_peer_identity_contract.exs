@@ -27,6 +27,11 @@ defmodule Frameshift.LocalIPC.LinuxPeerIdentityContract do
     :ok = :socket.connect(local, %{family: :local, path: path})
     {:ok, accepted_local} = :socket.accept(listener, 10_000)
     assert {:ok, 0} = PeerIdentity.uid(accepted_local)
+
+    assert {:ok, %{pid: local_pid, uid: 0, gid: 0}} =
+             PeerIdentity.credentials(accepted_local)
+
+    assert local_pid > 0
     :socket.close(accepted_local)
     :socket.close(local)
 
@@ -39,6 +44,11 @@ defmodule Frameshift.LocalIPC.LinuxPeerIdentityContract do
 
     {:ok, accepted_other} = :socket.accept(listener, 10_000)
     assert {:ok, 65_534} = PeerIdentity.uid(accepted_other)
+
+    assert {:ok, %{pid: other_pid, uid: 65_534, gid: 65_534}} =
+             PeerIdentity.credentials(accepted_other)
+
+    assert other_pid != local_pid
     :socket.close(accepted_other)
     assert {_, 0} = Task.await(client, 10_000)
   end

@@ -135,6 +135,14 @@ on each platform. Mutation IPC retains its boot token. The CLI does not open
 the database or read the Apple unified log store programmatically. Explicit
 local export is redacted, bounded, and records its own audit fact.
 
+Before the OTP fallback file handler starts, the core must inspect the final
+diagnostics directory and any existing log file without following a symlink.
+It must refuse a symlink or non-regular log target, require a private directory,
+and restrict an existing regular log to owner-only access. A failed admission
+must fail core startup rather than redirect sanitized diagnostic records into
+an attacker-chosen file. This local path check does not replace installed
+filesystem, ownership, or race-condition acceptance testing.
+
 ## Failure and acceptance cases
 
 - Reconstruct a failed update from command ID through render, durable intent,

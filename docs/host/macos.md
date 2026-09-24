@@ -211,6 +211,16 @@ or safe to contact from the advertisement alone. Browsing starts while the
 pairing settings are visible and stops when they close. The installed app
 declares its Bonjour service and local-network purpose to macOS.
 
+The physical bootstrap secret crosses the authenticated local socket only in
+one transient pairing operation. It is parsed under the protocol bounds and
+must never enter the durable command receipt, audit, native log, or metric
+record. The operation matches the selected discovery ID to the QR record,
+resolves a Keychain identity at the transport boundary, pins the frame's SPKI
+before sending the secret, retrieves the fixed authenticated TD introduction,
+checks its device ID, then commits the paired record. A failed or uncertain
+network exchange must not invent a paired target. The shell retains no QR
+secret after the operation completes.
+
 USB commissioning is allowed for initial Wi-Fi and identity setup. A cable used
 during commissioning is not an installed power architecture.
 

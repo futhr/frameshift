@@ -193,6 +193,15 @@ The reference simulator serves `GET /.well-known/wot` only to the exact host
 certificate admitted by the physical pairing state. The pre-pair route never
 exposes the TD, including to a TLS client presenting another certificate.
 
+If the pair response or subsequent TD read is lost, the host MUST NOT send the
+one-time secret again under a new request ID. An explicit recovery action may
+read only the fixed authenticated TD introduction after rechecking the physical
+QR record, selected discovery ID, existing host identity, and pinned frame
+certificate. The QR secret may cross the protected local IPC again for strict
+record parsing, but recovery never puts it on the frame network. Admission
+still requires the matching device ID and HTTPS origin. A failed recovery
+leaves the frame unpaired locally and reports an uncertain or incomplete state.
+
 Persisting that admitted identity is idempotent only for the same canonical TD,
 credential reference, and pinned frame SPKI. A changed pin, credential
 reference, or TD is not accepted by replaying pairing admission. One server

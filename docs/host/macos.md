@@ -215,15 +215,22 @@ a bounded local HTTPS origin; the core still re-resolves the host, admits only
 local addresses, and verifies the QR-pinned frame key before sending a secret.
 
 The physical bootstrap secret crosses the authenticated local socket only in
-one transient pairing operation. It is parsed under the protocol bounds and
-must never enter the durable command receipt, audit, native log, or metric
-record. The operation matches the selected discovery ID to the QR record,
+transient pairing or explicit read-only recovery operations. It is parsed under
+the protocol bounds and must never enter the durable command receipt, audit,
+native log, or metric record. The operation matches the selected discovery ID
+to the QR record,
 resolves a Keychain identity at the transport boundary, pins the frame's SPKI
 before sending the secret, retrieves the fixed authenticated TD introduction,
 checks its device ID and reference HTTPS origin, then commits the paired record.
 A TD that changes the credential audience is refused. A failed or uncertain
 network exchange must not invent a paired target. The shell retains no QR
 secret after the operation completes.
+
+After an uncertain or incomplete exchange, Settings offers an explicit
+"Recover pairing" action. It asks for the physical QR image again, confirms
+the selected image, and performs only an authenticated TD read. It does not
+retry the one-time pair POST or assume that the frame accepted it. The user
+can run recovery even after physical pair mode closes.
 
 For the local reference binding, the Mac creates one P-256 host key in
 Keychain and a bounded self-issued X.509 certificate with client and server

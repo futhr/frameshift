@@ -48,6 +48,7 @@ defmodule FrameshiftCore.MixProject do
 
   defp deps do
     [
+      {:frameshift_decisions, path: "../decision_kernel"},
       {:exqlite, "~> 0.40.0"},
       {:telemetry, "~> 1.4"},
       {:telemetry_metrics, "~> 1.1"},

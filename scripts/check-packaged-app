@@ -32,6 +32,13 @@ test -x "$core"
 test -x "$renderer"
 test -x "$app_bundle/Contents/MacOS/frameshiftctl"
 test -x "$maintenance"
+test -f "$app_bundle/Contents/Resources/core/lib/frameshift_decisions-0.1.0/ebin/frameshift_decisions.beam"
+
+kernel_result=$(
+  FRAMESHIFT_RENDERER_PATH="$renderer" \
+    "$core" eval 'IO.inspect(:frameshift_decisions.select_dwell(180000, 60000))'
+)
+test "$kernel_result" = '{:ok, 180000}'
 
 FRAMESHIFT_DATA_DIR="$runtime_root/data" \
 FRAMESHIFT_IPC_TOKEN="$ipc_token" \

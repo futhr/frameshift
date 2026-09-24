@@ -45,21 +45,34 @@ defmodule Frameshift.Delivery.Transition do
           String.t(),
           :displayed | :pending
         ) :: :commit | :already | :pending | {:error, atom()}
-  def direct_confirmation(intent, revision, request_id, digest, outcome)
+  def direct_confirmation(
+        %{
+          revision: intent_revision,
+          request_id: intent_request_id,
+          desired_digest: intent_digest,
+          status: intent_status
+        },
+        revision,
+        request_id,
+        digest,
+        outcome
+      )
       when outcome in [:displayed, :pending] do
-    cond do
-      intent.revision != revision or intent.request_id != request_id or
-          intent.desired_digest != digest ->
-        {:error, :direct_delivery_conflict}
-
-      intent.status == "displayed" ->
-        :already
-
-      outcome == :pending ->
-        :pending
-
-      true ->
-        :commit
+    case :frameshift_decisions.direct_confirmation(
+           intent_revision,
+           intent_request_id,
+           intent_digest,
+           intent_status,
+           revision,
+           request_id,
+           digest,
+           Atom.to_string(outcome)
+         ) do
+      {:ok, :commit} -> :commit
+      {:ok, :already} -> :already
+      {:ok, :still_pending} -> :pending
+      {:error, :conflict} -> {:error, :direct_delivery_conflict}
+      {:error, :invalid_input} -> {:error, :invalid_direct_delivery}
     end
   end
 
@@ -68,24 +81,24 @@ defmodule Frameshift.Delivery.Transition do
 
   @doc "Checks a pull acknowledgement against the one current manifest."
   @spec pull_confirmation(map(), map()) :: :commit | :pending | {:error, atom()}
-  def pull_confirmation(manifest, acknowledgement) do
-    cond do
-      acknowledgement["manifestRevision"] != manifest["revision"] ->
-        {:error, :outbox_revision_conflict}
-
-      acknowledgement["refresh"] == "displayed" and
-          acknowledgement["storage"] == "failed" ->
-        {:error, :storage_not_verified}
-
-      acknowledgement["refresh"] == "displayed" and
-          acknowledgement["currentAsset"] != manifest["desiredAsset"] ->
-        {:error, :current_asset_mismatch}
-
-      acknowledgement["refresh"] == "displayed" ->
-        :commit
-
-      true ->
-        :pending
+  def pull_confirmation(manifest, acknowledgement)
+      when is_map(manifest) and is_map(acknowledgement) do
+    case :frameshift_decisions.pull_confirmation(
+           manifest["revision"],
+           manifest["desiredAsset"],
+           acknowledgement["manifestRevision"],
+           acknowledgement["currentAsset"],
+           acknowledgement["storage"],
+           acknowledgement["refresh"]
+         ) do
+      {:ok, :commit} -> :commit
+      {:ok, :still_pending} -> :pending
+      {:error, :conflict} -> {:error, :outbox_revision_conflict}
+      {:error, :storage_not_verified} -> {:error, :storage_not_verified}
+      {:error, :current_asset_mismatch} -> {:error, :current_asset_mismatch}
+      {:error, :invalid_input} -> {:error, :invalid_acknowledgement}
     end
   end
+
+  def pull_confirmation(_, _), do: {:error, :invalid_acknowledgement}
 end

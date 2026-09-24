@@ -92,7 +92,13 @@ defmodule Frameshift.Delivery.TransitionTest do
     }
 
     assert :commit = Transition.pull_confirmation(manifest, ack)
-    assert :pending = Transition.pull_confirmation(manifest, Map.put(ack, "refresh", "pending"))
+    assert :pending = Transition.pull_confirmation(manifest, Map.put(ack, "refresh", "failed"))
+
+    assert :pending =
+             Transition.pull_confirmation(manifest, Map.put(ack, "refresh", "not-requested"))
+
+    assert {:error, :invalid_acknowledgement} =
+             Transition.pull_confirmation(manifest, Map.put(ack, "refresh", "pending"))
 
     assert {:error, :outbox_revision_conflict} =
              Transition.pull_confirmation(manifest, Map.put(ack, "manifestRevision", 8))

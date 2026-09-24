@@ -42,7 +42,20 @@ check_renderer() {
   )
 }
 
+check_kernel() {
+  (
+    cd "$repository_root/host/decision_kernel"
+    mise exec -- gleam format --check src test
+    mise exec -- gleam build --target erlang --warnings-as-errors
+    mise exec -- gleam build --target javascript --warnings-as-errors
+    mise exec -- gleam test --target erlang
+    mise exec -- gleam test --target javascript
+  )
+}
+
 check_core() {
+  check_kernel
+
   (
     cd "$repository_root/host/core"
     mise exec -- env -u MIX_HOME -u MIX_ARCHIVES mix check
@@ -117,11 +130,12 @@ case "${1:-all}" in
     ;;
   policy) check_policy ;;
   renderer) check_renderer ;;
+  kernel) check_kernel ;;
   core) check_core ;;
   macos) check_macos ;;
   container) check_container ;;
   *)
-    echo "usage: scripts/check [all|policy|renderer|core|macos|container]" >&2
+    echo "usage: scripts/check [all|policy|renderer|kernel|core|macos|container]" >&2
     exit 64
     ;;
 esac

@@ -40,6 +40,10 @@ defmodule Frameshift.DisplayTiming do
   @doc "Clamps an operator's dwell to the receiver's current minimum."
   @spec clamp_dwell(map(), pos_integer()) :: pos_integer()
   def clamp_dwell(%{"refresh" => %{"minimumDwellMs" => minimum}}, requested)
-      when is_integer(requested) and requested > 0,
-      do: max(minimum, requested)
+      when is_integer(requested) and requested > 0 do
+    case :frameshift_decisions.select_dwell(minimum, requested) do
+      {:ok, dwell} -> dwell
+      {:error, :invalid_input} -> raise ArgumentError, "invalid dwell interval"
+    end
+  end
 end

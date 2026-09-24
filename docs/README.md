@@ -5,8 +5,8 @@ complete product independently of current implementation maturity. Decisions,
 research evidence, implementation status, and unresolved validation remain
 separate so a partial component cannot silently redefine product scope.
 
-The specifications are not an MVP or demo brief. A requirement remains in
-force until an explicit decision changes it. Hardware vendors and revisions are
+Requirements remain in force until an explicit decision changes them.
+Hardware vendors and revisions are
 allowed early as concrete capability instances; they never become hard-coded
 protocol branches.
 
@@ -18,6 +18,10 @@ protocol branches.
 
 - [Product definition and completion contract](product-definition.md)
 - [System architecture](architecture/system.md)
+- [Visual build platform, monorepo boundaries and ordered milestones](architecture/build-platform.md)
+- [Physical BuildSpec, compatibility and formal verification](architecture/physical-build-contract.md)
+- [Frameshift packs, research orchestration and model qualification](architecture/build-orchestration.md)
+- [Optional purchasing, dropshipping and care — final milestone](architecture/build-commerce.md)
 - [Portable host core](architecture/host-core.md)
 - [Host domain map](architecture/domain-map.md)
 - [Host diagnostics contract](architecture/diagnostics.md)
@@ -30,6 +34,7 @@ protocol branches.
 - [Installation and interactive guide](architecture/install-and-guide.md)
 - [Release artifact manifest](architecture/release-manifest.md)
 - [Browser guide simulation](architecture/guide-simulation.md)
+- [Shared Gleam decision kernel](architecture/shared-decision-kernel.md)
 - [Implementation plan](architecture/implementation-plan.md)
 - [Software verification map](architecture/verification.md)
 
@@ -56,6 +61,7 @@ protocol branches.
 
 - [Hardware platforms and power feasibility](research/hardware-platforms.md)
 - [Software stack](research/software-stack.md)
+- [Build-platform decisions, model benchmarks, costs and role research](research/build-platform-decisions.md)
 - [SQLite and Elixir boundary](research/sqlite-elixir-boundary.md)
 - [Embedded persistence review](research/embedded-persistence.md)
 - [Host diagnostics research](research/host-diagnostics.md)
@@ -78,3 +84,10 @@ These terms describe evidence, not smaller product editions. Nothing is
 production-ready until the software release and each claimed hardware revision
 have passed their named functional, security, lifecycle, mechanical, thermal,
 safety, and recovery gates.
+
+The complete visual builder and printable shopping list precede the final
+dropshipping milestone. Software completion and external activation/release
+evidence are tracked separately: absent agreements or physical measurements
+do not justify leaving codeable requirements unfinished. The build-platform
+specification and linked contracts are authoritative over the earlier build
+branch proposal and the private visual plan presentation.

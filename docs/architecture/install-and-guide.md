@@ -13,13 +13,30 @@ Paper, Photo, and Pixel paths as a responsive, accessible guide with real
 requirements, parts/evidence status, setup steps, failure recovery, and a
 clearly identified simulation. Windows is outside supported host scope.
 
-The guide is static and works without an application server or account. Deploy
-static assets on Cloudflare Workers Static Assets under the Wotex subdomain.
+The installation guide and offline lab retain a static export that works
+without an application server or account. Deploy those static assets on
+Cloudflare Workers Static Assets under the Wotex subdomain.
 Cloudflare's documented static-asset limit is 25 MiB per file as checked on
 2026-09-24; installation
 archives belong in the public release artifact channel, not the site bundle.
 The user or domain owner must configure DNS and any public release repository;
 the private source repository's visibility is never changed by automation.
+
+## Companion builder and independent shopping
+
+The [build platform](build-platform.md) extends the public experience with
+Phoenix/Ash/AshPostgres and phoenix-assets/Svelte 5/SvelteKit. The static-guide
+decision applies to documentation and the offline lab, not to all companion
+application routes. Route/deployment integration must preserve real release
+links, offline behavior and the non-secret native handoff described here.
+
+Milestone D delivers the full visual configurator and printable exact shopping
+list before any coordinated dropshipping. Include exact revisions/quantities,
+supplier links, evidence/unknowns, assembly steps and app handoff without requiring
+accounts, live landed quotes or a supplier purchasing API. Indicative prices
+remain dated and incomplete totals are labelled. Saving/exporting and useful
+print output work independently of payments. Research qualification is E;
+all optional checkout, purchasing, fulfillment and care is final milestone F.
 
 ## One Mac release artifact
 

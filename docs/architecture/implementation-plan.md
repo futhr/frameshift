@@ -2,11 +2,39 @@
 
 **Status:** required product work, ordered only by dependency and evidence
 
-This plan decomposes the complete product definition. It does not define an
-MVP, demo, or smaller shipping target. Builders can start with Paper, Photo,
-Pixel, the Mac app, or a protocol implementation. The seams below keep those
-choices interoperable. Work remains incomplete until the product completion
-contract and the applicable release gates pass.
+This plan decomposes the complete product definition. Builders can start with
+Paper, Photo, Pixel, the Mac app, or a protocol implementation. The seams below
+keep those choices interoperable. Track completion of all codeable requirements
+and software tests separately from release administration, company agreements
+and physical measurements. Those external gates constrain activation and claims;
+they do not excuse unfinished software or become later software milestones.
+
+## Companion platform milestone order
+
+The full requirements, owners and acceptance criteria are in the
+[canonical build-platform plan](build-platform.md) and its physical,
+orchestration and commerce contracts. That plan supersedes the earlier build
+branch proposal's assembled-product seller assumptions.
+
+| Milestone | Required outcome | Dependency |
+| --- | --- | --- |
+| A | Aligned specifications and evidence map | Accepted product decisions |
+| B | Monorepo/domain boundaries, Phoenix/Ash/phoenix-assets/Svelte 5 foundation, Refpath host seam and Beamlens diagnostics | A |
+| C | Sourced profiles, immutable BuildSpec, Gleam compatibility and targeted ExMaude verification | A and package boundary |
+| D | Complete visual configurator and printable independent shopping list, save/export, assembly and installation handoff | C and required B surface |
+| E | Autonomous nontransactional research, model evaluation, admission and operational qualification | B/C; preparation may overlap D |
+| F — FINAL | Optional dropshipping coordination: supplier/PSP adapters, checkout, percentage fees, purchasing, fulfillment, returns/refunds and care | D and E complete |
+
+The shopping list cannot depend on an account, live checkout, guaranteed quote,
+supplier purchasing API, or the final milestone. All transactional commerce
+implementation belongs to F, including purchasing/refund/cancellation pack and
+adapter work. Earlier Refpath integration supplies research and common runtime
+qualification. Milestones have dependency/acceptance gates, not time estimates.
+
+The host, protocol, receiver and simulator work below is the parallel independent
+computer-product lane, not another milestone after F. Native frame operation
+must remain independent of commercial server availability. Update the
+[verification ledger](verification.md) with bounded evidence per completed slice.
 
 ## Shared contracts
 

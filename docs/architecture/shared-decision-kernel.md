@@ -1,7 +1,23 @@
 # Shared Decision Kernel
 
-**Status:** required cross-target host and guide contract; implementation
-evidence is recorded separately.
+**Status:** required cross-target host, guide and physical-composition contract;
+implementation evidence is recorded separately.
+
+## Companion physical composition extension
+
+The [physical build contract](physical-build-contract.md) adds planned bounded
+dimension/tolerance, interface, controller, power, mounting and refresh decisions
+to the same Gleam package for browser preview and authoritative server recheck.
+It requires canonical units, explicit unknowns, safe integers and cross-target
+fixtures. This extension is not evidence that physical composition is already
+implemented by the existing host/guide functions below.
+
+BuildSpec identity and server actions are specified separately; no Ash/database,
+provider, purchase authority or I/O enters the pure kernel. Targeted ExMaude
+models and traces stay in Frameshift's build-spec verification package and
+verify stated assumptions/bounds independently of the implementation. The
+[orchestration contract](build-orchestration.md) keeps optional classifiers out
+of deterministic compatibility and authority decisions.
 
 ## Toolchain and boundary
 

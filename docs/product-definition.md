@@ -4,10 +4,12 @@
 
 Frameshift is one complete local-first product: a native macOS controller,
 durable host core, deterministic renderer, universal still-frame protocol,
-frame agents, display adapters, and qualified physical frame assemblies. A
+frame agents, display adapters, and qualified interoperable assembly profiles.
+Its companion platform adds visual configuration, an independent shopping list,
+and optional purchasing coordination. Components retain manufacturer identities;
+Frameshift does not require branded assembled hardware or a lead assembler. A
 partial implementation, simulator, development bundle, or selected hardware
-prototype is evidence toward this product. It is not an alternate MVP, demo,
-or reduced delivery target.
+prototype supplies bounded evidence toward the complete product.
 
 The portable host is also specified for Ubuntu amd64/arm64 and Raspberry Pi 5
 Ubuntu Server arm64, with a separately qualified Nerves Pi 5 appliance role.
@@ -26,6 +28,23 @@ transfer, refresh, and update failures.
 The ordinary import, render, transfer, display, library, and playlist flows
 work without a Frameshift cloud or AI account. Cloud generation and remote
 access are optional, explicit adapters.
+
+## Companion configuration and purchasing
+
+The [build-platform specification](architecture/build-platform.md) defines the
+complete companion product. Customers can visually choose Paper, Photo or Pixel
+components, inspect fit and limitations, save a configuration, and print/export
+an exact shopping list with assembly and app-installation handoff. This journey
+requires no account, coordination fee or purchasing integration and must be
+complete before transactional commerce is built.
+
+The **final milestone** adds optional supplier-direct dropshipping coordination
+with a transparent percentage fee, identified sellers and separate contracts,
+bounded consent, reconciliation, fulfillment, returns/refunds and care. Frameshift
+owns its software/service and applicable platform duties; a customer waiver
+cannot establish exemption. The computer app remains independent of this service.
+Phoenix/Ash and phoenix-assets/Svelte 5 provide the web platform, with embedded
+Refpath executing Frameshift-owned packs and read-only Beamlens diagnostics.
 
 ## Complete installed flow
 
@@ -109,6 +128,15 @@ The product is complete only when evidence covers all of the following:
     the installed native flow. Mac direct/Cask/Sparkle releases and each
     claimed Ubuntu/Pi package pass clean installation, update, recovery, and
     data-preservation tests.
+12. The companion visual builder and printable shopping list satisfy BP-01–BP-09
+    and PB-01–PB-09, including custom/unknown facts, deterministic identity,
+    compatibility explanations, provenance, cross-runtime and verifier evidence.
+13. Research and optional model use satisfy BO-01–BO-08; first-class metrics and
+    bounded read-only diagnostics satisfy BP-10 and the diagnostics contract.
+14. The final purchasing milestone satisfies BC-01–BC-10, including separate
+    supplier commitments, disclosed fees, authority, uncertain-effect recovery,
+    fulfillment, care and applicable reporting/data rights. Its activation
+    cannot become a dependency for ordinary frame operation or shopping lists.
 
 ## Status and release claims
 
@@ -121,3 +149,9 @@ External signing credentials, independent reviews, laboratory certification,
 and physical measurements cannot be fabricated in software. They remain named
 completion gates; their absence does not authorize deleting or weakening the
 corresponding requirement.
+
+Track software completion separately from those external activation and release
+gates. Complete every codeable requirement and its software evidence without
+treating company administration, signing or hardware testing as additional
+software milestones. The dependency order is specified in
+[the build-platform milestone table](architecture/build-platform.md#adaptive-milestones-and-completion-evidence).

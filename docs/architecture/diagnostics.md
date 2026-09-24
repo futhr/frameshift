@@ -2,6 +2,67 @@
 
 **Status:** normative software design; targets require platform qualification
 
+This contract covers the local host and the separate companion-server extension
+below. The local audit/SQLite writer and native OS log access remain authoritative
+for frame operations. Server Ash domains and Refpath do not share those records.
+
+## Companion server metrics and diagnostic access
+
+The [build-platform contract](build-platform.md) requires first-class telemetry
+with each implemented slice. Ash domains own domain transition/audit meaning;
+Refpath owns runtime task/attempt/effect meaning. Emit measurements after the
+corresponding durable fact, with explicit definitions preventing double counting
+at both boundaries. Operational logs and metrics never establish an external
+purchase, refund or physical display outcome.
+
+Each versioned metric definition names its owner, trigger, count/gauge/histogram
+type, unit, bounded dimensions, reset/coverage semantics, aggregation, retention,
+sampling and resource budget. Use explicit duration units, currency for money,
+and no aggregation across currencies without an attributed conversion. Record
+queue age and absence of data separately from zero activity. Define alert
+thresholds and service targets from measured baselines and product requirements
+before production activation; a dashboard alone is not an operating contract.
+
+| Family | Required measurements | Owner / first milestone |
+| --- | --- | --- |
+| Configuration | Compile/decision count by bounded outcome/reason, duration, stale-fact refusal and browser/server disagreement | Catalog & Compatibility / C |
+| Verification | Queue depth/age, duration, bounds class, typed outcome, witness replay, cache hit/invalidation and resource refusal | Catalog verification / C |
+| Independent journey | Successful/failed save/export/print preparation, latency and contract errors without recording private artwork or selected parts as labels | Web boundary / D |
+| Research | Source freshness, candidate/admission/quarantine counts, eligible unattended completion denominator, manual interventions and pending exception age | Catalog + Refpath / E |
+| Inference | Requests, input/output tokens, estimated/reserved/actual cost, retries, failures, abstentions, latency, model/task qualification results | Refpath provider boundary / E |
+| Diagnostics | Investigation count/duration, tokens/cost, budget refusal, observation redaction failures, dropped telemetry and process/queue overhead | Beamlens host boundary / B/E |
+| Purchasing | Confirmed/refused/unknown outcomes, unknown age, reconciliation, partial-order count, expired/revoked mandates and completion duration | Purchasing + Refpath / F |
+| Money and care | Authorized/captured/refunded amounts, fee earnings/reversals, disputes, realized contribution, late parcels and case age | Payments & Fees / Fulfillment & Care / F |
+
+Quality evaluation reports include false acceptance, coverage and calibration
+with task/dataset version and uncertainty; production self-reported model
+confidence is not a correctness measurement. Fixed allowlists bound model,
+provider, operation, market and error labels. Customer/seller/order/frame IDs,
+source URLs, prompts, full model digests, component IDs and arbitrary errors
+belong only in authorized redacted trace/audit detail, never metric dimensions.
+
+Export structured logs, metrics and traces through existing operational tools.
+Use immutable domain audit for accepted terms, authority changes and confirmed
+effects, with access and retention policies. Correlation links connect domain
+commands to Refpath tasks/attempts/effects without creating a second effect
+journal. Preserve native Console.app and `log` plus the local diagnostic CLI;
+no custom log-reader UI is required for either product lane.
+
+Beamlens is an explicit read-only server integration with one supervision owner,
+bounded observations and operator authorization. Qualify generic skills and
+Frameshift observations for compatibility, verifier/research queues and final-F
+purchasing reconciliation. Its BAML provider configuration, resource ceilings
+and inference spend are independently enforced and included in central usage
+accounting. No diagnostic skill can mutate domain state or call purchasing tools.
+Redact secrets, customer content and sensitive source material before inference.
+
+Acceptance includes actor isolation, malicious/log-injected observations,
+secret redaction, metric cardinality, sampling/coverage, provider timeout,
+budget exhaustion, process failure and measured idle/load overhead. Normal
+telemetry, alerts, logs and application actions must survive diagnostic failure.
+Local Ollama incident reasoning requires its own evaluation; passing a simple
+intent-routing evaluation does not qualify the diagnostic model.
+
 ## Signals and privacy
 
 Audit, logs, and metrics answer different questions. Audit records a durable

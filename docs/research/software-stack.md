@@ -13,6 +13,16 @@ it does not host Elixir execution or control frames in the browser. The
 [installation contract](../architecture/install-and-guide.md) defines its
 cross-target and distribution gates.
 
+**Companion-platform decision, 2026-09-24:** Phoenix + Ash/AshPostgres and
+phoenix-assets + Svelte 5/SvelteKit provide the separate visual configurator.
+Embedded Refpath executes Frameshift-owned packs; bounded read-only Beamlens
+provides server investigations. Pure Gleam compatibility and targeted ExMaude
+checks extend the physical model. Optional classifiers require project-specific
+evaluation and do not change the language boundary. The complete shopping list
+precedes final-milestone dropshipping/purchasing. See the
+[platform specification](../architecture/build-platform.md) and
+[dated dependency/model research](build-platform-decisions.md).
+
 ## Recommended topology
 
 ```text

@@ -61,6 +61,12 @@ design record; implementation status does not reduce their scope.
 15. Zero visible cable is a design priority, not a universal pass/fail rule.
     Describe the real power path; only bistable Paper can be passive while the
     image remains visible.
+16. Follow `docs/architecture/build-platform.md` for companion-platform scope
+    and ordering. Finish the independent visual builder and printable shopping
+    list before final-milestone dropshipping, purchasing and care. Frameshift
+    packs live here; Refpath remains an external runtime. Keep specification and
+    verification records aligned with implementation changes. External release,
+    company and hardware evidence must not excuse missing codeable work.
 
 ## Authoritative locations
 

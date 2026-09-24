@@ -8,6 +8,13 @@ The default manufacturer baselines for software simulation are the Waveshare
 P3 64×64 modules. See the [networked simulator contract](../architecture/container-frame-simulator.md).
 They are concrete candidate fixtures; none is a validated product revision.
 
+This research BOM is separate from the customer's generated shopping list.
+The [physical build contract](../architecture/physical-build-contract.md)
+turns sourced exact revisions into configuration inputs. The visual builder
+must provide a complete printable list with unknowns and assembly guidance in
+milestone D; optional supplier-direct purchasing is final milestone F. Candidate
+status cannot silently become qualified compatibility or purchasing eligibility.
+
 Recheck availability, exact revision, interface, dimensions, license, price,
 and safety documentation immediately before purchase. Builders may choose any
 frame path.

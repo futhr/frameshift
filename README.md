@@ -15,6 +15,13 @@ framed artwork as their display technology permits. A native macOS menu-bar app
 imports or generates a still image, renders exact artifacts for a frame, and
 then gets out of the way.
 
+The companion website adds a visual component configurator and a complete,
+printable shopping list for independent buying. Optional supplier-direct
+dropshipping and purchasing coordination is the **final build milestone**.
+Frameshift remains the computer app and service; components retain their
+manufacturers' identities. See the [full platform specification](docs/architecture/build-platform.md)
+for the accepted architecture, ownership, milestone order and acceptance map.
+
 ## Reference media
 
 | Target | Display | Power truth |
@@ -54,6 +61,11 @@ only a timed sequence of cached still images.
 ## Stack direction
 
 - Elixir/OTP for the macOS orchestration core.
+- Phoenix + Ash/AshPostgres and phoenix-assets + Svelte 5/SvelteKit for the
+  companion web platform; embedded Refpath loads Frameshift-owned packs.
+- Shared pure Gleam decisions, targeted ExMaude composition verification, and
+  bounded read-only Beamlens server diagnostics. Models are optional and qualified
+  per task; they do not decide compatibility or purchasing authority.
 - Swift/SwiftUI only for the native menu-bar shell and Apple frameworks.
 - Zig for the existing isolated raster worker. Select MCU firmware tooling
   from exact controller, update, power, and protocol evidence.
@@ -81,7 +93,9 @@ available until signing, packaging, licensing, and installed release gates pass.
   assumptions cheaply before premium hardware or a finished enclosure; it is
   not a required sequence.
 - The complete installed object must remain picture-frame thin.
-- No mandatory vendor cloud, account, subscription, or proprietary app.
+- Local frame operation and the independent shopping list require no vendor
+  cloud account or subscription. Optional coordination has its own explicit
+  service, identity and payment terms.
 - Still-image-only, capability-driven protocol.
 - Source masters and generated results are immutable and cached.
 - Interrupted transfers never replace valid artwork.

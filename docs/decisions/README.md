@@ -230,3 +230,60 @@ evidence, but it must change explicitly.
   `/data`, firmware validation/revert, and a bounded OTP log sink instead of
   systemd facilities. Neither role needs a vendor cloud to show artwork.
 - **Detail:** [Linux host](../host/linux.md)
+
+## D-018 — Companion platform and repository ownership
+
+- **State:** accepted design, 2026-09-24; implementation evidence open
+- **Decision:** Build the companion platform with Phoenix, Ash/AshPostgres and
+  phoenix-assets/Svelte 5/SvelteKit. Embed one qualified external Refpath runtime.
+  Frameshift packs, physical models, rubrics and evaluations live in Frameshift.
+  Establish monorepo dependency boundaries before verified directory moves.
+- **Consequence:** Commercial server domains never replace the local single-writer
+  SQLite core or make ordinary frame operation depend on accounts. The static
+  installation/offline guide remains available; D-015 does not require the entire
+  companion application to be static. Generic tooling/runtime changes go upstream.
+- **Detail:** [Build platform](../architecture/build-platform.md)
+
+## D-019 — Independent shopping first, dropshipping last
+
+- **State:** accepted scope and ordering, 2026-09-24
+- **Decision:** Deliver the full visual configurator and printable exact shopping
+  list in D, then complete research/operational qualification in E. Optional
+  supplier-direct purchasing, percentage fees, fulfillment and care are final
+  milestone F. Preparation can overlap by dependency; F starts only after D/E.
+- **Consequence:** Shopping-list usefulness cannot depend on live checkout,
+  supplier APIs or an account. No mandatory lead assembler, stockholding or
+  Frameshift-branded assembled hardware. This supersedes the corresponding
+  assumptions in the `7527cb3` build-branch proposal. Role/contract review gates
+  real transactions; external administration and hardware measurements are not
+  additional software milestones or grounds to omit codeable work.
+- **Detail:** [Commerce](../architecture/build-commerce.md),
+  [implementation order](../architecture/implementation-plan.md)
+
+## D-020 — Deterministic composition, bounded formal checks and evaluated models
+
+- **State:** accepted boundaries, 2026-09-24; physical kernel/formal implementation
+  and Frameshift model benchmarks remain open
+- **Decision:** Extend pure Gleam decisions for BEAM/JavaScript physical
+  compatibility. Use ExMaude for targeted CI/async verification with independent
+  predicates, explicit search outcomes and counterexample replay. Use explicit
+  controls/rules first; evaluate local Ollama and compact models per task, with
+  Jev an optional challenger. No model receives compatibility or spending authority.
+- **Consequence:** The generic ExMaude completion/trace contract needs upstream
+  work; bounded empty search is not exhaustive proof. Frameshift owns formal
+  models. No candidate classifier creates an exception to D-003's no-Python rule.
+- **Detail:** [Physical contract](../architecture/physical-build-contract.md),
+  [orchestration/evaluation](../architecture/build-orchestration.md),
+  [research](../research/build-platform-decisions.md)
+
+## D-021 — Read-only server investigation and independent telemetry
+
+- **State:** accepted design, 2026-09-24; production qualification open
+- **Decision:** Include Beamlens explicitly in the server dependency graph with
+  one configured supervisor, authorized bounded observations and no domain-write
+  authority. Configure and budget its BAML provider separately from Refpath's
+  ordinary inference path; account for both centrally.
+- **Consequence:** Early-development dependency/skill behavior needs exact-version
+  qualification. Provider outage and exhausted budgets cannot disable ordinary
+  telemetry, alerts or app actions. D-013 native Console.app/CLI access remains.
+- **Detail:** [Diagnostics](../architecture/diagnostics.md)

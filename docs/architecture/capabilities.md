@@ -7,6 +7,14 @@ names. Specific vendor hardware is welcome and may be selected early. Its exact
 revision becomes a capability instance and measured artifact/display-adapter
 profile; it never creates a vendor branch in the universal interaction model.
 
+The companion [physical build contract](physical-build-contract.md) references
+these profile/interface identities while adding exact part revisions, geometry,
+mounting, electrical and evidence constraints. A printable configuration is not
+paired-device admission, a render qualification or proof of physical display.
+Custom parts may have explicit unknowns. New data can reuse a qualified contract;
+new protocols, drivers or artifact formats require code and conformance evidence.
+Source manufacturer refresh recommendations without inventing energy savings.
+
 The words MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY are interpreted as in
 [RFC 8174](https://datatracker.ietf.org/doc/html/rfc8174).
 

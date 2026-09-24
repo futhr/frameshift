@@ -8,6 +8,31 @@ smaller product tier or satisfy a broader end-to-end requirement. Simulator
 results do not validate live transport, physical panels, controller
 electronics, packaging, security review, or certification.
 
+## Companion build platform
+
+The [canonical platform plan](build-platform.md) maps the complete accepted plan
+to requirements. The specifications exist; commercial application implementation
+and the evidence below remain open. Existing host/guide tests do not demonstrate
+these new physical or commerce contracts. D is the complete independent shopping
+list; F is the final dropshipping/purchasing milestone. Hardware tests, agreements
+and release administration are separately recorded activation/evidence gates.
+
+| Requirement / milestone | Owner | Required software evidence | Current state |
+| --- | --- | --- | --- |
+| BP-01–BP-03, BP-11 / A | Product/specifications | Canonical plan, coherent milestone dependencies, aligned linked docs and presentation | Specified; no application completion implied |
+| BP-06–BP-09 / B | Web/domain boundaries | Independent builds, forbidden-import checks, generated-contract drift, Ash customer/seller/worker policy isolation, migrations and packaging regression | Missing for companion server; local product boundary work has separate evidence below |
+| PB-01–PB-06, PB-09 / C | Catalog + pure packages | Three-class sourced fixtures, bounded schemas, canonical hash/parity, valid/invalid/unknown combinations, fact/protocol mapping and export round trips | Physical composition missing; existing Gleam host fixtures cover only their named decisions |
+| PB-07–PB-09 / C | Frameshift verification + ExMaude public API | Typed bounded/exhausted/inconclusive results, mutation detection, same-session witnesses, compiler replay, invalidation and worker limits | Missing; upstream completion/session contract must be qualified |
+| BP-04–BP-05 / D | Visual configurator | Full selection/save/reload/print/export journey without accounts/checkout; missing prices/facts, private artwork, keyboard, screen reader, narrow-screen and offline/reconnect checks | Missing; existing static installation lab is not this builder |
+| BO-01–BO-03, BO-07–BO-08 / E | Frameshift packs + Refpath integration | Exact-revision host/pack conformance, schedule/DST/duplicates, source injection, admission/quarantine, restart/revocation and cross-owner receipt recovery | Missing; no Frameshift research pack admitted |
+| BO-04–BO-06 / E | Decision evaluation | Held-out project labels/rubrics, rules baseline, candidate qualification, false acceptance/coverage, latency/memory/total cost and outage/budget gates | Research only; no model selected by Frameshift benchmark |
+| BP-10, BO-08 / B–E, extended F | Diagnostics | Metrics/trace/audit definitions, bounded labels, Beamlens production dependency/single supervisor, authorized read-only/redacted observations, budgets/outage/overhead | Server integration missing; native host evidence below remains distinct |
+| BC-01–BC-04 / final F | Policy / Quotes & Mandates / Payments & Fees | Role/route readiness, exact quote/mandate snapshots, fee/rounding/reversal golden fixtures, actor isolation and stale/revoked-authority refusal | Missing; actual rate/payer/PSP and market activation require recorded decisions |
+| BC-05–BC-06, BC-09 / final F | Purchasing + Refpath/provider contracts | Implemented placement/cancellation/refund/notification/reconcile capabilities, duplicate/out-of-order/unknown/partial-order faults and actual selected-provider sandbox checks | Missing; generic upstream commerce gaps are recorded in decision research |
+| BC-07–BC-10 / final F | Fulfillment & Care / Access & Policy | End-to-end tracking, cases, returns/refunds/disputes/recalls, data rights/reporting, accounting reconciliation, restore and accessible customer/operator paths | Missing; simulator results must remain distinct from external activation evidence |
+
+## Installed product and guide
+
 | Requirement | Owner | Automated evidence | Current state |
 | --- | --- | --- | --- |
 | SQLite and content-addressed objects preserve protected references through backup, restore, full disk, and power interruption on each supported host filesystem | Core/platform | `Frameshift.LibraryTest`, `Frameshift.Library.MaintenanceTest`, and `scripts/check-packaged-app` exercise consistent snapshot, manifest, integrity and digest checks, active-core refusal, and offline restore; target storage fault tests required | Packaged offline backup, verification, and restore pass in software; power-loss and cross-platform physical storage evidence remain open |

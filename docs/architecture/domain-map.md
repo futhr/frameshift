@@ -2,6 +2,15 @@
 
 **Status:** normative software design; implementation evidence is separate
 
+This map owns the computer application's domains and SQLite atomicity. The
+[build-platform domain map](build-platform.md#server-and-frontend-architecture)
+owns the separate Phoenix/Ash/AshPostgres server: Catalog & Compatibility,
+Access & Policy, Quotes & Mandates, Purchasing, Payments & Fees, and Fulfillment
+& Care. Packs call authorized domain actions; Refpath owns runtime attempts and
+effects. Neither server domains nor Ash migrations replace this local writer.
+Shared physical contracts and the Gleam kernel cannot import either app's
+private persistence or UI modules.
+
 ## Language and ownership
 
 The host is a modular monolith. A context is a model and API boundary, not an
@@ -68,8 +77,10 @@ Pure transition functions should accept domain values and return typed
 decisions or errors. Persistence mappings, IPC JSON, Wotex bindings, Keychain,
 Image I/O, and the Zig worker stay outside those functions. A port is introduced
 for a real external or platform boundary, not for every table.
-Only bounded capability admission, profile selection, state labels, and
-simulation transitions move into the shared Gleam kernel. The Elixir
+Bounded capability admission, profile selection, state labels, and simulation
+transitions use the shared Gleam kernel. The companion physical contract adds
+pure bounded composition decisions under [its own boundary](physical-build-contract.md).
+The Elixir
 application service still owns commands, durable Delivery decisions, audit,
 and effect reconciliation. A browser run cannot commit a domain transition.
 

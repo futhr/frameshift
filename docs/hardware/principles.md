@@ -1,5 +1,12 @@
 # Hardware Principles
 
+Reference frames are interoperability and evidence targets. Frameshift does not
+require branded assembled hardware, stockholding or a lead assembler. The
+[companion builder](../architecture/build-platform.md) supports manufacturer
+components and customer-selected assembly, with a complete independent shopping
+list before optional purchasing coordination. These physical requirements and
+honest evidence labels apply to both journeys; they do not certify a setup.
+
 ## Non-negotiable
 
 1. **The complete object is a thin picture frame.** Panel, controller, storage,

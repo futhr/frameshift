@@ -13,8 +13,11 @@ retention, scheduling, and its exact display update.
 The portable host core is specified in [Portable Host Core](host-core.md).
 macOS is the first shell; Linux and Raspberry Pi-class Linux hosts reuse the
 same core and frame semantics through platform adapters.
-The public [installation guide](install-and-guide.md) is static and runs a
-bounded browser simulation. It is outside the authenticated command path.
+The [installation guide](install-and-guide.md) retains a static/offline surface
+and bounded browser simulation outside the authenticated frame-command path.
+The companion [build platform](build-platform.md) adds Phoenix/Ash server
+domains and a phoenix-assets/Svelte 5 visual configurator. The complete
+independent shopping list comes before final-milestone coordinated purchasing.
 Ubuntu and Pi roles are defined in the [Linux host specification](../host/linux.md).
 The [domain map](domain-map.md) assigns host transition ownership. The
 [diagnostics contract](diagnostics.md) defines audit, logs, metrics, and
@@ -59,6 +62,22 @@ Public static guide ── Gleam/JavaScript decision simulation
 ```
 
 ## Component ownership
+
+### Companion build platform
+
+One Phoenix application owns Ash/AshPostgres commercial domains and embeds a
+qualified external Refpath runtime. Frameshift-owned packs live in this repo
+and call authorized domain commands. Svelte 5/SvelteKit uses phoenix-assets
+contracts; pure physical contracts and Gleam decisions are shared across the
+browser/server boundary. ExMaude checks targeted bounded models during CI and
+asynchronous admission. Beamlens supplies bounded read-only server diagnostics.
+The [physical](physical-build-contract.md), [orchestration](build-orchestration.md)
+and [commerce](build-commerce.md) contracts define the details.
+
+This server has no shared database or implicit frame-control authority over the
+computer app. AshPostgres does not replace the local SQLite writer. Browser
+configuration handoff remains non-secret and the installed host admits actual
+device capabilities through its existing authenticated flow.
 
 ### Host shell
 

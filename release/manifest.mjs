@@ -1,6 +1,6 @@
 import { createHash, createPublicKey, verify } from 'node:crypto';
 import { constants } from 'node:fs';
-import { open, readFile } from 'node:fs/promises';
+import { lstat, open, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const manifestKeys = ['schemaVersion', 'product', 'version', 'artifacts'];
@@ -88,20 +88,36 @@ export function parseManifest(bytes) {
   return manifest;
 }
 
-async function verifyArtifact(directory, artifact) {
-  const handle = await open(join(directory, artifact.file), constants.O_RDONLY | constants.O_NOFOLLOW);
+export async function artifactFacts(directory, file) {
+  const directoryStat = await lstat(directory);
+  if (!directoryStat.isDirectory()) throw new Error('invalid release artifact directory');
+  const handle = await open(join(directory, file), constants.O_RDONLY | constants.O_NOFOLLOW);
   try {
-    const stat = await handle.stat();
-    if (!stat.isFile() || stat.size !== artifact.bytes) {
-      throw new Error(`release artifact size mismatch: ${artifact.file}`);
+    const before = await handle.stat({ bigint: true });
+    if (!before.isFile() || before.size < 1n || before.size > BigInt(8 * 1024 * 1024 * 1024)) {
+      throw new Error(`invalid release artifact: ${file}`);
     }
     const hash = createHash('sha256');
     for await (const chunk of handle.createReadStream({ autoClose: false })) hash.update(chunk);
-    if (hash.digest('hex') !== artifact.sha256) {
-      throw new Error(`release artifact digest mismatch: ${artifact.file}`);
+    const after = await handle.stat({ bigint: true });
+    if (before.dev !== after.dev || before.ino !== after.ino ||
+        before.size !== after.size || before.mtimeNs !== after.mtimeNs ||
+        before.ctimeNs !== after.ctimeNs) {
+      throw new Error(`release artifact changed while reading: ${file}`);
     }
+    return { bytes: Number(after.size), sha256: hash.digest('hex') };
   } finally {
     await handle.close();
+  }
+}
+
+async function verifyArtifact(directory, artifact) {
+  const facts = await artifactFacts(directory, artifact.file);
+  if (facts.bytes !== artifact.bytes) {
+    throw new Error(`release artifact size mismatch: ${artifact.file}`);
+  }
+  if (facts.sha256 !== artifact.sha256) {
+    throw new Error(`release artifact digest mismatch: ${artifact.file}`);
   }
 }
 

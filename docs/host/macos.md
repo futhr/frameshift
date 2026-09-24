@@ -37,7 +37,7 @@ The native shell owns `MenuBarExtra`, app lifecycle, accessibility, file and
 photo selection, drag/drop, Keychain, Vision, Core Image/Image I/O, Bonjour,
 notifications, and MediaGenerationKit. It presents snapshots received from the
 core and sends commands; it does not create a second source of truth.
-The packaged app runs as a menu-bar agent. Its dropdown is the sole shell
+The packaged app runs as a menu-bar agent. Its dropdown is the primary shell
 control surface and remains available after it is dismissed. The selected
 perspective-frame mark appears directly on a transparent field in Finder and
 the dropdown. Finder uses the dark silhouette from the bundle icon; the running
@@ -190,6 +190,11 @@ The first native setting registers the main menu-bar app with
 remains unnecessary while the app owns the bundled core lifecycle. Settings
 distinguishes macOS approval-required state from enabled state and links to
 Login Items when approval is pending.
+
+Settings uses a vertically scrolling, resizable window with full-width grouped
+sections. Frame identities and explanatory text wrap; pairing actions occupy
+their own row and share the dropdown's flat labeled button style. See the
+[settings layout contract](menu-bar-interface.md#settings-boundary).
 
 The background process wakes only for pending jobs, frame contact, or scheduled
 outbox availability. It does not poll powered frames aggressively. Sleeping

@@ -33,6 +33,8 @@ struct FrameshiftMenuApp: App {
         shell: ShellSession.model
       )
     }
+    .defaultSize(width: 580, height: 620)
+    .windowResizability(.contentMinSize)
   }
 }
 

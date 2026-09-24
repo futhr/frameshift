@@ -11,63 +11,119 @@ struct SettingsView: View {
   let shell: ShellModel
 
   var body: some View {
-    Form {
-      LabeledContent("Core connection", value: "Local Unix socket")
-      LabeledContent("Generation provider", value: "Not configured")
-      Section("Nearby frames") {
-        switch discovery.state {
-        case .idle, .searching:
-          Text("Searching for frames on this network…")
-        case .unavailable:
-          Text("Frame discovery is unavailable. Check Local Network access in macOS Settings.")
-        case .tooManyResults:
-          Text("Too many frame advertisements to show safely.")
-        case .ready:
-          if discovery.frames.isEmpty {
-            Text("No compatible frame advertisements found.")
-          }
+    ScrollView {
+      VStack(alignment: .leading, spacing: 24) {
+        SettingsSection("Connection") {
+          settingsValue("Core connection", value: "Local Unix socket")
         }
 
-        ForEach(discovery.frames) { frame in
-          HStack {
-            VStack(alignment: .leading) {
-              Text(frame.id)
-              Text(
-                frame.introduction.pairMode ? "Physical pair mode available" : "Not in pair mode"
-              )
-              .font(.caption)
-              .foregroundStyle(.secondary)
-            }
-            Spacer()
-            if frame.introduction.pairMode {
-              Button("Pair…") { choosePairingImage(for: frame, recovering: false) }
-                .disabled(pairing.isBusy)
-                .accessibilityLabel("Pair frame \(frame.id)")
-            }
-            Button("Recover…") { choosePairingImage(for: frame, recovering: true) }
-              .disabled(pairing.isBusy)
-              .accessibilityLabel("Recover frame pairing \(frame.id)")
-          }
-          .accessibilityIdentifier("discovered-frame-\(frame.id)")
+        SettingsSection(
+          "Image generation",
+          footer: "You can import images without a generation provider."
+        ) {
+          settingsValue("Generation provider", value: "Not configured")
         }
-        if pairing.isBusy {
-          ProgressView("Pairing frame…")
-        }
-        if let status = pairing.statusMessage {
-          Text(status)
-            .font(.caption)
-        }
-        if let error = pairing.errorMessage {
-          Text(error)
-            .font(.caption)
-            .foregroundStyle(.red)
-        }
-        Text(
-          "Nearby advertisements are unverified. Pairing checks the frame’s physical QR identity."
-        )
-        .font(.caption)
-        .foregroundStyle(.secondary)
+
+        nearbyFrames
+        startup
       }
+      .padding(24)
+      .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    .background(Color(nsColor: .windowBackgroundColor))
+    .frame(minWidth: 520, idealWidth: 580, minHeight: 420, idealHeight: 620)
+    .onAppear {
+      model.refresh()
+      discovery.start()
+    }
+    .onDisappear { discovery.stop() }
+  }
+
+  private var nearbyFrames: some View {
+    SettingsSection(
+      "Nearby frames",
+      footer:
+        "Nearby advertisements are unverified. Pairing checks the frame’s physical QR identity."
+    ) {
+      if let discoveryStatus {
+        Text(discoveryStatus)
+          .foregroundStyle(.secondary)
+          .fixedSize(horizontal: false, vertical: true)
+      }
+
+      ForEach(discovery.frames) { frame in
+        if frame.id != discovery.frames.first?.id {
+          Divider()
+        }
+        discoveredFrame(frame)
+      }
+
+      if pairing.isBusy {
+        ProgressView("Pairing frame…")
+          .controlSize(.small)
+      }
+      if let status = pairing.statusMessage {
+        Text(status)
+          .foregroundStyle(.secondary)
+          .fixedSize(horizontal: false, vertical: true)
+      }
+      if let error = pairing.errorMessage {
+        Text(error)
+          .foregroundStyle(.red)
+          .fixedSize(horizontal: false, vertical: true)
+      }
+    }
+  }
+
+  private var discoveryStatus: String? {
+    switch discovery.state {
+    case .idle, .searching:
+      "Searching for frames on this network…"
+    case .unavailable:
+      "Frame discovery is unavailable. Check Local Network access in macOS Settings."
+    case .tooManyResults:
+      "Too many frame advertisements to show safely."
+    case .ready:
+      discovery.frames.isEmpty ? "No compatible frame advertisements found." : nil
+    }
+  }
+
+  private func discoveredFrame(_ frame: DiscoveredFrame) -> some View {
+    VStack(alignment: .leading, spacing: 12) {
+      VStack(alignment: .leading, spacing: 4) {
+        Text(frame.id)
+          .fontWeight(.medium)
+          .textSelection(.enabled)
+        Text(frame.introduction.pairMode ? "Physical pair mode available" : "Not in pair mode")
+          .foregroundStyle(.secondary)
+      }
+      .fixedSize(horizontal: false, vertical: true)
+      .frame(maxWidth: .infinity, alignment: .leading)
+
+      HStack(spacing: 8) {
+        if frame.introduction.pairMode {
+          Button {
+            choosePairingImage(for: frame, recovering: false)
+          } label: {
+            Label("Pair…", systemImage: "qrcode.viewfinder")
+          }
+          .accessibilityLabel("Pair frame \(frame.id)")
+        }
+        Button {
+          choosePairingImage(for: frame, recovering: true)
+        } label: {
+          Label("Recover…", systemImage: "arrow.clockwise")
+        }
+        .accessibilityLabel("Recover frame pairing \(frame.id)")
+      }
+      .buttonStyle(FlatActionButtonStyle())
+      .disabled(pairing.isBusy)
+    }
+    .accessibilityIdentifier("discovered-frame-\(frame.id)")
+  }
+
+  private var startup: some View {
+    SettingsSection("Startup", footer: model.statusText) {
       Toggle(
         "Launch at Login",
         isOn: Binding(
@@ -75,31 +131,36 @@ struct SettingsView: View {
           set: { model.setEnabled($0) }
         )
       )
+      .toggleStyle(.checkbox)
       .accessibilityIdentifier("launch-at-login")
-      Text(model.statusText)
-        .font(.caption)
-        .foregroundStyle(.secondary)
+
       if model.requiresApproval {
-        Button("Open Login Items") { SMAppService.openSystemSettingsLoginItems() }
+        Divider()
+        Button {
+          SMAppService.openSystemSettingsLoginItems()
+        } label: {
+          Label("Open Login Items", systemImage: "arrow.up.right.square")
+        }
+        .buttonStyle(FlatActionButtonStyle())
       }
       if let errorMessage = model.errorMessage {
         Text(errorMessage)
-          .font(.caption)
           .foregroundStyle(.red)
+          .fixedSize(horizontal: false, vertical: true)
       }
-      Text(
-        "Frame pairing and generation providers are configured independently; the local library remains available without either."
-      )
-      .font(.callout)
-      .foregroundStyle(.secondary)
     }
-    .padding(20)
-    .frame(width: 440)
-    .onAppear {
-      model.refresh()
-      discovery.start()
+  }
+
+  private func settingsValue(_ title: String, value: String) -> some View {
+    HStack(alignment: .firstTextBaseline, spacing: 20) {
+      Text(title)
+        .fixedSize(horizontal: false, vertical: true)
+      Spacer(minLength: 0)
+      Text(value)
+        .foregroundStyle(.secondary)
+        .multilineTextAlignment(.trailing)
+        .fixedSize(horizontal: false, vertical: true)
     }
-    .onDisappear { discovery.stop() }
   }
 
   private func choosePairingImage(for frame: DiscoveredFrame, recovering: Bool) {
@@ -152,6 +213,46 @@ struct SettingsView: View {
       alert.accessoryView = preview
     }
     return alert.runModal() == .alertFirstButtonReturn
+  }
+}
+
+private struct SettingsSection<Content: View>: View {
+  let title: String
+  let footer: String?
+  let content: Content
+
+  init(_ title: String, footer: String? = nil, @ViewBuilder content: () -> Content) {
+    self.title = title
+    self.footer = footer
+    self.content = content()
+  }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 10) {
+      Text(title)
+        .font(.headline)
+        .padding(.horizontal, 12)
+        .accessibilityAddTraits(.isHeader)
+
+      VStack(alignment: .leading, spacing: 14) {
+        content
+      }
+      .padding(14)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .background(.primary.opacity(0.025), in: RoundedRectangle(cornerRadius: 10))
+      .overlay {
+        RoundedRectangle(cornerRadius: 10)
+          .strokeBorder(.primary.opacity(0.1), lineWidth: 1)
+      }
+
+      if let footer {
+        Text(footer)
+          .font(.callout)
+          .foregroundStyle(.secondary)
+          .fixedSize(horizontal: false, vertical: true)
+          .frame(maxWidth: .infinity, alignment: .leading)
+      }
+    }
   }
 }
 

@@ -5,13 +5,17 @@ presentation, Apple framework integration, image decoding, secure handoff, and
 application lifecycle. Durable library, recipe, outbox, render, and frame state
 remain owned by the bundled Elixir core.
 
-The packaged app runs as a menu-bar agent. The dropdown is its only control
+The packaged app runs as a menu-bar agent. The dropdown is its primary control
 surface; dismissing it leaves the process and bundled core running. Its Finder
-icon uses the selected white perspective-frame mark on navy, and the menu bar
-uses the matching monochrome silhouette. The labeled power icon in the
+icon uses the selected perspective-frame mark on a transparent field, and the
+menu bar uses the matching monochrome silhouette. The labeled power icon in the
 dropdown header and Command-Q quit the agent and its bundled core.
 The dropdown header also shows the approved Finder mark; its translucent
 backdrop uses a native macOS visual-effect material.
+Settings opens separately with full-width Connection, Image generation, Nearby
+frames, and Startup sections. Its resizable window scrolls vertically; frame
+identifiers, status, and help text wrap. Settings and the dropdown share the
+same flat labeled action buttons.
 `scripts/build-macos-icons` generates the packaged `.icns` and menu-bar PNG
 resources from the committed SVG sources.
 

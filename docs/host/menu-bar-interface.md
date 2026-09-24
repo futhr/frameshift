@@ -16,8 +16,8 @@ Frameshift is a quiet menu-bar utility, not a dashboard. The primary flow is:
 open -> choose frame -> describe or choose image -> generate/render -> send
 ```
 
-The packaged macOS app runs as a menu-bar agent. Its dropdown is the sole
-control surface and stays available after dismissal. The navy and white mark
+The packaged macOS app runs as a menu-bar agent. Its dropdown is the primary
+control surface and stays available after dismissal. The transparent mark
 appears in Finder, and its unboxed silhouette appears in the menu bar.
 
 Advanced provider, model, storage, pairing, and hardware details live in
@@ -204,6 +204,17 @@ distinct and offer one relevant recovery action. The app never silently changes
 AI provider or cloud destination.
 
 ## Settings boundary
+
+The native Settings window uses full-width grouped cards beneath clear section
+headings. It scrolls vertically and can be resized; explanatory text, frame
+identifiers, status, and errors wrap instead of truncating. Nearby frame actions
+sit below the frame identity so their labels cannot squeeze the identity or
+pairing status. Pair, Recover, and Login Items actions share the dropdown's
+flat labeled button style and visible symbols. Disabled actions remain visibly
+disabled and keyboard accessible controls retain their native semantics.
+
+The implemented settings are grouped as Connection, Image generation, Nearby
+frames, and Startup.
 
 Settings contains:
 

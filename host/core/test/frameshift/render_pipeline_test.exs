@@ -4,6 +4,7 @@ defmodule Frameshift.RenderPipelineTest do
   use ExUnit.Case, async: false
 
   alias Frameshift.Digest
+  alias Frameshift.DirectDelivery
   alias Frameshift.Library
   alias Frameshift.LocalAPI
   alias Frameshift.MasterPackage
@@ -558,7 +559,8 @@ defmodule Frameshift.RenderPipelineTest do
     assert digest == artifact.digest
   end
 
-  test "a push timeout reports unknown outcome without discarding the desired asset", context do
+  test "a qualified push timeout retains exact custody through repeated uncertain transfer",
+       context do
     {:ok, package} = MasterPackage.encode(@original, @rgba, 2, 1)
     {:ok, master} = Library.import_master(context.library, package, master_attributes())
 
@@ -568,13 +570,26 @@ defmodule Frameshift.RenderPipelineTest do
       |> put_in(["frameshift:capabilities", "transferModes"], ["push"])
       |> Jason.encode!()
 
-    assert {:ok, _} =
+    assert {:ok, frame} =
              Library.register_paired_frame(
                context.library,
                push_td,
                "keychain:pipeline-timeout-frame",
                "sha256:" <> String.duplicate("d", 64)
              )
+
+    manifest = qualification_manifest(frame, Renderer.build_digest(context.renderer), "push")
+    {:ok, binding_digest} = Library.register_qualification(context.library, manifest)
+
+    :ok =
+      Library.admit_qualification(context.library, binding_digest, %{
+        "schemaVersion" => 1,
+        "scope" => "software_reference",
+        "outcome" => "passed",
+        "suiteDigest" => Digest.sha256("qualified timeout fixture")
+      })
+
+    :ok = Library.activate_qualification(context.library, @frame_id, binding_digest)
 
     assert {:error, :delivery_outcome_unknown} =
              LocalAPI.execute_with_delivery(
@@ -590,11 +605,53 @@ defmodule Frameshift.RenderPipelineTest do
                synchronizer: TimedOutSynchronizer
              )
 
-    assert {:ok, %{"status" => "pending", "desired_digest" => digest}} =
+    assert {:ok, %{"revision" => 1, "status" => "pending", "desired_digest" => digest}} =
              Library.direct_delivery(context.library, @frame_id)
 
     assert digest == Digest.sha256(@rgb)
     assert :empty = Library.outbox_manifest(context.library, @frame_id)
+
+    assert %{
+             "desired" => [
+               %{
+                 "work_digest" => work_digest,
+                 "qualification_digest" => ^binding_digest,
+                 "status" => "qualified"
+               }
+             ]
+           } = Library.delivery_custody(context.library, @frame_id)
+
+    [profile | _] = frame["capabilities"]["storage"]["artifactProfiles"]
+
+    assert {:error, {:transport, :timeout}} =
+             DirectDelivery.push(
+               context.library,
+               frame,
+               %{"digest" => digest, work_digest: work_digest},
+               profile,
+               "direct-timeout-1",
+               credential_resolver: {StaticCredentialResolver, %{owner: self()}},
+               synchronizer: TimedOutSynchronizer
+             )
+
+    assert {:ok, %{"revision" => 1, "status" => "pending"}} =
+             Library.direct_delivery(context.library, @frame_id)
+
+    assert %{
+             "desired" => [
+               %{"work_digest" => ^work_digest, "qualification_digest" => ^binding_digest}
+             ]
+           } = Library.delivery_custody(context.library, @frame_id)
+
+    assert %{"entries" => audit} = Library.audit_page(context.library)
+    assert Enum.count(audit, &(&1["operation"] == "direct.desired")) == 1
+
+    outcomes =
+      audit
+      |> Enum.filter(&(&1["operation"] == "direct.attempt.completed"))
+      |> Enum.map(& &1["detail"]["outcome"])
+
+    assert outcomes == ["unknown", "unknown"]
   end
 
   defp render_job do

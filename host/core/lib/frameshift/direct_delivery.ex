@@ -340,6 +340,7 @@ defmodule Frameshift.DirectDelivery do
        do: :unknown
 
   defp attempt_outcome({:error, {:database, _}}), do: :unknown
+  defp attempt_outcome({:error, {:transport, _}}), do: :unknown
 
   defp attempt_outcome(_), do: :failed
 

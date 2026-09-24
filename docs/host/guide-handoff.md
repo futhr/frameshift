@@ -1,7 +1,7 @@
 # Browser Guide to macOS Handoff
 
-**Status:** normative local setup contract; installed Launch Services behavior
-and accessibility require separate acceptance evidence.
+**Status:** normative local setup contract; local ad-hoc Launch Services behavior
+observed, signed installation and accessibility acceptance remain open.
 
 The optional guide handoff is a navigation hint to the installed Mac app. It
 has no authority to pair, select a target, import content, queue delivery, or
@@ -45,3 +45,14 @@ release gates. See [browser simulation](../architecture/guide-simulation.md).
 Apple documents `CFBundleURLTypes` and
 [`application(_:open:)`](https://developer.apple.com/documentation/appkit/nsapplicationdelegate/application%28_%3Aopen%3A%29)
 for Mac URL delivery.
+
+## Local acceptance observation
+
+On 2026-09-24, an ad-hoc packaged build on macOS 26.6.2 arm64 received
+`frameshift://setup?v=1&class=paper` through `open -a`. The live menu panel's
+accessibility tree showed “Guide choice,” “Paper,” and the no-paired-frame
+explanation. Clicking its dismiss button removed the choice; sending the URL
+again restored it. A panel screenshot was saved to the local Desktop. This
+checks URL delivery and dismissal on that machine. Developer ID installation,
+scheme ownership conflicts, paired-target selection, and a full accessibility
+review remain release gates.

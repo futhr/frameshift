@@ -2,7 +2,9 @@
 
 **Status:** interaction specification
 
-**Reference:** the selected white perspective-frame mark on a navy field.
+**Reference:** the selected perspective-frame mark on a transparent field,
+with a dark silhouette in light appearance and a white silhouette in dark
+appearance.
 [FrameshiftMark.svg](../../host/macos/App/Icons/FrameshiftMark.svg) is its
 canonical vector source.
 

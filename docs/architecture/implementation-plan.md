@@ -82,9 +82,10 @@ worker crash/timeout recovery, and no in-process native crash surface.
 ### H3 — Native shell
 
 - SwiftUI `MenuBarExtra` window;
-- menu-bar agent with no launch window or Dock entry, using the selected white
-  perspective-frame mark for its Finder tile, monochrome menu-bar icon, and
-  compact branded dropdown header with an accessible Quit control;
+- menu-bar agent with no launch window or Dock entry, using the selected
+  perspective-frame mark on a transparent Finder icon field, monochrome
+  menu-bar icon, and compact branded dropdown header with an accessible Quit
+  control;
 - native translucent dropdown backdrop and a bounded scrolling artwork list;
 - target selection, instruction/import, library search, result cards;
 - regenerate, pin, remove, queue/send, and concise status;

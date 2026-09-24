@@ -122,7 +122,8 @@ Elixir core and Zig renderer with:
 
 The generated `.app` is for local inspection and automated installed-flow
 checks. It is not Developer ID signed or notarized, and background service
-registration is not yet implemented.
+registration through Launch at Login has not passed installed lifecycle
+acceptance.
 
 See the [software verification map](docs/architecture/verification.md) for the
 requirement-to-test links and the evidence that remains open.

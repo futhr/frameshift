@@ -45,8 +45,11 @@ Apple explicitly positions window style for richer popover-like content:
 
 Target a compact width in the 360–420 point range and let content scroll before
 growing into a large editor.
-The approved Finder mark sits beside the app name and short purpose line at the
-top, with the labeled Quit icon opposite it. The backdrop uses an active native
+The approved perspective-frame mark sits beside the app name and short purpose
+line at the top, without a colored tile or other background. The mark has a
+transparent field and uses a dark silhouette in light appearance and a white
+silhouette in dark appearance. The labeled Quit icon sits opposite it. The
+backdrop uses an active native
 behind-window material so desktop color shows through; system Reduce
 Transparency may make it opaque. Cards use a lighter material while retaining
 text contrast.

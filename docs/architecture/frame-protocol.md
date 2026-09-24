@@ -387,6 +387,14 @@ capability. Relative dwell playlists do not.
 
 A sleeping frame initiates the connection. Mutual TLS maps the caller to one
 device, so the host never accepts a caller-supplied identity as authorization.
+When at least one paired pull-capable frame exists, the Mac host binds a
+supervised local-network listener using its Keychain identity and publishes a
+privacy-minimal `_frameshift-outbox._tcp` Bonjour service with only the v0
+version hint. The frame discovers candidate hosts locally, checks the pinned
+host certificate before sending an authenticated outbox request, and selects
+the Host Outbox Thing's advertised Forms. Bonjour is never identity evidence.
+If no pull-capable frame is paired, the listener and advertisement stop. A
+listener startup failure leaves desired work durable and visible as pending.
 
 The Host Outbox Thing advertises these semantic interactions. Its reference
 HTTPS Forms use the paths shown, but a frame consumes the advertised Forms.

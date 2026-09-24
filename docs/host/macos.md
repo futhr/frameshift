@@ -39,8 +39,10 @@ notifications, and MediaGenerationKit. It presents snapshots received from the
 core and sends commands; it does not create a second source of truth.
 The packaged app runs as a menu-bar agent. Its dropdown is the sole shell
 control surface and remains available after it is dismissed. The selected
-white perspective-frame mark appears on a navy Finder tile in both system
-appearances, with a monochrome silhouette in the menu bar. A small labeled
+perspective-frame mark appears directly on a transparent field in Finder and
+the dropdown, with a dark silhouette in light appearance and a white
+silhouette in dark appearance. A monochrome template silhouette appears in
+the menu bar. A small labeled
 power control in the dropdown header and Command-Q quit the agent and its
 bundled core; relaunch reads the durable library again. The header repeats the
 selected mark beside the name, while a native behind-window material gives the
@@ -239,6 +241,13 @@ host outbox. The private key never crosses the local broker or enters a file;
 OTP receives only the certificate and a bounded signing callback. Keychain
 denial or an incomplete certificate/key record fails closed. Identity rotation
 remains an explicit authenticated operation rather than an automatic retry.
+
+The core starts the host outbox listener only while a pull-capable frame is
+paired to one shared host identity. It uses the same broker signing callback,
+chooses an available local port, and reports its bound port through the
+authenticated read-only local IPC. The shell advertises that port through a
+privacy-minimal Bonjour record while it is available. A failed listener or
+broker lookup does not invalidate paired records or pending work.
 
 USB commissioning is allowed for initial Wi-Fi and identity setup. A cable used
 during commissioning is not an installed power architecture.

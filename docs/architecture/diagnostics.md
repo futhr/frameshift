@@ -59,6 +59,7 @@ artwork digests, provider inputs, and network addresses are forbidden labels.
 | Qualification | candidate, admission, activation, cohort, work, and result decision counts by succeeded/refused outcome | Single SQLite writer after each qualification command |
 | Render | duration, cache hit, timeout, worker restart | Rendering job lifecycle |
 | Delivery | intent count, pending age, confirmation duration, retry/reconcile and unknown count | Durable Delivery state and frame confirmation |
+| Outbox listener | started, stopped, and unavailable counts with bounded state labels | Supervised listener lifecycle; no frame identity in metric dimensions |
 | Storage | transaction duration/busy result, object bytes, WAL bytes | SQLite owner and filesystem sampling |
 | Runtime | core restart, process memory, queue depth, diagnostic drops | Supervisor and bounded samplers |
 

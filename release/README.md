@@ -13,6 +13,7 @@ private-key file must match the separately pinned fingerprint.
 mise exec -- node release/sign.mjs PLAN.json ARTIFACT_DIR OWNER_PRIVATE_KEY.pem TRUSTED_KEY_SHA256_FILE NEW_OUTPUT_DIR
 mise exec -- node release/verify.mjs MANIFEST.json MANIFEST.sig RELEASE.pub.pem ARTIFACT_DIR TRUSTED_KEY_SHA256_FILE
 mise exec -- node release/verify.mjs MANIFEST.json MANIFEST.sig RELEASE.pub.pem ARTIFACT_DIR TRUSTED_KEY_SHA256_FILE --public
+./scripts/build-release-guide MANIFEST.json MANIFEST.sig RELEASE.pub.pem ARTIFACT_DIR TRUSTED_KEY_SHA256_FILE
 ```
 
 The trust file must come from the owner-approved publication configuration, not
@@ -21,6 +22,10 @@ repository yet. The [release contract](../docs/architecture/release-manifest.md)
 lists the additional signing and installed acceptance gates. The `--public`
 form streams and hashes every public URL after local verification and is a
 required publication check for a real release.
+The last command verifies both local archives and their public URLs before
+building a guide with download links. A failed check leaves the previous
+`guide/dist` untouched. It prepares static files; deployment and release
+acceptance remain separate actions.
 
 The plan is compact JSON with one trailing newline, such as:
 

@@ -1,0 +1,25 @@
+#!/bin/sh
+set -eu
+
+if [ "$#" -ne 5 ]; then
+  echo "usage: scripts/build-release-guide MANIFEST SIGNATURE PUBLIC_KEY ARTIFACT_DIR PINNED_KEY_SHA256_FILE" >&2
+  exit 64
+fi
+
+repository_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+manifest_path=$1
+signature_path=$2
+public_key_path=$3
+artifact_directory=$4
+trust_file=$5
+
+mise exec -- node "$repository_root/release/verify.mjs" \
+  "$manifest_path" "$signature_path" "$public_key_path" \
+  "$artifact_directory" "$trust_file" --public
+
+FRAMESHIFT_RELEASE_MANIFEST="$manifest_path" \
+FRAMESHIFT_RELEASE_SIGNATURE="$signature_path" \
+FRAMESHIFT_RELEASE_PUBLIC_KEY="$public_key_path" \
+FRAMESHIFT_RELEASE_ARTIFACT_DIR="$artifact_directory" \
+FRAMESHIFT_RELEASE_TRUST_FILE="$trust_file" \
+  "$repository_root/scripts/build-guide"

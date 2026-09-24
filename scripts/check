@@ -19,6 +19,7 @@ check_policy() {
     "$repository_root/.githooks/commit-msg" \
     "$repository_root/scripts/build-macos-icons" \
     "$repository_root/scripts/build-guide" \
+    "$repository_root/scripts/build-release-guide" \
     "$repository_root/scripts/check" \
     "$repository_root/scripts/check-elixir-docs" \
     "$repository_root/scripts/check-core-release" \

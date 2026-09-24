@@ -38,6 +38,31 @@ defmodule Frameshift.RenderProfileTest do
              )
   end
 
+  test "selection is order-independent and refuses duplicate profile identities" do
+    later = rgb_profile("z-photo", 2, 2)
+    first = rgb_profile("a-photo", 2, 2)
+    master = %{"width" => 2, "height" => 2}
+
+    assert {:ok, %{profile: ^first}} =
+             RenderProfile.compile(master, capabilities([later, first]))
+
+    assert {:error, :unsupported_profile} =
+             RenderProfile.compile(master, capabilities([first, first]))
+  end
+
+  test "capacity and color are admitted before a render job exists" do
+    master = %{"width" => 2, "height" => 2}
+    too_small = Map.put(rgb_profile("rgb", 2, 2), "maximumAssetBytes", 11)
+
+    assert {:error, :unsupported_profile} =
+             RenderProfile.compile(master, capabilities([too_small]))
+
+    capabilities =
+      put_in(capabilities([rgb_profile("rgb", 2, 2)]), ["color", "colorSpaces"], ["p3"])
+
+    assert {:error, :unsupported_profile} = RenderProfile.compile(master, capabilities)
+  end
+
   defp capabilities(profiles) do
     %{
       "color" => %{

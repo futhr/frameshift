@@ -36,9 +36,19 @@ before deleting that behavior. Package the BEAM output with the OTP release;
 do not rely on a developer's Gleam installation at runtime. The JS output is
 versioned with the guide and cannot be treated as physical display evidence.
 
-Later extractions may add profile choice and capability admission only after
-their bounded input and qualified profile semantics are fixed. Exact render
-bytes, credentials, and delivery effects stay outside the kernel.
+The kernel selects only the currently implemented uncompressed,
+tightly packed RGB24 profile in continuous sRGB. It rejects dimensions above
+16,777,216 pixels, inconsistent byte capacity, incompatible packing/color,
+and unsupported explicit IDs. With no requested ID, it chooses the compatible
+profile with the smallest ASCII profile ID, independent of advertisement order.
+Duplicate profile IDs are refused so the returned identity cannot refer to
+different advertised byte contracts.
+The protocol schema bounds profile IDs to ASCII and at most 128 characters and
+the list to 64 profiles. The host still verifies the complete Thing Description
+and compiles the actual raster job; the kernel receives only the bounded
+capability projection. The guide labels this choice as a software simulation.
+Future color and packing modes require new qualified rules and fixtures.
+Exact render bytes, credentials, and delivery effects stay outside the kernel.
 
 Sources: [Gleam compatibility](https://gleam.run/documentation/compatibility-reference/),
 [Gleam build targets](https://gleam.run/documentation/command-line-reference/),

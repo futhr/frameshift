@@ -40,6 +40,12 @@ kernel_result=$(
 )
 test "$kernel_result" = '{:ok, 180000}'
 
+profile_result=$(
+  FRAMESHIFT_RENDERER_PATH="$renderer" \
+    "$core" eval 'a={:raster_candidate,"z-photo",1600,1200,5760000,"rgb",8,"none",1,"not-applicable"}; b={:raster_candidate,"a-paper",800,600,1440000,"rgb",8,"none",1,"not-applicable"}; IO.inspect(:frameshift_decisions.select_rgb24_profile([a,b],"","continuous",["srgb"],"srgb"))'
+)
+test "$profile_result" = '{:ok, "a-paper"}'
+
 FRAMESHIFT_DATA_DIR="$runtime_root/data" \
 FRAMESHIFT_IPC_TOKEN="$ipc_token" \
 FRAMESHIFT_SOCKET_PATH="$runtime_root/data/core.sock" \

@@ -4,6 +4,8 @@ This pure Gleam package owns the bounded decisions shared by the Elixir host
 and the static installation guide. Its one source tree builds for Erlang and
 JavaScript. The Mix wrapper copies the production BEAM module into the host
 dependency so the OTP release does not need Gleam installed at runtime.
+The core check forces a Dialyzer PLT refresh when the generated BEAM's exports
+change without a dependency version change.
 
 From this directory:
 

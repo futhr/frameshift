@@ -15,7 +15,7 @@
     {:ex_doc, command: "mix docs --warnings-as-errors"},
     {:ex_unit, false},
     {:coverage, command: "mix coveralls", env: %{"MIX_ENV" => "test"}},
-    {:dialyzer, command: "mix dialyzer"},
+    {:dialyzer, command: "mix dialyzer --force-check"},
     {:diff, command: "git diff --check"},
     {:gettext, false},
     {:npm_test, false}

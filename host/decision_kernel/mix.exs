@@ -18,6 +18,7 @@ defmodule Mix.Tasks.Compile.Gleam do
 
   @root __DIR__
   @source Path.join(@root, "build/dev/erlang/frameshift_decisions/ebin/frameshift_decisions.beam")
+  @stdlib Path.join(@root, "build/dev/erlang/gleam_stdlib/ebin")
 
   def run(_) do
     executable = System.find_executable("gleam") || Mix.raise("Gleam is required")
@@ -33,6 +34,12 @@ defmodule Mix.Tasks.Compile.Gleam do
     destination = Path.join(Mix.Project.compile_path(), "frameshift_decisions.beam")
     File.mkdir_p!(Path.dirname(destination))
     File.cp!(@source, destination)
+
+    @stdlib
+    |> Path.join("*.beam")
+    |> Path.wildcard()
+    |> Enum.each(&File.cp!(&1, Path.join(Mix.Project.compile_path(), Path.basename(&1))))
+
     {:ok, []}
   end
 end

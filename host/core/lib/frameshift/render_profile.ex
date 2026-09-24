@@ -64,55 +64,51 @@ defmodule Frameshift.RenderProfile do
 
   defp artifact_profiles(_), do: {:error, :artifact_profiles_missing}
 
-  defp select_profile(profiles, capabilities, nil) do
-    profiles
-    |> Enum.sort_by(& &1["id"])
-    |> Enum.find(&compatible?(&1, capabilities))
-    |> selected_profile()
-  end
-
   defp select_profile(profiles, capabilities, requested_profile_id)
-       when is_binary(requested_profile_id) do
-    profiles
-    |> Enum.find(&(&1["id"] == requested_profile_id))
-    |> case do
-      nil ->
-        {:error, :unsupported_profile}
+       when is_binary(requested_profile_id) or is_nil(requested_profile_id) do
+    color = color_contract(capabilities)
 
-      profile ->
-        if compatible?(profile, capabilities),
-          do: {:ok, profile},
-          else: {:error, :unsupported_profile}
+    case :frameshift_decisions.select_rgb24_profile(
+           Enum.map(profiles, &candidate/1),
+           requested_profile_id || "",
+           text(color["kind"]),
+           color_spaces(color["colorSpaces"]),
+           text(color["transferFunction"])
+         ) do
+      {:ok, id} ->
+        case Enum.find(profiles, &(is_map(&1) and &1["id"] == id)) do
+          nil -> {:error, :unsupported_profile}
+          profile -> {:ok, profile}
+        end
+
+      {:error, :unsupported_profile} ->
+        {:error, :unsupported_profile}
     end
   end
 
   defp select_profile(_, _, _),
     do: {:error, :unsupported_profile}
 
-  defp selected_profile(nil), do: {:error, :unsupported_profile}
-  defp selected_profile(profile), do: {:ok, profile}
+  defp color_contract(%{"color" => %{} = color}), do: color
+  defp color_contract(_), do: %{}
 
-  defp compatible?(profile, capabilities) do
-    color = capabilities["color"]
-    pixels = profile["width"] * profile["height"]
-    expected_bytes = pixels * 3
+  defp color_spaces(spaces) when is_list(spaces), do: Enum.filter(spaces, &is_binary/1)
+  defp color_spaces(_), do: []
 
-    [
-      profile["channelOrder"] == "rgb",
-      profile["bitDepth"] == 8,
-      profile["compression"] == "none",
-      profile["rowAlignment"] == 1,
-      profile["byteOrder"] == "not-applicable",
-      color["kind"] == "continuous",
-      "srgb" in color["colorSpaces"],
-      color["transferFunction"] == "srgb",
-      pixels <= @maximum_pixels,
-      expected_bytes <= profile["maximumAssetBytes"]
-    ]
-    |> Enum.all?()
-  rescue
-    _ -> false
+  defp candidate(%{} = profile) do
+    {:raster_candidate, text(profile["id"]), integer(profile["width"]),
+     integer(profile["height"]), integer(profile["maximumAssetBytes"]),
+     text(profile["channelOrder"]), integer(profile["bitDepth"]), text(profile["compression"]),
+     integer(profile["rowAlignment"]), text(profile["byteOrder"])}
   end
+
+  defp candidate(_), do: {:raster_candidate, "", 0, 0, 0, "", 0, "", 0, ""}
+
+  defp text(value) when is_binary(value), do: value
+  defp text(_), do: ""
+
+  defp integer(value) when is_integer(value), do: value
+  defp integer(_), do: 0
 
   defp validate_source(%{"width" => width, "height" => height})
        when is_integer(width) and is_integer(height) and width > 0 and height > 0 and

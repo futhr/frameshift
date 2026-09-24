@@ -1,4 +1,6 @@
 // Pure, cross-target decisions used by the host and installation guide.
+import gleam/order
+import gleam/string
 
 pub type Decision {
   Commit
@@ -11,6 +13,21 @@ pub type Refusal {
   Conflict
   StorageNotVerified
   CurrentAssetMismatch
+  UnsupportedProfile
+}
+
+pub type RasterCandidate {
+  RasterCandidate(
+    id: String,
+    width: Int,
+    height: Int,
+    maximum_asset_bytes: Int,
+    channel_order: String,
+    bit_depth: Int,
+    compression: String,
+    row_alignment: Int,
+    byte_order: String,
+  )
 }
 
 pub fn select_dwell(
@@ -25,6 +42,173 @@ pub fn select_dwell(
       }
 
     False -> Error(InvalidInput)
+  }
+}
+
+pub fn select_rgb24_profile(
+  candidates: List(RasterCandidate),
+  requested_id: String,
+  color_kind: String,
+  color_spaces: List(String),
+  transfer_function: String,
+) -> Result(String, Refusal) {
+  case duplicate_profile_ids(candidates, []), candidates, requested_id {
+    True, _, _ -> Error(UnsupportedProfile)
+    _, [], _ -> Error(UnsupportedProfile)
+    _, _, "" ->
+      select_default_profile(
+        candidates,
+        "",
+        color_kind,
+        color_spaces,
+        transfer_function,
+      )
+
+    _, _, _ ->
+      select_requested_profile(
+        candidates,
+        requested_id,
+        color_kind,
+        color_spaces,
+        transfer_function,
+      )
+  }
+}
+
+fn duplicate_profile_ids(
+  candidates: List(RasterCandidate),
+  seen: List(String),
+) -> Bool {
+  case candidates {
+    [] -> False
+    [candidate, ..rest] ->
+      case contains_id(seen, candidate.id) {
+        True -> True
+        False -> duplicate_profile_ids(rest, [candidate.id, ..seen])
+      }
+  }
+}
+
+fn contains_id(ids: List(String), id: String) -> Bool {
+  case ids {
+    [] -> False
+    [first, ..rest] ->
+      case first == id {
+        True -> True
+        False -> contains_id(rest, id)
+      }
+  }
+}
+
+fn select_default_profile(
+  candidates: List(RasterCandidate),
+  best_id: String,
+  color_kind: String,
+  color_spaces: List(String),
+  transfer_function: String,
+) -> Result(String, Refusal) {
+  case candidates {
+    [] ->
+      case best_id {
+        "" -> Error(UnsupportedProfile)
+        _ -> Ok(best_id)
+      }
+
+    [candidate, ..rest] -> {
+      let better =
+        compatible_rgb24(candidate, color_kind, color_spaces, transfer_function)
+        && {
+          best_id == "" || string.compare(candidate.id, best_id) == order.Lt
+        }
+
+      let next_best = case better {
+        True -> candidate.id
+        False -> best_id
+      }
+      select_default_profile(
+        rest,
+        next_best,
+        color_kind,
+        color_spaces,
+        transfer_function,
+      )
+    }
+  }
+}
+
+fn select_requested_profile(
+  candidates: List(RasterCandidate),
+  requested_id: String,
+  color_kind: String,
+  color_spaces: List(String),
+  transfer_function: String,
+) -> Result(String, Refusal) {
+  case candidates {
+    [] -> Error(UnsupportedProfile)
+    [candidate, ..rest] ->
+      case candidate.id == requested_id {
+        True ->
+          case
+            compatible_rgb24(
+              candidate,
+              color_kind,
+              color_spaces,
+              transfer_function,
+            )
+          {
+            True -> Ok(candidate.id)
+            False -> Error(UnsupportedProfile)
+          }
+
+        False ->
+          select_requested_profile(
+            rest,
+            requested_id,
+            color_kind,
+            color_spaces,
+            transfer_function,
+          )
+      }
+  }
+}
+
+fn compatible_rgb24(
+  candidate: RasterCandidate,
+  color_kind: String,
+  color_spaces: List(String),
+  transfer_function: String,
+) -> Bool {
+  let dimensions_valid =
+    candidate.width > 0
+    && candidate.width <= 32_768
+    && candidate.height > 0
+    && candidate.height <= 32_768
+
+  case dimensions_valid {
+    False -> False
+    True -> {
+      let pixels = candidate.width * candidate.height
+      candidate.id != ""
+      && pixels <= 16_777_216
+      && candidate.maximum_asset_bytes >= pixels * 3
+      && candidate.maximum_asset_bytes <= 1_073_741_824
+      && candidate.channel_order == "rgb"
+      && candidate.bit_depth == 8
+      && candidate.compression == "none"
+      && candidate.row_alignment == 1
+      && candidate.byte_order == "not-applicable"
+      && color_kind == "continuous"
+      && contains_srgb(color_spaces)
+      && transfer_function == "srgb"
+    }
+  }
+}
+
+fn contains_srgb(spaces: List(String)) -> Bool {
+  case spaces {
+    [] -> False
+    ["srgb", ..] -> True
+    [_, ..rest] -> contains_srgb(rest)
   }
 }
 

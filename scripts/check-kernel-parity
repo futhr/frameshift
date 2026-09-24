@@ -1,0 +1,32 @@
+#!/bin/sh
+set -eu
+
+repository_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+parity_directory=$(mktemp -d)
+trap 'rm -rf "$parity_directory"' 0 HUP INT TERM
+
+(
+  cd "$repository_root/host/decision_kernel"
+  mise exec -- gleam run --target erlang --module parity --no-print-progress \
+    > "$parity_directory/erlang.txt"
+  mise exec -- gleam run --target javascript --module parity --no-print-progress \
+    > "$parity_directory/javascript.txt"
+)
+
+for target in erlang javascript; do
+  awk -F '|' '
+    $1 != "case" || $2 != NR - 1 || NF != 6 { exit 1 }
+    END { if (NR != 256) exit 1 }
+  ' "$parity_directory/$target.txt" || {
+    echo "Invalid $target decision corpus" >&2
+    exit 1
+  }
+done
+
+if ! cmp -s "$parity_directory/erlang.txt" "$parity_directory/javascript.txt"; then
+  diff -u "$parity_directory/erlang.txt" "$parity_directory/javascript.txt" >&2 || true
+  echo "Erlang and JavaScript decision results diverged" >&2
+  exit 1
+fi
+
+echo "256 generated decision cases match on Erlang and JavaScript"

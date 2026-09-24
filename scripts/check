@@ -22,6 +22,7 @@ check_policy() {
     "$repository_root/scripts/check" \
     "$repository_root/scripts/check-elixir-docs" \
     "$repository_root/scripts/check-core-release" \
+    "$repository_root/scripts/check-kernel-parity" \
     "$repository_root/scripts/check-packaged-app" \
     "$repository_root/scripts/format" \
     "$repository_root/scripts/frameshift-maintenance" \
@@ -52,6 +53,7 @@ check_kernel() {
     mise exec -- gleam test --target erlang
     mise exec -- gleam test --target javascript
   )
+  "$repository_root/scripts/check-kernel-parity"
 }
 
 check_guide() {

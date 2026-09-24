@@ -362,6 +362,21 @@ defmodule Frameshift.LocalIPC.ServerTest do
                "requestId" => "after-pair",
                "operation" => "snapshot"
              })
+
+    assert :ok = Library.forget_paired_frame(context.library, @pairing_device_id)
+
+    assert %{"ok" => true, "frame" => %{"frameId" => @pairing_device_id}} =
+             request(path, %{
+               "version" => 1,
+               "requestId" => "recover-physical-1",
+               "operation" => "recoverPair",
+               "bootstrap" => bootstrap,
+               "discoveredId" => @pairing_device_id,
+               "origin" => "https://frame.local",
+               "credentialRef" => "keychain:pair-test"
+             })
+
+    refute_receive {:physical_pair, _, _}
   end
 
   defp request(path, document) do

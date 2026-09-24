@@ -22,11 +22,25 @@ public final class PairingSettingsModel {
   public func pair(
     frame: DiscoveredFrame, bootstrap: String, discovery: FrameDiscovery
   ) async -> Bool {
+    await perform(frame: frame, bootstrap: bootstrap, discovery: discovery, recovering: false)
+  }
+
+  @discardableResult
+  public func recover(
+    frame: DiscoveredFrame, bootstrap: String, discovery: FrameDiscovery
+  ) async -> Bool {
+    await perform(frame: frame, bootstrap: bootstrap, discovery: discovery, recovering: true)
+  }
+
+  private func perform(
+    frame: DiscoveredFrame, bootstrap: String, discovery: FrameDiscovery,
+    recovering: Bool
+  ) async -> Bool {
     guard !isBusy,
-      frame.introduction.pairMode,
+      recovering || frame.introduction.pairMode,
       discovery.frames.contains(where: { $0.id == frame.id && $0.endpoint == frame.endpoint })
     else {
-      errorMessage = "This frame is no longer available in physical pair mode."
+      errorMessage = "This frame is no longer available for the selected action."
       return false
     }
 
@@ -38,19 +52,23 @@ public final class PairingSettingsModel {
     do {
       let origin = try await FrameServiceResolver().resolve(frame.endpoint)
       let reference = try identityStore.ensureHostIdentity()
-      let paired = try await core.pair(
-        bootstrap: bootstrap,
-        discoveredID: frame.id,
-        origin: origin,
-        credentialReference: reference
-      )
-      statusMessage = "Paired \(paired.frameID)."
+      let paired: PairedFrameResult
+      if recovering {
+        paired = try await core.recoverPair(
+          bootstrap: bootstrap, discoveredID: frame.id, origin: origin,
+          credentialReference: reference)
+      } else {
+        paired = try await core.pair(
+          bootstrap: bootstrap, discoveredID: frame.id, origin: origin,
+          credentialReference: reference)
+      }
+      statusMessage = recovering ? "Recovered \(paired.frameID)." : "Paired \(paired.frameID)."
       return true
     } catch CoreClientError.pairingOutcomeUnknown {
       errorMessage = "The frame may have accepted pairing. Check its status before trying again."
     } catch CoreClientError.pairingIncomplete {
       errorMessage =
-        "The frame accepted pairing, but its authenticated description was not admitted."
+        "The frame’s authenticated description is unavailable. Its local pairing remains unconfirmed."
     } catch CoreClientError.pairingRejected {
       errorMessage =
         "The frame rejected pairing. Reopen physical pair mode and use its current QR label."

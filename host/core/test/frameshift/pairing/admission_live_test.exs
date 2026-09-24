@@ -114,6 +114,19 @@ defmodule Frameshift.Pairing.AdmissionLiveTest do
     assert {:ok, paired} = Library.get_paired_frame(library, @device_id)
     assert paired["server_spki_fingerprint"] == context.server_pin
     assert paired["credential_ref"] == reference
+
+    assert :ok = Library.forget_paired_frame(library, @device_id)
+
+    assert {:ok, %{"frameId" => @device_id}} =
+             Admission.recover(
+               bootstrap,
+               @device_id,
+               origin,
+               reference,
+               library: library,
+               resolver: resolver,
+               transport_config: %{allow_loopback: true}
+             )
   end
 
   defp identity_for_test(context) do

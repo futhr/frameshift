@@ -35,6 +35,24 @@ public actor LocalCoreClient: CoreClient {
   public func pair(
     bootstrap: String, discoveredID: String, origin: String, credentialReference: String
   ) async throws -> PairedFrameResult {
+    try await pairingOperation(
+      "pair", bootstrap: bootstrap, discoveredID: discoveredID, origin: origin,
+      credentialReference: credentialReference)
+  }
+
+  /// Reads the authenticated introduction after an uncertain pair; no pair POST is replayed.
+  public func recoverPair(
+    bootstrap: String, discoveredID: String, origin: String, credentialReference: String
+  ) async throws -> PairedFrameResult {
+    try await pairingOperation(
+      "recoverPair", bootstrap: bootstrap, discoveredID: discoveredID, origin: origin,
+      credentialReference: credentialReference)
+  }
+
+  private func pairingOperation(
+    _ operation: String, bootstrap: String, discoveredID: String, origin: String,
+    credentialReference: String
+  ) async throws -> PairedFrameResult {
     guard bootstrap.utf8.count <= 2_048,
       discoveredID.utf8.count <= 128,
       origin.utf8.count <= 1_024,
@@ -44,7 +62,7 @@ public actor LocalCoreClient: CoreClient {
     try await BundledCore.shared.ensureRunning(socketPath: socketPath)
     let auth = try await BundledCore.shared.sessionToken(socketPath: socketPath)
     let request = PairingWireRequest(
-      auth: auth, bootstrap: bootstrap, discoveredID: discoveredID,
+      operation: operation, auth: auth, bootstrap: bootstrap, discoveredID: discoveredID,
       origin: origin, credentialReference: credentialReference
     )
     let payload = try encoder.encode(request)
@@ -399,7 +417,7 @@ private struct WireRequest: Encodable, Sendable {
 private struct PairingWireRequest: Encodable, Sendable {
   let version = 1
   let requestID = UUID().uuidString.lowercased()
-  let operation = "pair"
+  let operation: String
   let auth: String
   let bootstrap: String
   let discoveredID: String

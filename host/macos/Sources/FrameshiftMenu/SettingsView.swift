@@ -40,10 +40,13 @@ struct SettingsView: View {
             }
             Spacer()
             if frame.introduction.pairMode {
-              Button("Pair…") { choosePairingImage(for: frame) }
+              Button("Pair…") { choosePairingImage(for: frame, recovering: false) }
                 .disabled(pairing.isBusy)
                 .accessibilityLabel("Pair frame \(frame.id)")
             }
+            Button("Recover…") { choosePairingImage(for: frame, recovering: true) }
+              .disabled(pairing.isBusy)
+              .accessibilityLabel("Recover frame pairing \(frame.id)")
           }
           .accessibilityIdentifier("discovered-frame-\(frame.id)")
         }
@@ -99,12 +102,13 @@ struct SettingsView: View {
     .onDisappear { discovery.stop() }
   }
 
-  private func choosePairingImage(for frame: DiscoveredFrame) {
+  private func choosePairingImage(for frame: DiscoveredFrame, recovering: Bool) {
     let panel = NSOpenPanel()
     panel.allowedContentTypes = [.png, .jpeg, .tiff, .heic]
     panel.allowsMultipleSelection = false
     panel.canChooseDirectories = false
-    panel.message = "Choose an image of the physical QR label on \(frame.id)."
+    panel.message =
+      "Choose an image of the physical QR label on \(frame.id) to \(recovering ? "recover" : "pair") it."
     panel.begin { response in
       guard response == .OK, let url = panel.url else { return }
       Task { @MainActor in
@@ -117,20 +121,28 @@ struct SettingsView: View {
           pairing.reportInvalidQR()
           return
         }
-        guard confirmPhysicalQR(for: frame, imageURL: url) else { return }
-        if await pairing.pair(frame: frame, bootstrap: bootstrap, discovery: discovery) {
+        guard confirmPhysicalQR(for: frame, imageURL: url, recovering: recovering) else { return }
+        let succeeded =
+          recovering
+          ? await pairing.recover(frame: frame, bootstrap: bootstrap, discovery: discovery)
+          : await pairing.pair(frame: frame, bootstrap: bootstrap, discovery: discovery)
+        if succeeded {
           await shell.refresh()
         }
       }
     }
   }
 
-  private func confirmPhysicalQR(for frame: DiscoveredFrame, imageURL: URL) -> Bool {
+  private func confirmPhysicalQR(
+    for frame: DiscoveredFrame, imageURL: URL, recovering: Bool
+  ) -> Bool {
     let alert = NSAlert()
     alert.messageText = "Confirm the physical frame label"
     alert.informativeText =
-      "Pair \(frame.id) using this QR label? Check that it is attached to the frame and physical pair mode is active."
-    alert.addButton(withTitle: "Pair frame")
+      recovering
+      ? "Recover \(frame.id) using this physical QR label? This checks its authenticated description without sending the one-time secret again."
+      : "Pair \(frame.id) using this QR label? Check that it is attached to the frame and physical pair mode is active."
+    alert.addButton(withTitle: recovering ? "Recover pairing" : "Pair frame")
     alert.addButton(withTitle: "Cancel")
     if let image = NSImage(contentsOf: imageURL) {
       let preview = NSImageView(frame: NSRect(x: 0, y: 0, width: 160, height: 160))

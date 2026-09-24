@@ -58,6 +58,37 @@ defmodule Frameshift.Pairing.Admission do
     end
   end
 
+  @doc "Reconciles an uncertain pair by reading only the authenticated TD, without reposting its secret."
+  @spec recover(binary(), String.t(), String.t(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, atom()}
+  def recover(bootstrap_source, discovered_id, origin, credential_ref, options \\ []) do
+    resolver = Keyword.get(options, :resolver)
+    library = Keyword.get(options, :library, Library)
+    transport_config = Keyword.get(options, :transport_config, %{})
+
+    fetcher =
+      Keyword.get(options, :fetcher, fn credential, path ->
+        fetch_thing(credential, path, transport_config)
+      end)
+
+    with {:ok, bootstrap} <- Bootstrap.parse(bootstrap_source),
+         :ok <- match_discovery(bootstrap, discovered_id),
+         :ok <- validate_reference(credential_ref),
+         :ok <- require_unpaired(library, bootstrap),
+         {:ok, identity} <- resolve_identity(resolver, credential_ref),
+         {:ok, credential} <-
+           MTLSCredential.new(
+             origin,
+             bootstrap.server_spki,
+             identity.certificate,
+             identity.private_key
+           ) do
+      admit_after_pair(bootstrap, credential, credential_ref, library, fetcher)
+    else
+      _ -> {:error, :pairing_preflight_failed}
+    end
+  end
+
   defp match_discovery(%Bootstrap{device_id: device_id}, device_id), do: :ok
   defp match_discovery(_, _), do: {:error, :discovery_identity_mismatch}
 

@@ -222,10 +222,17 @@ defmodule Frameshift.LocalIPC.Server do
        ) do
     allowed =
       case operation do
-        "command" -> ~w(version requestId operation auth command)
-        "snapshot" -> ~w(version requestId operation auth query)
-        "pair" -> ~w(version requestId operation auth bootstrap discoveredId origin credentialRef)
-        _ -> ~w(version requestId operation auth)
+        "command" ->
+          ~w(version requestId operation auth command)
+
+        "snapshot" ->
+          ~w(version requestId operation auth query)
+
+        operation when operation in ["pair", "recoverPair"] ->
+          ~w(version requestId operation auth bootstrap discoveredId origin credentialRef)
+
+        _ ->
+          ~w(version requestId operation auth)
       end
 
     with :ok <- validate_request_id(request_id),
@@ -252,8 +259,9 @@ defmodule Frameshift.LocalIPC.Server do
   defp validate_request_id(request_id),
     do: {:error, {safe_request_id(request_id), :invalid_request}}
 
-  defp validate_operation(operation) when operation in ["snapshot", "command", "pair"],
-    do: :ok
+  defp validate_operation(operation)
+       when operation in ["snapshot", "command", "pair", "recoverPair"],
+       do: :ok
 
   defp validate_operation(_), do: {:error, :invalid_request}
 
@@ -287,7 +295,8 @@ defmodule Frameshift.LocalIPC.Server do
 
   defp validate_query_shape(_, _, _), do: :ok
 
-  defp validate_pairing_shape(request, "pair", request_id) do
+  defp validate_pairing_shape(request, operation, request_id)
+       when operation in ["pair", "recoverPair"] do
     with bootstrap when is_binary(bootstrap) and byte_size(bootstrap) in 1..2_048 <-
            Map.get(request, "bootstrap"),
          discovered_id when is_binary(discovered_id) and byte_size(discovered_id) in 16..128 <-
@@ -342,6 +351,29 @@ defmodule Frameshift.LocalIPC.Server do
        ) do
     {:ok,
      success_response(request_id, LocalAPI.snapshot(library, nil, Map.get(request, "query", "")))}
+  end
+
+  defp execute_request(
+         %{
+           "requestId" => request_id,
+           "operation" => "recoverPair",
+           "bootstrap" => bootstrap,
+           "discoveredId" => discovered_id,
+           "origin" => origin,
+           "credentialRef" => reference
+         },
+         library,
+         pairing
+       ) do
+    options = Keyword.put(pairing, :library, library)
+
+    case Admission.recover(bootstrap, discovered_id, origin, reference, options) do
+      {:ok, frame} ->
+        {:ok, %{"version" => 1, "requestId" => request_id, "ok" => true, "frame" => frame}}
+
+      {:error, code} ->
+        {:error, {request_id, code}}
+    end
   end
 
   defp execute_request(

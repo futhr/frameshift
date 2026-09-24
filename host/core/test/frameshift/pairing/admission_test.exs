@@ -153,6 +153,40 @@ defmodule Frameshift.Pairing.AdmissionTest do
     assert Library.list_paired_frames(context.library) == []
   end
 
+  test "recovery fetches only the pinned authenticated TD and refuses a mismatched QR", context do
+    owner = self()
+
+    fetcher = fn credential, path ->
+      send(owner, {:read_only_recovery, credential.server_spki_sha256, path})
+      {:ok, @thing_source}
+    end
+
+    assert {:error, :pairing_preflight_failed} =
+             Admission.recover(
+               bootstrap(),
+               "other-frame-00001",
+               "https://frame.local",
+               "keychain:admission-test",
+               options(context, fn _, _, _ -> flunk("pair POST replayed") end, fetcher)
+             )
+
+    refute_receive :resolved_identity
+
+    assert {:ok, %{"frameId" => @device_id}} =
+             Admission.recover(
+               bootstrap(),
+               @device_id,
+               "https://frame.local",
+               "keychain:admission-test",
+               options(context, fn _, _, _ -> flunk("pair POST replayed") end, fetcher)
+             )
+
+    assert_receive :resolved_identity
+    assert_receive {:read_only_recovery, pin, "/.well-known/wot"}
+    assert "sha256:" <> Base.encode16(pin, case: :lower) == @pin
+    assert {:ok, _} = Library.get_paired_frame(context.library, @device_id)
+  end
+
   defp bootstrap do
     Jason.encode!(%{
       "version" => 1,

@@ -65,6 +65,12 @@ check_guide() {
   mise exec -- node --test "$repository_root/guide/test/lab.test.mjs"
 }
 
+check_release() {
+  mise exec -- node --check "$repository_root/release/manifest.mjs"
+  mise exec -- node --check "$repository_root/release/verify.mjs"
+  mise exec -- node --test "$repository_root/release/manifest.test.mjs"
+}
+
 check_guide_browser() {
   check_guide
   mise exec -- node "$repository_root/guide/test/browser-smoke.mjs"
@@ -144,6 +150,7 @@ case "${1:-all}" in
     check_policy
     check_renderer
     check_core
+    check_release
     check_guide
     check_macos
     ;;
@@ -153,10 +160,11 @@ case "${1:-all}" in
   guide) check_guide ;;
   guide-browser) check_guide_browser ;;
   core) check_core ;;
+  release) check_release ;;
   macos) check_macos ;;
   container) check_container ;;
   *)
-    echo "usage: scripts/check [all|policy|renderer|kernel|guide|guide-browser|core|macos|container]" >&2
+    echo "usage: scripts/check [all|policy|renderer|kernel|guide|guide-browser|core|release|macos|container]" >&2
     exit 64
     ;;
 esac

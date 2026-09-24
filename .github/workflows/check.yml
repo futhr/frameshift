@@ -34,6 +34,8 @@ jobs:
         run: ./scripts/check core
       - name: Check browser guide
         run: ./scripts/check guide
+      - name: Check release manifest verifier
+        run: ./scripts/check release
 
   macos-shell:
     name: Swift macOS shell

@@ -15,12 +15,15 @@ location. Sparkle's archive/appcast signatures and Apple Developer ID are
 additional independent checks; the manifest does not replace them.
 
 The manifest has `schemaVersion: 1`, `product: "io.frameshift.app"`, a SemVer
-`version`, and 1–16 `artifacts`. Each artifact has only `platform`,
+`version`, and 1–16 `artifacts`. The UTF-8 JSON is compact with one trailing
+newline and at most 64 KiB; duplicate keys fail that encoding check. Versions
+are stable three-component numeric SemVer. Each artifact has only `platform`,
 `architecture`, `format`, `file`, `url`, `bytes`, and `sha256`. Accepted tuples
 are macOS/universal/DMG, Ubuntu/amd64 or arm64/DEB, and Nerves Pi 5/arm64/FW.
 Names are flat ASCII basenames; filenames and platform tuples are unique.
 URLs are HTTPS with no credentials, query, fragment, or mutable `latest` path,
-and carry the exact version tag and basename. The local verifier also checks
+and carry the exact version tag and basename. Artifacts have a positive byte
+count no larger than 8 GiB. The local verifier also checks
 that each corresponding regular file has the recorded size and digest. It
 rejects symlinks and never follows a path outside the supplied artifact
 directory.

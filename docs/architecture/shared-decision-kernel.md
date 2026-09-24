@@ -11,7 +11,9 @@ JavaScript runtimes implementing ECMAScript 2022. The same `.gleam` source
 must compile to both targets. The package is a pure library with no externals,
 filesystem, network, clock, randomness, secrets, or hardware access. The
 Elixir host calls the Erlang build for selected production decisions; the
-static guide calls the JavaScript build only to explain those decisions.
+static guide calls the JavaScript build only to explain those decisions. The
+guide's examples, event model, and evidence labels are defined in the
+[browser guide simulation](guide-simulation.md).
 
 ## First extraction
 

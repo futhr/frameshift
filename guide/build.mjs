@@ -1,6 +1,8 @@
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, lstatSync, copyFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, lstatSync, copyFileSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { verifyRelease } from '../release/manifest.mjs';
+import { installVerifiedRelease } from './release-markup.mjs';
 
 const guide = dirname(fileURLToPath(import.meta.url));
 const repository = resolve(guide, '..');
@@ -10,6 +12,23 @@ const output = resolve(guide, 'dist');
 
 if (!existsSync(entry)) {
   throw new Error('Compile the Gleam JavaScript target before building the guide.');
+}
+
+const releaseInputs = [
+  process.env.FRAMESHIFT_RELEASE_MANIFEST,
+  process.env.FRAMESHIFT_RELEASE_SIGNATURE,
+  process.env.FRAMESHIFT_RELEASE_PUBLIC_KEY,
+  process.env.FRAMESHIFT_RELEASE_ARTIFACT_DIR,
+  process.env.FRAMESHIFT_RELEASE_TRUST_FILE,
+];
+let releaseManifest;
+if (releaseInputs.some(Boolean)) {
+  if (!releaseInputs.every(Boolean)) throw new Error('Incomplete signed release inputs');
+  const [manifestPath, signaturePath, publicKeyPath, artifactDirectory, trustFile] =
+    releaseInputs;
+  const trustedKeyDigest = readFileSync(trustFile, 'utf8').trim();
+  releaseManifest = await verifyRelease({ manifestPath, signaturePath, publicKeyPath,
+    artifactDirectory, trustedKeyDigest });
 }
 
 rmSync(output, { recursive: true, force: true });
@@ -34,6 +53,11 @@ function copyKernelModule(source) {
   }
 }
 copyKernelModule(entry);
+
+if (releaseManifest) {
+  const htmlPath = resolve(output, 'index.html');
+  writeFileSync(htmlPath, installVerifiedRelease(readFileSync(htmlPath, 'utf8'), releaseManifest));
+}
 
 let files = 0;
 let bytes = 0;

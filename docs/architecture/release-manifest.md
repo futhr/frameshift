@@ -30,7 +30,13 @@ directory.
 
 There is no manifest of placeholder downloads. The guide keeps installation
 links absent until a fully verified signed manifest and its exact artifact
-files exist. Publication additionally requires owner-pinned trust root,
+files exist. A release-mode guide build takes explicit paths for the manifest,
+detached signature, public key, pinned key fingerprint, and local artifact
+directory; a partial set of inputs fails the build. It substitutes a bounded
+version and platform-specific link list into the static install section only
+after local verification. The publication pipeline must then fetch each public
+URL and compare its exact bytes before deploying the guide. Publication
+additionally requires owner-pinned trust root,
 Developer ID/notarization, Sparkle and Cask acceptance, licenses/notices,
 installed platform tests, and applicable frame evidence. Repository visibility
 does not change to publish release artifacts.

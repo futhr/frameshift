@@ -22,6 +22,14 @@ deployment. The guide contains no live download links until a checked release
 manifest and signed artifacts exist. The source repository's visibility is
 not part of this deployment path.
 
+For a release-mode build, set all five `FRAMESHIFT_RELEASE_MANIFEST`,
+`FRAMESHIFT_RELEASE_SIGNATURE`, `FRAMESHIFT_RELEASE_PUBLIC_KEY`,
+`FRAMESHIFT_RELEASE_ARTIFACT_DIR`, and `FRAMESHIFT_RELEASE_TRUST_FILE` paths
+before `./scripts/check guide`. A missing or invalid input refuses the build;
+the trust file comes from the owner-approved release configuration. The site
+publisher must separately fetch each public URL and verify its bytes before
+deployment.
+
 The three compressed frame illustrations come from the maintainer's desktop
 `Frameshift.html` visual draft. The Frameshift SVG is the existing macOS mark.
 No externally loaded fonts, scripts, trackers, or image hosts are required.

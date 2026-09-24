@@ -61,8 +61,12 @@ check_guide() {
   mise exec -- node --check "$repository_root/guide/build.mjs"
   mise exec -- node --check "$repository_root/guide/src/app.mjs"
   mise exec -- node --check "$repository_root/guide/src/lab.mjs"
+  mise exec -- node --check "$repository_root/guide/release-markup.mjs"
   mise exec -- node --check "$repository_root/guide/test/browser-smoke.mjs"
-  mise exec -- node --test "$repository_root/guide/test/lab.test.mjs"
+  mise exec -- node --test \
+    "$repository_root/guide/test/lab.test.mjs" \
+    "$repository_root/guide/test/release-markup.test.mjs"
+  mise exec -- node "$repository_root/guide/test/release-build.mjs"
 }
 
 check_release() {

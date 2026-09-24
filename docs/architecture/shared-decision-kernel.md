@@ -33,7 +33,14 @@ be reported as `unchanged` without weakening the digest check.
 
 Every decision has canonical fixtures covering valid, invalid, boundary, and
 uncertain cases. Run those fixtures on both targets and compare results. The
-host adapter must include a parity test against its former decision behavior
+test harness additionally emits 256 deterministic generated cases from a
+documented bounded integer sequence. It serializes each dwell, RGB24 profile,
+direct-confirmation, and pull-confirmation result into one stable text record.
+The check compares the complete Erlang and JavaScript records byte for byte
+and rejects a missing, duplicate, or reordered case. The generator and record
+encoder live only in test code; production decisions remain pure. A browser
+lab release must include this parity check in CI. The host adapter must include
+a parity test against its former decision behavior
 before deleting that behavior. Package the BEAM output with the OTP release;
 do not rely on a developer's Gleam installation at runtime. The JS output is
 versioned with the guide and cannot be treated as physical display evidence.

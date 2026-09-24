@@ -57,9 +57,15 @@ installed lifecycle still need qualification. These observations do not
 validate a release.
 
 On 2026-09-24, the local `elixir:1.20.4-otp-29-slim` arm64 Linux container
+(multi-platform image index `sha256:3898ffe18d695e770239e4b342dc6b83136f52da0a37df2298083c03068cfd4e`)
 reported `{:error, {:invalid, ...}}` for the named OTP `:peercred` option on a
 connected Unix stream socket, while Linux native `{SOL_SOCKET, SO_PEERCRED}`
 returned the 12-byte PID/UID/GID structure. This supports exercising the
 adapter's native fallback in a container contract test. It does not establish
 the permissions of an installed service or admission of another user's group
 membership.
+The pinned container contract subsequently read UID 0 for its root client and
+UID 65534 for a `runuser` client over actual Unix stream sockets on arm64.
+The amd64 image could not start OTP under the local Docker Desktop emulation
+(`prim_tty` NIF startup failure); the native amd64 CI lane is required for
+that architecture and remains unobserved here.

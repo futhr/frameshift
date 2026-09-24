@@ -69,3 +69,5 @@ jobs:
         run: mix deps.get
       - name: Check networked frame receiver
         run: ./scripts/check container
+      - name: Check Linux peer credentials
+        run: ./scripts/check linux-ipc

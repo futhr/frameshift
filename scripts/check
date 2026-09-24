@@ -149,6 +149,19 @@ check_container() {
   )
 }
 
+check_linux_ipc() {
+  if ! docker info >/dev/null 2>&1; then
+    echo "Docker-compatible daemon required for Linux peer credential test" >&2
+    return 1
+  fi
+
+  docker run --rm --network none --read-only \
+    --mount "type=bind,src=$repository_root/host/core,dst=/src,readonly" \
+    --tmpfs /tmp:mode=1777,size=16m \
+    elixir@sha256:3898ffe18d695e770239e4b342dc6b83136f52da0a37df2298083c03068cfd4e \
+    elixir /src/test/frameshift/local_ipc/linux_peer_identity_contract.exs
+}
+
 case "${1:-all}" in
   all)
     check_policy
@@ -167,8 +180,9 @@ case "${1:-all}" in
   release) check_release ;;
   macos) check_macos ;;
   container) check_container ;;
+  linux-ipc) check_linux_ipc ;;
   *)
-    echo "usage: scripts/check [all|policy|renderer|kernel|guide|guide-browser|core|release|macos|container]" >&2
+    echo "usage: scripts/check [all|policy|renderer|kernel|guide|guide-browser|core|release|macos|container|linux-ipc]" >&2
     exit 64
     ;;
 esac

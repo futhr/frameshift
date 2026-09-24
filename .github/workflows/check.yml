@@ -32,6 +32,8 @@ jobs:
         run: ./scripts/check renderer
       - name: Check Elixir core
         run: ./scripts/check core
+      - name: Check browser guide
+        run: ./scripts/check guide
 
   macos-shell:
     name: Swift macOS shell

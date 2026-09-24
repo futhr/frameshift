@@ -9,6 +9,7 @@
 /host/core/doc/
 /host/core/priv/plts/
 /.dexter/
+/guide/dist/
 
 # Zig
 /.zig-cache/

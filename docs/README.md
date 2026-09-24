@@ -27,6 +27,7 @@ protocol branches.
 - [Display timing and pinned artwork loops](architecture/display-timing.md)
 - [Content pipeline](architecture/content-pipeline.md)
 - [Qualified render and transfer generations](architecture/qualified-generations.md)
+- [Browser guide simulation](architecture/guide-simulation.md)
 - [Implementation plan](architecture/implementation-plan.md)
 - [Software verification map](architecture/verification.md)
 

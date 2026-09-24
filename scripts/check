@@ -18,6 +18,7 @@ check_policy() {
   mise exec -- shellcheck \
     "$repository_root/.githooks/commit-msg" \
     "$repository_root/scripts/build-macos-icons" \
+    "$repository_root/scripts/build-guide" \
     "$repository_root/scripts/check" \
     "$repository_root/scripts/check-elixir-docs" \
     "$repository_root/scripts/check-core-release" \
@@ -51,6 +52,20 @@ check_kernel() {
     mise exec -- gleam test --target erlang
     mise exec -- gleam test --target javascript
   )
+}
+
+check_guide() {
+  "$repository_root/scripts/build-guide"
+  mise exec -- node --check "$repository_root/guide/build.mjs"
+  mise exec -- node --check "$repository_root/guide/src/app.mjs"
+  mise exec -- node --check "$repository_root/guide/src/lab.mjs"
+  mise exec -- node --check "$repository_root/guide/test/browser-smoke.mjs"
+  mise exec -- node --test "$repository_root/guide/test/lab.test.mjs"
+}
+
+check_guide_browser() {
+  check_guide
+  mise exec -- node "$repository_root/guide/test/browser-smoke.mjs"
 }
 
 check_core() {
@@ -126,16 +141,19 @@ case "${1:-all}" in
     check_policy
     check_renderer
     check_core
+    check_guide
     check_macos
     ;;
   policy) check_policy ;;
   renderer) check_renderer ;;
   kernel) check_kernel ;;
+  guide) check_guide ;;
+  guide-browser) check_guide_browser ;;
   core) check_core ;;
   macos) check_macos ;;
   container) check_container ;;
   *)
-    echo "usage: scripts/check [all|policy|renderer|kernel|core|macos|container]" >&2
+    echo "usage: scripts/check [all|policy|renderer|kernel|guide|guide-browser|core|macos|container]" >&2
     exit 64
     ;;
 esac

@@ -34,7 +34,8 @@ never invents a compatible replacement profile for Paper.
 
 - A user may choose one class, optionally load one local still image, and
   inspect the illustrative center crop. Decode only common image formats and
-  cap the file at 8 MiB and decoded dimensions at 8192 pixels per side. Keep
+  cap the file at 8 MiB, decoded dimensions at 8192 pixels per side, and
+  decoded area at 16,777,216 pixels. Keep
   the image in browser memory; never upload or persist it.
 - The lab shows current and desired as separate concepts. Queuing a simulated
   revision changes desired only. A valid display confirmation changes current.
@@ -66,5 +67,5 @@ the guide states that installation artifacts are unavailable.
 Acceptance covers the two compiled Gleam targets, a local HTTP offline lab
 exercise, keyboard and small-screen inspection, safety refusals, and build
 reproducibility. Physical and installed claims need their separate gates. See
-the [installation and guide architecture](install-and-guide.md) and
+the [implementation plan](implementation-plan.md) and
 [shared decision kernel](shared-decision-kernel.md).

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="Frameshift field guide: choose a still-art frame and explore an offline delivery simulation.">
+  <title>Frameshift — still art, thoughtfully framed</title>
+  <link rel="icon" href="assets/mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.mjs"></script>
+</head>
+<body>
+  <a class="skip" href="#lab">Skip to the simulation</a>
+  <header class="site-header wrap">
+    <a class="brand" href="#top" aria-label="Frameshift, back to top">
+      <img src="assets/mark.svg" width="32" height="32" alt="">
+      <span>frameshift<span class="period">.</span></span>
+    </a>
+    <nav aria-label="Guide sections"><a href="#frames">Frames</a><a href="#lab">Simulation</a><a href="#install">Install</a></nav>
+    <span class="edition">FIELD GUIDE · DRAFT 01</span>
+  </header>
+  <main id="top">
+    <section class="hero wrap" aria-labelledby="hero-title">
+      <div class="eyebrow"><span class="crosshair" aria-hidden="true">✳</span> NATURAL MATERIALS · QUIET TECHNOLOGY</div>
+      <div class="hero-grid">
+        <h1 id="hero-title">Less frame.<br><em>More art.</em></h1>
+        <div class="hero-side"><span class="small-label">THE BUILD MANUAL</span><p>One still image, prepared for the medium you choose. Explore the three reference paths and see how a frame keeps its previous image when delivery is uncertain.</p><a class="text-link" href="#frames">Choose a medium <span aria-hidden="true">↗</span></a></div>
+      </div>
+      <div class="hero-rule"><span>STILL ART ONLY</span><span>DESIGNED FOR A LOCAL HOST</span><span>NO ACCOUNT REQUIRED</span></div>
+    </section>
+
+    <section id="frames" class="section wrap" aria-labelledby="frames-title">
+      <div class="section-heading"><span class="section-number">01 / THE MEDIUM</span><h2 id="frames-title">Choose your medium.</h2><p>Three independent reference builds. Their named panels are candidates, pending exact controller and physical validation.</p></div>
+      <div class="frame-grid">
+        <article class="frame-card paper"><div class="card-visual"><span class="figure-id">F / 01</span><img src="assets/paper.jpg" width="960" height="960" alt="Illustrative paper frame from the visual draft" loading="lazy"></div><div class="card-body"><div class="card-top"><h3>Paper</h3><span>REFLECTIVE</span></div><p>Color e-paper holds an image when its electronics sleep. A refresh costs time and energy; the controller and packed panel profile are still open work.</p><p class="card-spec">Waveshare E6 candidate · 1600 × 1200</p></div></article>
+        <article class="frame-card photo"><div class="card-visual"><span class="figure-id">F / 02</span><img src="assets/photo.jpg" width="960" height="960" alt="Illustrative photo frame from the visual draft" loading="lazy"></div><div class="card-body"><div class="card-top"><h3>Photo</h3><span>MATTE IPS</span></div><p>A high-detail still on a matte panel. The backlight needs continuous power while visible; a longer artwork interval alone does not save it.</p><p class="card-spec">BOE QHD geometry candidate · 2560 × 1440</p></div></article>
+        <article class="frame-card pixel"><div class="card-visual"><span class="figure-id">F / 03</span><img src="assets/pixel.jpg" width="960" height="960" alt="Illustrative pixel frame from the visual draft" loading="lazy"></div><div class="card-body"><div class="card-top"><h3>Pixel</h3><span>HUB75</span></div><p>Six coarse RGB panels give still graphics their own visual language. Scanning and brightness draw power even when the artwork does not change.</p><p class="card-spec">Six Waveshare P3 modules · 192 × 128</p></div></article>
+      </div>
+    </section>
+
+    <section id="lab" class="section lab-section" aria-labelledby="lab-title">
+      <div class="wrap">
+        <div class="section-heading"><span class="section-number">02 / BROWSER LAB</span><h2 id="lab-title">Let the image stay.</h2><p>This simulation runs in your browser. Its crop is illustrative; it does not render panel bytes, pair hardware, or confirm a physical display.</p></div>
+        <div class="lab-grid">
+          <div class="lab-controls">
+            <div class="control-group"><h3>Choose a simulated frame</h3><div class="choice-row" role="group" aria-label="Simulated frame class"><button type="button" class="choice" data-kind="paper" aria-pressed="true">Paper</button><button type="button" class="choice" data-kind="photo" aria-pressed="false">Photo</button><button type="button" class="choice" data-kind="pixel" aria-pressed="false">Pixel</button></div></div>
+            <div class="profile-box"><span class="small-label">CAPABILITY CHECK · SHARED DECISION KERNEL</span><strong id="profile-result"></strong><p id="profile-detail"></p><div class="profile-facts"><span id="profile-size"></span><span id="profile-maker"></span></div></div>
+            <div class="control-group"><label for="sample">Local still sample <span class="optional">optional · PNG, JPEG, WebP · 8 MiB max</span></label><input id="sample" type="file" accept="image/png,image/jpeg,image/webp"><p class="hint" id="sample-detail">Your image stays in this browser tab.</p></div>
+            <div class="control-group"><label for="dwell">Artwork interval in seconds</label><div class="interval-row"><input id="dwell" type="number" min="1" max="86400" step="1" value="21600" inputmode="numeric"><output id="dwell-result" for="dwell"></output></div><p class="hint" id="dwell-basis"></p></div>
+            <div class="action-row"><button id="queue" class="primary" type="button">Queue a still</button><button id="reset" class="quiet" type="button">Reset lab</button></div>
+          </div>
+          <div class="lab-preview"><div class="preview-head"><span class="small-label">ILLUSTRATIVE CROP</span><span id="preview-ratio"></span></div><div class="preview-mat"><canvas id="preview" width="800" height="600" role="img" aria-label="Illustrative center crop preview of the local image" hidden></canvas><p id="preview-empty">Add a local still to see a center crop.</p></div><p class="preview-note">The installed Zig renderer and a qualified capability profile determine exact artifact bytes. This preview is not panel color evidence.</p></div>
+        </div>
+        <div class="transfer"><div class="transfer-head"><div><span class="small-label">03 / DELIVERY EXERCISE</span><h3>Desired is not displayed.</h3></div><p>Try a failure, then confirm the same revision. The previous still remains current until a matching displayed outcome.</p></div><div class="state-grid"><div><span>CURRENT IMAGE</span><strong id="current">Previous still</strong></div><div><span>DESIRED IMAGE</span><strong id="desired">None queued</strong></div></div><div class="scenario-row" role="group" aria-label="Simulated delivery events"><button type="button" data-event="loss">Interrupt transfer</button><button type="button" data-event="restart">Restart receiver</button><button type="button" data-event="version">Wrong revision</button><button type="button" data-event="digest">Wrong digest</button><button type="button" data-event="unknown">Unknown outcome</button><button type="button" data-event="confirm" class="confirm">Confirm displayed</button></div><p id="simulation-status" class="status" role="status" aria-live="polite">Select a still and queue a simulated revision.</p></div>
+      </div>
+    </section>
+
+    <section id="install" class="section wrap install-section" aria-labelledby="install-title"><div class="section-heading"><span class="section-number">04 / FROM SCREEN TO WALL</span><h2 id="install-title">Build from the outside in.</h2><p>Measure the display and power path first. A simulation cannot settle mechanical, electrical, or controller fit.</p></div><div class="steps"><article><span>01</span><h3>Choose and measure</h3><p>Record the exact panel revision, active area, outline, connector clearance, depth, power, and mounting geometry for your chosen class.</p></article><article><span>02</span><h3>Prepare the host</h3><p>The planned signed Mac release will prepare still images and preserve masters locally. Ubuntu packages and a separate Pi appliance need their own qualification.</p></article><article><span>03</span><h3>Commission the frame</h3><p>Install the receiver, pair in physical pair mode, verify its capability, then transfer and confirm one still. The website never pairs or sends to a frame.</p></article></div><div class="release-note"><span class="release-dot" aria-hidden="true"></span><div><h3>Installation artifacts are not yet available</h3><p>The current app bundle is a development build. Signed, notarized Mac downloads and Linux packages will appear here only with a checked release manifest and installed-flow evidence.</p></div></div></section>
+  </main>
+  <footer class="site-footer wrap"><a class="brand" href="#top"><img src="assets/mark.svg" width="28" height="28" alt=""><span>frameshift<span class="period">.</span></span></a><p>Still artwork, prepared for one frame. Prototype guide · no physical validation claim.</p><a href="#top">Back to top ↑</a></footer>
+</body>
+</html>

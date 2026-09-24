@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+
+repository_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+(
+  cd "$repository_root/host/decision_kernel"
+  mise exec -- gleam build --target javascript --warnings-as-errors
+)
+mise exec -- node "$repository_root/guide/build.mjs"

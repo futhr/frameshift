@@ -9,6 +9,7 @@ defmodule Frameshift.Application do
 
   use Application
 
+  alias Frameshift.Diagnostics.FallbackLog
   alias Frameshift.Diagnostics.LogFormatter
   alias Frameshift.Diagnostics.Metrics
   alias Frameshift.LocalIPC.DiagnosticsServer
@@ -35,9 +36,8 @@ defmodule Frameshift.Application do
   defp configure_fallback_logging do
     if Application.get_env(:frameshift_core, :start_local_ipc, false) do
       directory = Path.join(Frameshift.Paths.data_dir(), "diagnostics")
-      :ok = File.mkdir_p(directory)
-      :ok = File.chmod(directory, 0o700)
       path = Path.join(directory, "core-fallback.log")
+      :ok = FallbackLog.prepare(path)
 
       config = %{
         level: :error,
@@ -51,7 +51,7 @@ defmodule Frameshift.Application do
       }
 
       case :logger.add_handler(:frameshift_fallback, :logger_std_h, config) do
-        :ok -> File.chmod(path, 0o600)
+        :ok -> :ok = FallbackLog.secure_file(path)
         {:error, {:already_exist, _}} -> :ok
         {:error, reason} -> raise "could not start fallback logging: #{inspect(reason)}"
       end

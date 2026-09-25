@@ -8,7 +8,8 @@
       "title": "Waveshare 13.3inch e-Paper (E) manual, 2024-11-15",
       "media_type": "application/pdf",
       "byte_size": 1913219,
-      "retrieved_on": "2026-09-24"
+      "retrieved_on": "2026-09-24",
+      "retrieved_at": "2026-09-24T15:10:00.750Z"
     },
     {
       "digest": "79da25bb5b588ddaf4ab6288104f16896d371b40584c59abc0c47479a57fe2ad",
@@ -17,7 +18,8 @@
       "title": "BOE MV270QHM-N40 preliminary P1, revision history 2019-01-25; Panelook mirror",
       "media_type": "application/pdf",
       "byte_size": 1253971,
-      "retrieved_on": "2026-09-24"
+      "retrieved_on": "2026-09-24",
+      "retrieved_at": "2026-09-24T15:10:05.577Z"
     },
     {
       "digest": "8c9d567385ab12570cfeb8fa8ae13e3d92d53308662bea37935eca2b7558e78a",
@@ -26,7 +28,8 @@
       "title": "Waveshare P3 64x64 wiki revision 110782",
       "media_type": "text/html",
       "byte_size": 47337,
-      "retrieved_on": "2026-09-24"
+      "retrieved_on": "2026-09-24",
+      "retrieved_at": "2026-09-24T15:10:07.683Z"
     },
     {
       "digest": "8f39947cd1d7cd37455000f0aea7965660ca8ba5953298671b53e42e4f3c0c60",
@@ -35,7 +38,8 @@
       "title": "Waveshare multi-variant matrix documentation; P3 SKU 22100",
       "media_type": "text/html",
       "byte_size": 36548,
-      "retrieved_on": "2026-09-24"
+      "retrieved_on": "2026-09-24",
+      "retrieved_at": "2026-09-24T15:11:40.195Z"
     },
     {
       "digest": "cd70812ebfcca5f1b0694ecd0080bfd19d3324e33521b716deaa29ac5edbaa44",
@@ -44,7 +48,8 @@
       "title": "Waveshare E6 development guide, wiki revision 110104",
       "media_type": "text/html",
       "byte_size": 112181,
-      "retrieved_on": "2026-09-24"
+      "retrieved_on": "2026-09-24",
+      "retrieved_at": "2026-09-24T15:13:07.241Z"
     }
   ],
   "profiles": [

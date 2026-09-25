@@ -60,7 +60,7 @@ defmodule FrameshiftPlatform.MixProject do
       {:beamlens, "~> 0.3.1"},
       {:req, "~> 0.6"},
       {:telemetry_metrics, "~> 1.1"},
-      {:telemetry_metrics_prometheus_core, "~> 1.2.1"},
+      {:prometheus, "~> 6.1.3"},
       {:telemetry_poller, "~> 1.3"},
       {:credo, "~> 1.7.19", only: [:dev, :test], runtime: false},
       {:stream_data, "~> 1.3"}

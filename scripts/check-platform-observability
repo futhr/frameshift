@@ -1,0 +1,26 @@
+#!/bin/sh
+set -eu
+
+repository_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+config_root="$repository_root/apps/build-platform/ops/prometheus"
+tool_image='prom/prometheus@sha256:5ce7540c3c00ef4ab0c9d2c995c6a5b9c421f44b4a115d97a2c7af3b1c21cbb0'
+metric_fixture=$(mktemp "${TMPDIR:-/tmp}/frameshift-metrics.XXXXXX")
+trap 'rm -f "$metric_fixture"' EXIT HUP INT TERM
+
+promtool() {
+  docker run --rm -i --network none --read-only --cap-drop ALL \
+    --security-opt no-new-privileges --memory 128m --cpus 1 \
+    --tmpfs /tmp:size=16m \
+    --mount "type=bind,src=$config_root,dst=/checks,readonly" \
+    --workdir /checks --entrypoint /bin/promtool "$tool_image" "$@"
+}
+
+promtool check config --syntax-only prometheus.yml
+promtool check rules rules.yml
+promtool test rules rules.test.yml
+(
+  cd "$repository_root/apps/build-platform"
+  mise exec -- env -u MIX_HOME -u MIX_ARCHIVES MIX_ENV=test \
+    mix run --no-start --no-compile ops/metric_fixture.exs
+) >"$metric_fixture"
+promtool check metrics <"$metric_fixture"

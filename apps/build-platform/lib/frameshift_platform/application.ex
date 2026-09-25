@@ -8,11 +8,7 @@ defmodule FrameshiftPlatform.Application do
     children = [
       FrameshiftPlatform.Repo,
       {Phoenix.PubSub, name: FrameshiftPlatform.PubSub},
-      {TelemetryMetricsPrometheus.Core,
-       name: FrameshiftPlatform.Metrics,
-       metrics: FrameshiftPlatform.Telemetry.metrics(),
-       start_async: false},
-      {:telemetry_poller, measurements: [], period: 10_000}
+      FrameshiftPlatform.Telemetry.Reporter
     ]
 
     children =

@@ -9,11 +9,16 @@ defmodule FrameshiftPlatformWeb.MetricsController do
     token = Application.get_env(:frameshift_platform, :metrics_token)
 
     if authorized?(get_req_header(conn, "authorization"), token) do
-      conn
-      |> put_resp_content_type("text/plain", "utf-8")
-      |> send_resp(200, TelemetryMetricsPrometheus.Core.scrape(FrameshiftPlatform.Metrics))
+      export(conn)
     else
       send_resp(conn, 401, "Unauthorized")
+    end
+  end
+
+  defp export(conn) do
+    case FrameshiftPlatform.Telemetry.Reporter.scrape() do
+      {:ok, body} -> conn |> put_resp_content_type("text/plain", "utf-8") |> send_resp(200, body)
+      {:error, :unavailable} -> send_resp(conn, 503, "Metrics unavailable")
     end
   end
 

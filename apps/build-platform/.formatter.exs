@@ -1,4 +1,4 @@
 [
   import_deps: [:ash, :ash_postgres, :phoenix],
-  inputs: ["*.exs", "{config,lib,test}/**/*.{ex,exs}", "priv/repo/migrations/*.exs"]
+  inputs: ["*.exs", "{config,lib,test,ops}/**/*.{ex,exs}", "priv/repo/migrations/*.exs"]
 ]

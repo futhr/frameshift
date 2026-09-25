@@ -65,7 +65,7 @@ defmodule FrameshiftPlatformWeb.HTTPTest do
 
     body = response(conn, 200)
     assert get_resp_header(conn, "cache-control") == ["no-store"]
-    assert body =~ "frameshift_platform_catalog_source_count"
+    assert body =~ "frameshift_platform_catalog_source_total"
     assert body =~ "other"
     refute body =~ "private-source-id"
   end

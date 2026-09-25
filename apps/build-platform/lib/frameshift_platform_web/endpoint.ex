@@ -3,9 +3,9 @@ defmodule FrameshiftPlatformWeb.Endpoint do
 
   use Phoenix.Endpoint, otp_app: :frameshift_platform
 
-  plug Plug.Static, at: "/", from: :frameshift_platform, gzip: true, only: ~w(_app favicon.svg)
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:frameshift_platform, :endpoint]
+  plug Plug.Static, at: "/", from: :frameshift_platform, gzip: true, only: ~w(_app favicon.svg)
 
   plug Plug.Parsers,
     parsers: [:json],

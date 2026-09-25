@@ -1,0 +1,67 @@
+rule_files:
+  - rules.yml
+evaluation_interval: 15s
+tests:
+  - interval: 15s
+    input_series:
+      - series: 'up{job="frameshift-platform",instance="local"}'
+        values: '1+0x16'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: FrameshiftMetricsStale
+        exp_alerts:
+          - exp_labels:
+              job: frameshift-platform
+              instance: local
+              severity: warning
+            exp_annotations:
+              summary: Frameshift runtime samples are stale
+              description: Check collector scheduling and BEAM pressure. Do not interpret the last sample as current.
+  - interval: 15s
+    input_series:
+      - series: 'up{job="frameshift-platform",instance="local"}'
+        values: '0+0x16'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: FrameshiftMetricsUnavailable
+        exp_alerts:
+          - exp_labels:
+              job: frameshift-platform
+              instance: local
+              severity: critical
+            exp_annotations:
+              summary: Frameshift metric collection is unavailable
+              description: Check the scraper target, bearer credential, endpoint and reporter process. Absence is not zero activity.
+  - interval: 15s
+    input_series:
+      - series: 'up{job="frameshift-platform",instance="local"}'
+        values: '1+0x16'
+      - series: 'frameshift_platform_collector_sampled_seconds{job="frameshift-platform",instance="local"}'
+        values: '0+0x16'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: FrameshiftMetricsUnavailable
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: FrameshiftMetricsStale
+        exp_alerts:
+          - exp_labels:
+              job: frameshift-platform
+              instance: local
+              severity: warning
+            exp_annotations:
+              summary: Frameshift runtime samples are stale
+              description: Check collector scheduling and BEAM pressure. Do not interpret the last sample as current.
+  - interval: 15s
+    input_series:
+      - series: 'up{job="frameshift-platform",instance="local"}'
+        values: '1+0x16'
+      - series: 'frameshift_platform_collector_sampled_seconds{job="frameshift-platform",instance="local"}'
+        values: '0+15x16'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: FrameshiftMetricsUnavailable
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: FrameshiftMetricsStale
+        exp_alerts: []

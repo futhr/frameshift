@@ -1,6 +1,7 @@
 import Config
 
 config :ash, default_string_length_count: :codepoints
+config :prometheus, collectors: []
 config :frameshift_platform, ecto_repos: [FrameshiftPlatform.Repo]
 config :frameshift_platform, :ash_domains, [FrameshiftPlatform.Access, FrameshiftPlatform.Catalog]
 

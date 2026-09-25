@@ -1,0 +1,33 @@
+groups:
+  - name: frameshift-platform-collection
+    rules:
+      - alert: FrameshiftMetricsUnavailable
+        expr: up{job="frameshift-platform"} == 0 or absent(up{job="frameshift-platform"})
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Frameshift metric collection is unavailable
+          description: Check the scraper target, bearer credential, endpoint and reporter process. Absence is not zero activity.
+      - alert: FrameshiftMetricsStale
+        expr: time() - frameshift_platform_collector_sampled_seconds{job="frameshift-platform"} > 30 or (up{job="frameshift-platform"} == 1 unless on(job,instance) frameshift_platform_collector_sampled_seconds{job="frameshift-platform"})
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: Frameshift runtime samples are stale
+          description: Check collector scheduling and BEAM pressure. Do not interpret the last sample as current.
+      - alert: FrameshiftMetricsRejected
+        expr: increase(frameshift_platform_telemetry_rejected_total{job="frameshift-platform"}[5m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: Frameshift rejected telemetry observations
+          description: Check the metric schema and producer units. Coverage is incomplete for rejected observations.
+      - alert: FrameshiftMetricsRestarting
+        expr: changes(frameshift_platform_collector_started_seconds{job="frameshift-platform"}[5m]) > 1
+        labels:
+          severity: warning
+        annotations:
+          summary: Frameshift metric collection is restarting
+          description: Check supervision and memory pressure; counter resets and coverage gaps need investigation.

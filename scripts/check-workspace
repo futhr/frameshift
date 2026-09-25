@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+
+repository_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+cd "$repository_root"
+mise exec -- elixir -r scripts/workspace.exs -e '
+case FrameshiftWorkspace.check(File.cwd!()) do
+  [] -> IO.puts("Workspace dependency boundaries pass")
+  errors -> Enum.each(errors, &IO.puts(:stderr, &1)); System.halt(1)
+end
+'
+mise exec -- elixir scripts/workspace_test.exs

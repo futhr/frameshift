@@ -2,7 +2,7 @@
 set -eu
 
 repository_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
-app_bundle=${1:-"$repository_root/host/macos/.build/artifacts/Frameshift.app"}
+app_bundle=${1:-"$repository_root/apps/macos/.build/artifacts/Frameshift.app"}
 app="$app_bundle/Contents/MacOS/Frameshift"
 core="$app_bundle/Contents/Resources/core/bin/frameshift_core"
 renderer="$app_bundle/Contents/Resources/bin/frameshift-raster"
@@ -91,7 +91,7 @@ esac
 FRAMESHIFT_SOCKET_PATH="$runtime_root/data/core.sock" \
 FRAMESHIFT_IPC_TOKEN="$ipc_token" \
   swift run \
-    --package-path "$repository_root/host/macos" \
+    --package-path "$repository_root/apps/macos" \
     frameshift-ipc-probe
 
 FRAMESHIFT_DIAGNOSTICS_SOCKET_PATH="$runtime_root/data/d.sock" \

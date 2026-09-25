@@ -1,12 +1,12 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, lstatSync, copyFileSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { verifyRelease } from '../release/manifest.mjs';
+import { verifyRelease } from '../../release/manifest.mjs';
 import { installVerifiedRelease } from './release-markup.mjs';
 
 const guide = dirname(fileURLToPath(import.meta.url));
-const repository = resolve(guide, '..');
-const generated = resolve(repository, 'host/decision_kernel/build/dev/javascript');
+const repository = resolve(guide, '../..');
+const generated = resolve(repository, 'packages/decision-kernel/build/dev/javascript');
 const entry = resolve(generated, 'frameshift_decisions/frameshift_decisions.mjs');
 const output = resolve(guide, 'dist');
 

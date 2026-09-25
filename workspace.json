@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "components": [
+    {"name": "core", "root": "apps/core", "modules": ["Frameshift", "FrameshiftCore"], "depends_on": ["decisions"]},
+    {"name": "macos", "root": "apps/macos", "modules": [], "depends_on": []},
+    {"name": "decisions", "root": "packages/decision-kernel", "modules": ["frameshift_decisions", "FrameshiftDecisions"], "depends_on": []},
+    {"name": "guide", "root": "apps/guide", "modules": [], "depends_on": ["decisions"]},
+    {"name": "renderer", "root": "renderer", "modules": [], "depends_on": []},
+    {"name": "platform", "root": "apps/build-platform", "modules": ["FrameshiftPlatform", "FrameshiftPlatformWeb"], "depends_on": ["build-spec", "decisions"]},
+    {"name": "build-spec", "root": "packages/build-spec", "modules": ["FrameshiftBuild"], "depends_on": ["decisions"], "planned": true}
+  ]
+}

@@ -16,7 +16,7 @@ cleanup() {
 
 trap cleanup EXIT HUP INT TERM
 
-swift build --package-path "$repository_root/host/macos" \
+swift build --package-path "$repository_root/apps/macos" \
   --product frameshift-keychain-probe >/dev/null
 
 credential_socket="$runtime_root/k.sock"
@@ -25,7 +25,7 @@ ipc_token=$(openssl rand -hex 32)
 FRAMESHIFT_CREDENTIAL_SOCKET="$credential_socket" \
 FRAMESHIFT_IPC_TOKEN="$ipc_token" \
 FRAMESHIFT_PROBE_RUN_FILE="$runtime_root/run" \
-  "$repository_root/host/macos/.build/debug/frameshift-keychain-probe" \
+  "$repository_root/apps/macos/.build/debug/frameshift-keychain-probe" \
   >"$runtime_root/broker.out" 2>"$runtime_root/broker.err" &
 broker_pid=$!
 
@@ -55,7 +55,7 @@ case "$reference" in
 esac
 
 (
-  cd "$repository_root/host/core"
+  cd "$repository_root/apps/core"
   mise exec -- env -u MIX_HOME -u MIX_ARCHIVES \
     FRAMESHIFT_KEYCHAIN_PROBE_REFERENCE="$reference" \
     FRAMESHIFT_CREDENTIAL_SOCKET="$credential_socket" \

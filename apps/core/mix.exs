@@ -48,7 +48,7 @@ defmodule FrameshiftCore.MixProject do
 
   defp deps do
     [
-      {:frameshift_decisions, path: "../decision_kernel"},
+      {:frameshift_decisions, path: "../../packages/decision-kernel"},
       {:exqlite, "~> 0.40.0"},
       {:telemetry, "~> 1.4"},
       {:telemetry_metrics, "~> 1.1"},
@@ -105,6 +105,14 @@ defmodule FrameshiftCore.MixProject do
         [
           {"README.md", title: "Core overview"},
           {"../../docs/architecture/system.md", title: "System architecture"},
+          {"../../docs/architecture/build-platform.md", title: "Visual build platform"},
+          {"../../docs/architecture/physical-build-contract.md",
+           title: "Physical build contract"},
+          {"../../docs/architecture/build-orchestration.md", title: "Build orchestration"},
+          {"../../docs/architecture/build-commerce.md", title: "Build commerce"},
+          {"../../docs/architecture/implementation-plan.md", title: "Implementation plan"},
+          {"../../docs/hardware/bom.md", title: "Component bill of materials"},
+          {"../../docs/research/build-platform-decisions.md", title: "Build platform decisions"},
           {"../../docs/architecture/host-core.md", title: "Portable host core"},
           {"../../docs/architecture/library-backup.md", title: "Library backup and restore"},
           {"../../docs/architecture/container-frame-simulator.md",

@@ -6,7 +6,7 @@ parity_directory=$(mktemp -d)
 trap 'rm -rf "$parity_directory"' 0 HUP INT TERM
 
 (
-  cd "$repository_root/host/decision_kernel"
+  cd "$repository_root/packages/decision-kernel"
   mise exec -- gleam run --target erlang --module parity --no-print-progress \
     > "$parity_directory/erlang.txt"
   mise exec -- gleam run --target javascript --module parity --no-print-progress \

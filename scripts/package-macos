@@ -2,8 +2,8 @@
 set -eu
 
 repository_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
-package_root="$repository_root/host/macos"
-core_root="$repository_root/host/core"
+package_root="$repository_root/apps/macos"
+core_root="$repository_root/apps/core"
 renderer_root="$repository_root/renderer"
 artifact_root="$package_root/.build/artifacts"
 app_bundle="$artifact_root/Frameshift.app"

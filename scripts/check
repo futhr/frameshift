@@ -21,6 +21,7 @@ check_policy() {
     "$repository_root/scripts/build-guide" \
     "$repository_root/scripts/build-release-guide" \
     "$repository_root/scripts/check" \
+    "$repository_root/scripts/check-workspace" \
     "$repository_root/scripts/check-elixir-docs" \
     "$repository_root/scripts/check-core-release" \
     "$repository_root/scripts/check-kernel-parity" \
@@ -31,9 +32,10 @@ check_policy() {
     "$repository_root/scripts/index" \
     "$repository_root/scripts/launch-bundled-core" \
     "$repository_root/scripts/package-macos" \
-    "$repository_root/host/core/test/fixtures/hanging-worker.sh"
+    "$repository_root/apps/core/test/fixtures/hanging-worker.sh"
   mise exec -- actionlint "$repository_root/.github/workflows/check.yml"
   "$repository_root/scripts/check-elixir-docs"
+  "$repository_root/scripts/check-workspace"
 }
 
 check_renderer() {
@@ -46,9 +48,27 @@ check_renderer() {
   )
 }
 
+check_platform() {
+  (
+    cd "$repository_root/apps/build-platform/assets"
+    mise exec -- npm run check
+    mise exec -- npm run lint
+    mise exec -- npm run build
+  )
+
+  (
+    cd "$repository_root/apps/build-platform"
+    mise exec -- env -u MIX_HOME -u MIX_ARCHIVES mix hex.audit
+    mise exec -- env -u MIX_HOME -u MIX_ARCHIVES mix check
+    mise exec -- env -u MIX_HOME -u MIX_ARCHIVES mix phoenix_assets.gen --check
+    mise exec -- env -u MIX_HOME -u MIX_ARCHIVES mix phoenix_assets.doctor --production
+    mise exec -- env -u MIX_HOME -u MIX_ARCHIVES mix ash_postgres.generate_migrations --check
+  )
+}
+
 check_kernel() {
   (
-    cd "$repository_root/host/decision_kernel"
+    cd "$repository_root/packages/decision-kernel"
     mise exec -- gleam format --check src test
     mise exec -- gleam build --target erlang --warnings-as-errors
     mise exec -- gleam build --target javascript --warnings-as-errors
@@ -60,15 +80,15 @@ check_kernel() {
 
 check_guide() {
   "$repository_root/scripts/build-guide"
-  mise exec -- node --check "$repository_root/guide/build.mjs"
-  mise exec -- node --check "$repository_root/guide/src/app.mjs"
-  mise exec -- node --check "$repository_root/guide/src/lab.mjs"
-  mise exec -- node --check "$repository_root/guide/release-markup.mjs"
-  mise exec -- node --check "$repository_root/guide/test/browser-smoke.mjs"
+  mise exec -- node --check "$repository_root/apps/guide/build.mjs"
+  mise exec -- node --check "$repository_root/apps/guide/src/app.mjs"
+  mise exec -- node --check "$repository_root/apps/guide/src/lab.mjs"
+  mise exec -- node --check "$repository_root/apps/guide/release-markup.mjs"
+  mise exec -- node --check "$repository_root/apps/guide/test/browser-smoke.mjs"
   mise exec -- node --test \
-    "$repository_root/guide/test/lab.test.mjs" \
-    "$repository_root/guide/test/release-markup.test.mjs"
-  mise exec -- node "$repository_root/guide/test/release-build.mjs"
+    "$repository_root/apps/guide/test/lab.test.mjs" \
+    "$repository_root/apps/guide/test/release-markup.test.mjs"
+  mise exec -- node "$repository_root/apps/guide/test/release-build.mjs"
 }
 
 check_release() {
@@ -83,14 +103,14 @@ check_release() {
 
 check_guide_browser() {
   check_guide
-  mise exec -- node "$repository_root/guide/test/browser-smoke.mjs"
+  mise exec -- node "$repository_root/apps/guide/test/browser-smoke.mjs"
 }
 
 check_core() {
   check_kernel
 
   (
-    cd "$repository_root/host/core"
+    cd "$repository_root/apps/core"
     mise exec -- env -u MIX_HOME -u MIX_ARCHIVES mix check
   )
 
@@ -99,7 +119,7 @@ check_core() {
 
 check_macos() {
   (
-    cd "$repository_root/host/macos"
+    cd "$repository_root/apps/macos"
     swift format lint --recursive --strict Sources Tests Package.swift
 
     swiftc_path=$(xcrun --find swiftc)
@@ -119,7 +139,7 @@ check_macos() {
 
   "$repository_root/scripts/package-macos" >/dev/null
 
-  app_bundle="$repository_root/host/macos/.build/artifacts/Frameshift.app"
+  app_bundle="$repository_root/apps/macos/.build/artifacts/Frameshift.app"
   test -x "$app_bundle/Contents/MacOS/Frameshift"
   test -x "$app_bundle/Contents/MacOS/frameshiftctl"
   test -x "$app_bundle/Contents/Resources/bin/frameshift-raster"
@@ -151,7 +171,7 @@ check_container() {
   fi
 
   (
-    cd "$repository_root/host/core"
+    cd "$repository_root/apps/core"
     mise exec -- env -u MIX_HOME -u MIX_ARCHIVES \
       FRAMESHIFT_CONTAINER_TESTS=1 \
       mix test test/frameshift/container_receiver_test.exs
@@ -165,7 +185,7 @@ check_linux_ipc() {
   fi
 
   docker run --rm --network none --read-only \
-    --mount "type=bind,src=$repository_root/host/core,dst=/src,readonly" \
+    --mount "type=bind,src=$repository_root/apps/core,dst=/src,readonly" \
     --tmpfs /tmp:mode=1777,size=16m \
     elixir@sha256:3898ffe18d695e770239e4b342dc6b83136f52da0a37df2298083c03068cfd4e \
     elixir /src/test/frameshift/local_ipc/linux_peer_identity_contract.exs
@@ -181,6 +201,7 @@ case "${1:-all}" in
     check_macos
     ;;
   policy) check_policy ;;
+  platform) check_platform ;;
   renderer) check_renderer ;;
   kernel) check_kernel ;;
   guide) check_guide ;;
@@ -192,7 +213,7 @@ case "${1:-all}" in
   linux-ipc) check_linux_ipc ;;
   keychain-pairing) "$repository_root/scripts/check-keychain-pairing" ;;
   *)
-    echo "usage: scripts/check [all|policy|renderer|kernel|guide|guide-browser|core|release|macos|container|linux-ipc|keychain-pairing]" >&2
+    echo "usage: scripts/check [all|policy|platform|renderer|kernel|guide|guide-browser|core|release|macos|container|linux-ipc|keychain-pairing]" >&2
     exit 64
     ;;
 esac

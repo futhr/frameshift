@@ -2,7 +2,7 @@
 set -eu
 
 repository_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
-core_root="$repository_root/host/core"
+core_root="$repository_root/apps/core"
 renderer_path="$repository_root/renderer/zig-out/bin/frameshift-raster"
 release_root="$core_root/_build/prod/rel/frameshift_core"
 runtime_root=$(mktemp -d "${TMPDIR:-/tmp}/frameshift-release-check.XXXXXX")
@@ -92,7 +92,7 @@ fi
 FRAMESHIFT_SOCKET_PATH="$runtime_root/data/core.sock" \
 FRAMESHIFT_IPC_TOKEN="$ipc_token" \
   swift run \
-    --package-path "$repository_root/host/macos" \
+    --package-path "$repository_root/apps/macos" \
     frameshift-ipc-probe
 
 kill "$release_pid"

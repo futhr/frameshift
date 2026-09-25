@@ -24,7 +24,7 @@ form streams and hashes every public URL after local verification and is a
 required publication check for a real release.
 The last command verifies both local archives and their public URLs before
 building a guide with download links. A failed check leaves the previous
-`guide/dist` untouched. It prepares static files; deployment and release
+`apps/guide/dist` untouched. It prepares static files; deployment and release
 acceptance remain separate actions.
 
 The plan is compact JSON with one trailing newline, such as:

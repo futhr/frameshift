@@ -12,6 +12,50 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  build-platform:
+    name: Phoenix platform and Svelte contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: pgvector/pgvector@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a
+        env:
+          POSTGRES_USER: frameshift_dev
+          POSTGRES_PASSWORD: frameshift_local_only
+          POSTGRES_DB: frameshift_platform_dev
+        ports:
+          - 54329:5432
+        options: >-
+          --health-cmd "pg_isready -U frameshift_dev -d frameshift_platform_dev"
+          --health-interval 2s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@v4
+        with:
+          version: 2026.9.11
+      - name: Install server dependencies
+        working-directory: apps/build-platform
+        env:
+          REFPATH_READ_TOKEN: ${{ secrets.REFPATH_READ_TOKEN }}
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          if [ -z "$REFPATH_READ_TOKEN" ]; then
+            echo "REFPATH_READ_TOKEN needs read-only access to the private runtime repository." >&2
+            exit 1
+          fi
+          credential_header=$(printf 'x-access-token:%s' "$REFPATH_READ_TOKEN" | base64 -w 0)
+          GIT_CONFIG_COUNT=1 \
+            GIT_CONFIG_KEY_0=http.https://github.com/refpath/refpath.git.extraheader \
+            GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $credential_header" \
+            mix deps.get --check-locked
+      - name: Install frontend dependencies
+        working-directory: apps/build-platform/assets
+        run: npm ci
+      - name: Check platform
+        run: ./scripts/check platform
+
   core-and-renderer:
     name: Elixir core and Zig renderer
     runs-on: ubuntu-latest
@@ -24,7 +68,7 @@ jobs:
         with:
           version: 2026.9.11
       - name: Install Elixir dependencies
-        working-directory: host/core
+        working-directory: apps/core
         run: mix deps.get
       - name: Check repository policy
         run: ./scripts/check policy
@@ -65,7 +109,7 @@ jobs:
         with:
           version: 2026.9.11
       - name: Install Elixir dependencies
-        working-directory: host/core
+        working-directory: apps/core
         run: mix deps.get
       - name: Check networked frame receiver
         run: ./scripts/check container

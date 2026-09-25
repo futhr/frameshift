@@ -1,0 +1,2 @@
+# Preserve exact upstream generator output; freshness is checked by phoenix-assets.
+apps/build-platform/assets/src/lib/generated/*.ts linguist-generated=true whitespace=-blank-at-eof

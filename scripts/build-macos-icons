@@ -2,7 +2,7 @@
 set -eu
 
 repository_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
-icon_root="$repository_root/host/macos/App/Icons"
+icon_root="$repository_root/apps/macos/App/Icons"
 destination=${1:-$icon_root}
 mkdir -p "$destination"
 

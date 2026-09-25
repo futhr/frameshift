@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-const root = resolve(import.meta.dirname, '../..');
+const root = resolve(import.meta.dirname, '../../..');
 const directory = mkdtempSync(join(tmpdir(), 'frameshift-guide-release-'));
 const names = [
   'FRAMESHIFT_RELEASE_MANIFEST', 'FRAMESHIFT_RELEASE_SIGNATURE',
@@ -15,7 +15,7 @@ const names = [
 const cleanEnv = { ...process.env };
 for (const name of names) delete cleanEnv[name];
 const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');
-const build = (env) => execFileSync(process.execPath, ['guide/build.mjs'], {
+const build = (env) => execFileSync(process.execPath, ['apps/guide/build.mjs'], {
   cwd: root, env, stdio: 'pipe',
 });
 
@@ -45,12 +45,12 @@ try {
     FRAMESHIFT_RELEASE_TRUST_FILE: join(directory, 'trusted.sha256'),
   };
   build(env);
-  const htmlPath = join(root, 'guide/dist/index.html');
+  const htmlPath = join(root, 'apps/guide/dist/index.html');
   const html = readFileSync(htmlPath, 'utf8');
   assert.match(html, /Verified host release 1\.2\.3/);
   assert.match(html, /macOS universal installer/);
   assert.doesNotMatch(html, /Installation artifacts are not yet available/);
-  const refused = spawnSync(process.execPath, ['guide/build.mjs'], {
+  const refused = spawnSync(process.execPath, ['apps/guide/build.mjs'], {
     cwd: root, env: { ...env, FRAMESHIFT_RELEASE_SIGNATURE: '' }, encoding: 'utf8',
   });
   assert.notEqual(refused.status, 0);

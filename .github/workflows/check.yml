@@ -55,6 +55,8 @@ jobs:
         run: npm ci
       - name: Check platform
         run: ./scripts/check platform
+      - name: Check metric collection alerts
+        run: ./scripts/check platform-observability
 
   core-and-renderer:
     name: Elixir core and Zig renderer
@@ -72,6 +74,8 @@ jobs:
         run: mix deps.get
       - name: Check repository policy
         run: ./scripts/check policy
+      - name: Check immutable physical profiles
+        run: ./scripts/check build-spec
       - name: Check Zig renderer
         run: ./scripts/check renderer
       - name: Check Elixir core

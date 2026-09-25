@@ -24,9 +24,11 @@ check_policy() {
     "$repository_root/scripts/check-workspace" \
     "$repository_root/scripts/check-elixir-docs" \
     "$repository_root/scripts/check-core-release" \
+    "$repository_root/scripts/check-build-spec" \
     "$repository_root/scripts/check-kernel-parity" \
     "$repository_root/scripts/check-keychain-pairing" \
     "$repository_root/scripts/check-packaged-app" \
+    "$repository_root/scripts/check-platform-observability" \
     "$repository_root/scripts/format" \
     "$repository_root/scripts/frameshift-maintenance" \
     "$repository_root/scripts/index" \
@@ -195,6 +197,7 @@ case "${1:-all}" in
   all)
     check_policy
     check_renderer
+    "$repository_root/scripts/check-build-spec"
     check_core
     check_release
     check_guide
@@ -202,8 +205,10 @@ case "${1:-all}" in
     ;;
   policy) check_policy ;;
   platform) check_platform ;;
+  platform-observability) "$repository_root/scripts/check-platform-observability" ;;
   renderer) check_renderer ;;
   kernel) check_kernel ;;
+  build-spec) "$repository_root/scripts/check-build-spec" ;;
   guide) check_guide ;;
   guide-browser) check_guide_browser ;;
   core) check_core ;;
@@ -213,7 +218,7 @@ case "${1:-all}" in
   linux-ipc) check_linux_ipc ;;
   keychain-pairing) "$repository_root/scripts/check-keychain-pairing" ;;
   *)
-    echo "usage: scripts/check [all|policy|platform|renderer|kernel|guide|guide-browser|core|release|macos|container|linux-ipc|keychain-pairing]" >&2
+    echo "usage: scripts/check [all|policy|platform|platform-observability|renderer|kernel|build-spec|guide|guide-browser|core|release|macos|container|linux-ipc|keychain-pairing]" >&2
     exit 64
     ;;
 esac

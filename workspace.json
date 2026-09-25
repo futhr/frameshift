@@ -3,10 +3,10 @@
   "components": [
     {"name": "core", "root": "apps/core", "modules": ["Frameshift", "FrameshiftCore"], "depends_on": ["decisions"]},
     {"name": "macos", "root": "apps/macos", "modules": [], "depends_on": []},
-    {"name": "decisions", "root": "packages/decision-kernel", "modules": ["frameshift_decisions", "FrameshiftDecisions"], "depends_on": []},
+    {"name": "decisions", "root": "packages/decision-kernel", "modules": ["frameshift_decisions", "frameshift_physical", "FrameshiftDecisions"], "depends_on": [], "pure_imports": ["gleam/int", "gleam/list", "gleam/option", "gleam/order", "gleam/result", "gleam/string"]},
     {"name": "guide", "root": "apps/guide", "modules": [], "depends_on": ["decisions"]},
     {"name": "renderer", "root": "renderer", "modules": [], "depends_on": []},
     {"name": "platform", "root": "apps/build-platform", "modules": ["FrameshiftPlatform", "FrameshiftPlatformWeb"], "depends_on": ["build-spec", "decisions"]},
-    {"name": "build-spec", "root": "packages/build-spec", "modules": ["FrameshiftBuild"], "depends_on": ["decisions"], "planned": true}
+    {"name": "build-spec", "root": "packages/build-spec", "modules": ["FrameshiftBuild", "frameshift_build"], "depends_on": ["decisions"], "pure_imports": ["frameshift_physical", "gleam/bit_array", "gleam/dict", "gleam/dynamic/decode", "gleam/int", "gleam/json", "gleam/list", "gleam/option", "gleam/result", "gleam/string"]}
   ]
 }

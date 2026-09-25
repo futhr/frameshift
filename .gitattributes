@@ -1,2 +1,5 @@
 # Preserve exact upstream generator output; freshness is checked by phoenix-assets.
 apps/build-platform/assets/src/lib/generated/*.ts linguist-generated=true whitespace=-blank-at-eof
+# Preserve exact upstream licenses; the package gate checks locked source bytes.
+packages/build-spec/priv/licenses/gleam_json.txt whitespace=-blank-at-eof
+packages/decision-kernel/priv/licenses/gleam_stdlib.txt whitespace=-blank-at-eof

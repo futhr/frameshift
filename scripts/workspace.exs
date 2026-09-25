@@ -1,6 +1,6 @@
 defmodule FrameshiftWorkspace do
   @moduledoc """
-  Checks workspace ownership, declared dependencies and static Elixir references.
+  Checks workspace ownership, static Elixir references and pure Gleam imports.
 
   Reads syntax without evaluating project files. This is an architecture check,
   not a security sandbox for dynamic code or cross-process communication.
@@ -83,8 +83,73 @@ defmodule FrameshiftWorkspace do
 
     cond do
       Path.basename(file) == "mix.exs" and is_nil(owner) -> ["#{file}: unowned Mix project"]
-      is_nil(owner) or Path.extname(file) not in [".ex", ".exs"] -> []
-      true -> inspect_elixir(root, components, owner, file)
+      is_nil(owner) -> []
+      Path.extname(file) in [".ex", ".exs"] -> inspect_elixir(root, components, owner, file)
+      Path.extname(file) == ".gleam" -> inspect_gleam(root, owner, file)
+      true -> []
+    end
+  end
+
+  defp inspect_gleam(root, owner, file) do
+    if is_list(owner["pure_imports"]) and String.starts_with?(file, owner["root"] <> "/src/") do
+      pure_gleam_errors(root, owner, file, File.read!(Path.join(root, file)))
+    else
+      []
+    end
+  end
+
+  defp pure_gleam_errors(root, owner, file, source) do
+    # Gleam strings and line comments cannot introduce imports or externals.
+    source = Regex.replace(~r/"(?:\\.|[^"\\])*"|\/\/[^\n]*/s, source, " ")
+
+    external =
+      if Regex.match?(~r/@external\s*\(/, source),
+        do: ["#{file}: native externals are prohibited in pure source"],
+        else: []
+
+    imports =
+      Regex.scan(
+        ~r/\bimport\s+([a-z][a-z0-9_\/]*)(?:\.\{([^}]*)\})?(?:\s+as\s+([a-z][a-z0-9_]*))?/s,
+        source,
+        capture: :all_but_first
+      )
+
+    external ++
+      Enum.flat_map(imports, fn [name | rest] ->
+        pure_import_errors(root, owner, file, name) ++
+          nondeterministic_call_errors(file, source, name, rest)
+      end)
+  end
+
+  defp nondeterministic_call_errors(file, source, name, rest) do
+    selected = Enum.at(rest, 0, "")
+    alias_name = Enum.at(rest, 1, "")
+    qualifier = if alias_name == "", do: Path.basename(name), else: alias_name
+
+    forbidden =
+      case name do
+        "gleam/list" -> ["shuffle", "sample"]
+        "gleam/int" -> ["random"]
+        _ -> []
+      end
+
+    Enum.flat_map(forbidden, fn function ->
+      qualified = Regex.compile!("\\b" <> qualifier <> "\\s*\\.\\s*" <> function <> "\\b")
+      imported = Regex.compile!("(?:^|,)\\s*" <> function <> "\\b")
+
+      if Regex.match?(qualified, source) or Regex.match?(imported, selected),
+        do: ["#{file}: nondeterministic #{name}.#{function} is prohibited in pure source"],
+        else: []
+    end)
+  end
+
+  defp pure_import_errors(root, owner, file, name) do
+    local = Path.join([root, owner["root"], "src", name <> ".gleam"])
+
+    if name in owner["pure_imports"] or File.regular?(local) do
+      []
+    else
+      ["#{file}: #{name} is not an admitted pure import"]
     end
   end
 
@@ -140,7 +205,7 @@ defmodule FrameshiftWorkspace do
   end
 
   defp module_matches?(name, prefix),
-    do: name == prefix or String.starts_with?(name, prefix <> ".")
+    do: name == prefix or String.starts_with?(name, [prefix <> ".", prefix <> "@"])
 
   defp dependency_error(_, nil, _), do: []
 

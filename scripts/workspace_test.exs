@@ -31,6 +31,7 @@ defmodule FrameshiftWorkspaceTest do
         "root" => "packages/decisions",
         "modules" => ["frameshift_decisions"],
         "depends_on" => [],
+        "pure_imports" => ["gleam/int", "gleam/list"],
         "planned" => true
       }
     ]
@@ -116,6 +117,81 @@ defmodule FrameshiftWorkspaceTest do
     errors = FrameshiftWorkspace.inspect_files(context.root, components, [])
     assert Enum.any?(errors, &String.contains?(&1, "dependency cycle"))
     assert Enum.any?(errors, &String.contains?(&1, "unknown dependency missing"))
+  end
+
+  test "pure production source rejects I/O and native escape hatches", context do
+    file = "packages/decisions/src/geometry.gleam"
+    assert [error] = inspect_source(context, file, "import gleam/io\n")
+    assert error =~ "gleam/io is not an admitted pure import"
+
+    source = "@external(erlang, \"os\", \"cmd\")\npub fn run(command: String) -> String"
+    assert [error] = inspect_source(context, file, source)
+    assert error =~ "native externals are prohibited"
+
+    assert [error] = inspect_source(context, file, "import another_package/clock\n")
+    assert error =~ "not an admitted pure import"
+  end
+
+  test "pure library imports and inspected production modules are allowed", context do
+    assert inspect_source(context, "packages/decisions/src/units.gleam", "import gleam/int\n") ==
+             []
+
+    assert inspect_source(
+             context,
+             "packages/decisions/src/geometry.gleam",
+             "import units\nimport gleam/list.{type List}\n// @external(erlang, \"os\", \"cmd\")"
+           ) == []
+  end
+
+  test "test runner I/O is allowed but tests cannot be imported into production", context do
+    assert inspect_source(context, "packages/decisions/test/fixture.gleam", "import gleam/io\n") ==
+             []
+
+    assert [error] =
+             inspect_source(context, "packages/decisions/src/geometry.gleam", "import fixture\n")
+
+    assert error =~ "fixture is not an admitted pure import"
+  end
+
+  test "rejects random operations inside otherwise admitted library modules", context do
+    for source <- [
+          "import gleam/list\npub fn run() { list.shuffle([1]) }",
+          "import gleam/list as items\npub fn run() { items.sample([1], 1) }",
+          "import gleam/list.{\n shuffle as choose,\n map,\n}\npub fn run() { choose([1]) }",
+          "import gleam/int.{random}\npub fn run() { random(5) }",
+          "import gleam/int as number\npub fn run() { number.random }"
+        ] do
+      assert [error] = inspect_source(context, "packages/decisions/src/randomness.gleam", source)
+      assert error =~ "nondeterministic"
+    end
+  end
+
+  test "inspects inline declarations and ignores strings and comments", context do
+    file = "packages/decisions/src/example.gleam"
+    assert [error] = inspect_source(context, file, "import gleam/list import gleam/io")
+    assert error =~ "gleam/io"
+
+    source = "pub const example = \"import gleam/io\"\n// import gleam/io\nimport gleam/list"
+    assert inspect_source(context, file, source) == []
+
+    assert [error] =
+             inspect_source(context, file, "pub const x = 1 @external(erlang, \"os\", \"cmd\")")
+
+    assert error =~ "native externals"
+  end
+
+  test "recognizes nested generated Gleam module ownership", context do
+    source = ":frameshift_decisions@private.run()"
+    components = Enum.map(context.components, &Map.put(&1, "depends_on", []))
+
+    assert [error] =
+             inspect_source(
+               %{context | components: components},
+               "apps/platform/lib/run.ex",
+               source
+             )
+
+    assert error =~ "platform cannot depend on decisions"
   end
 
   defp inspect_source(context, file, source) do

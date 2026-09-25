@@ -11,6 +11,7 @@
 /apps/*/_build/
 /apps/*/deps/
 /apps/*/cover/
+/apps/*/tmp/
 /apps/*/doc/
 /apps/*/erl_crash.dump
 /apps/*/assets/node_modules/

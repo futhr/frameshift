@@ -1,19 +1,29 @@
 # Candidate Bill of Materials
 
-**Research snapshot:** 2026-09-22
+**Research snapshot:** 2026-09-22; baseline sources rechecked 2026-09-24
 **Status:** candidates for independent prototypes, not a purchase list
 
 The default manufacturer baselines for software simulation are the Waveshare
 13.3-inch E6 assembly, BOE MV270QHM-N40 preliminary P1 panel, and six Waveshare
 P3 64×64 modules. See the [networked simulator contract](../architecture/container-frame-simulator.md).
 They are concrete candidate fixtures; none is a validated product revision.
+Versioned [physical profile data](../../data/physical/README.md) now preserves
+source digests, nominal values, tolerances, conflicts and explicit missing facts.
+The BOE mechanical section has an unresolved model-name discrepancy; the
+Paper panel drawing uses native portrait axes and layer-specific thicknesses.
 
 This research BOM is separate from the customer's generated shopping list.
 The [physical build contract](../architecture/physical-build-contract.md)
-turns sourced exact revisions into configuration inputs. The visual builder
-must provide a complete printable list with unknowns and assembly guidance in
-milestone D; optional supplier-direct purchasing is final milestone F. Candidate
+turns sourced exact revisions into configuration inputs. The composition view
+produces a printable parts/list projection with unknowns and procedures in D;
+optional service implementation is deferred F and currently on hold. Candidate
 status cannot silently become qualified compatibility or purchasing eligibility.
+
+The [thin-composition inventory](../research/thin-composition-evidence.md) adds
+research leads and geometry gaps. It does not replace these source-pinned
+candidate profiles or qualify a complete controller/driver composition. There
+is no arbitrary global diagonal limit; every claimed profile must fit its
+evidenced physical bounds and declared software capabilities.
 
 Recheck availability, exact revision, interface, dimensions, license, price,
 and safety documentation immediately before purchase. Builders may choose any

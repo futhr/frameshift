@@ -1,17 +1,18 @@
 # Hardware Principles
 
-Reference frames are interoperability and evidence targets. Frameshift does not
-require branded assembled hardware, stockholding or a lead assembler. The
-[companion builder](../architecture/build-platform.md) supports manufacturer
-components and customer-selected assembly, with a complete independent shopping
-list before optional purchasing coordination. These physical requirements and
-honest evidence labels apply to both journeys; they do not certify a setup.
+Reference frames are product interoperability and evidence targets within the
+[Conjunct consumer profile](../architecture/conjunct-integration.md). Exact
+manufacturer components and assembly choices produce a composition, procedures
+and independent parts/list output. Company branding and seller/service roles
+are separate inputs for any later admitted operation. Transactional shop work
+is on hold. These physical requirements do not certify a setup.
 
 ## Non-negotiable
 
 1. **The complete object is a thin picture frame.** Panel, controller, storage,
    battery/converter, connectors, cable bends, mounting, airflow, backing, and
-   wood rebate all count.
+   wood rebate all count. There is no arbitrary global diagonal ceiling;
+   supported profiles retain actual physical and software bounds.
 2. **No Raspberry Pi hardware in a reference build.** The frame uses the
    smallest non-Raspberry controller that satisfies its measured job.
 3. **Still images only.** Hardware is not sized for video, animation, audio, or

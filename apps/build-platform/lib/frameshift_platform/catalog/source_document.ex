@@ -21,7 +21,7 @@ defmodule FrameshiftPlatform.Catalog.SourceDocument do
       accept [:title, :uri, :revision, :content_sha256, :kind, :observed_at]
       change FrameshiftPlatform.Access.StampActor
       validate FrameshiftPlatform.Catalog.SourceURI
-      change FrameshiftPlatform.Catalog.RecordSourceEvent
+      change {FrameshiftPlatform.Catalog.RecordEvent, kind: :source}
     end
   end
 
@@ -59,7 +59,7 @@ defmodule FrameshiftPlatform.Catalog.SourceDocument do
     attribute :kind, :atom,
       allow_nil?: false,
       public?: true,
-      constraints: [one_of: [:manufacturer, :standard, :supplier]]
+      constraints: [one_of: [:manufacturer, :standard, :supplier, :measurement, :custom]]
 
     attribute :observed_at, :utc_datetime_usec, allow_nil?: false, public?: true
     attribute :actor_id, :uuid, allow_nil?: false, writable?: false, sensitive?: true
@@ -68,5 +68,6 @@ defmodule FrameshiftPlatform.Catalog.SourceDocument do
 
   identities do
     identity :source_revision, [:uri, :revision]
+    identity :source_content_revision, [:content_sha256, :revision]
   end
 end

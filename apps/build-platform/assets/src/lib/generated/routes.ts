@@ -2,9 +2,13 @@
 
 export const routes = {
   index: () => "/api/sources",
+  profileIndex: () => "/api/profiles",
+  profileShow: (digest: string | number) => `/api/profiles/${encodeURIComponent(String(digest))}`,
   show: () => "/api/health",
 } as const
 
 export type RouteName =
   | "index"
+  | "profileIndex"
+  | "profileShow"
   | "show"

@@ -35,7 +35,11 @@ defmodule FrameshiftPlatform.Access.AuditEvent do
     uuid_primary_key :id
     attribute :actor_id, :uuid, allow_nil?: false, writable?: false, sensitive?: true
     attribute :subject_id, :uuid, allow_nil?: false
-    attribute :event, :atom, allow_nil?: false, constraints: [one_of: [:source_recorded]]
+
+    attribute :event, :atom,
+      allow_nil?: false,
+      constraints: [one_of: [:source_recorded, :profile_recorded]]
+
     create_timestamp :recorded_at
   end
 end

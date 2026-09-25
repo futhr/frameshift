@@ -4,17 +4,18 @@ defmodule FrameshiftPlatformWeb.SourceController do
   use Phoenix.Controller, formats: [:json]
   alias FrameshiftPlatform.Catalog
   alias FrameshiftPlatform.Catalog.SourceDocument
+  alias FrameshiftPlatformWeb.CatalogProjection
 
   @spec index(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def index(conn, params) do
-    with {:ok, offset} <- offset(Map.get(params, "offset", "0")),
+    with {:ok, offset} <- CatalogProjection.offset(Map.get(params, "offset", "0")),
          {:ok, page} <-
            Catalog.list_sources(
              page: [limit: 50, offset: offset],
              query: [sort: [recorded_at: :desc, id: :asc]]
            ) do
       json(conn, %{
-        data: Enum.map(page.results, &public_source/1),
+        data: Enum.map(page.results, &CatalogProjection.public_record(SourceDocument, &1)),
         more: page.more?,
         offset: offset
       })
@@ -23,23 +24,4 @@ defmodule FrameshiftPlatformWeb.SourceController do
       {:error, _} -> conn |> put_status(503) |> json(%{error: "catalog_unavailable"})
     end
   end
-
-  defp public_source(source) do
-    fields =
-      SourceDocument
-      |> Ash.Resource.Info.public_attributes()
-      |> Enum.reject(& &1.sensitive?)
-      |> Enum.map(& &1.name)
-
-    Map.take(source, fields)
-  end
-
-  defp offset(raw) when is_binary(raw) and byte_size(raw) <= 5 do
-    case Integer.parse(raw) do
-      {value, ""} when value >= 0 and value <= 10_000 -> {:ok, value}
-      _ -> {:error, :offset}
-    end
-  end
-
-  defp offset(_), do: {:error, :offset}
 end

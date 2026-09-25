@@ -37,6 +37,7 @@ defmodule FrameshiftPlatform.MixProject do
   defp deps do
     [
       {:frameshift_decisions, path: "../../packages/decision-kernel"},
+      {:frameshift_build, path: "../../packages/build-spec"},
       {:refpath,
        git: "https://github.com/refpath/refpath.git",
        ref: "4a8e128628cac28706b0479bd2eabd3b9d240236"},

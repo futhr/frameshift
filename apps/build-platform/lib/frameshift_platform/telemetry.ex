@@ -1,5 +1,5 @@
 defmodule FrameshiftPlatform.Telemetry do
-  @moduledoc "Server metric catalog v2: fixed dimensions, units, bounds and event ownership."
+  @moduledoc "Server metric catalog v3: fixed dimensions, units, bounds and event ownership."
 
   import Telemetry.Metrics
 
@@ -15,7 +15,13 @@ defmodule FrameshiftPlatform.Telemetry do
         event_name: [:frameshift_platform, :catalog, :source, :stop],
         description: "Source action outcomes after transaction; not a durable audit count.",
         tags: [:outcome],
-        tag_values: &source_tags/1
+        tag_values: &catalog_tags/1
+      ),
+      counter("frameshift_platform.catalog.profile.total",
+        event_name: [:frameshift_platform, :catalog, :profile, :stop],
+        description: "Profile action outcomes after transaction; not a durable audit count.",
+        tags: [:outcome],
+        tag_values: &catalog_tags/1
       ),
       counter("frameshift_platform.http.responses.total",
         event_name: @http,
@@ -44,9 +50,9 @@ defmodule FrameshiftPlatform.Telemetry do
     ]
   end
 
-  @spec source_tags(map()) :: map()
-  def source_tags(%{outcome: outcome}) when outcome in [:ok, :error], do: %{outcome: outcome}
-  def source_tags(_), do: %{outcome: :other}
+  @spec catalog_tags(map()) :: map()
+  def catalog_tags(%{outcome: outcome}) when outcome in [:ok, :error], do: %{outcome: outcome}
+  def catalog_tags(_), do: %{outcome: :other}
 
   @spec http_tags(map()) :: map()
   def http_tags(%{conn: %Plug.Conn{} = conn}) do
@@ -60,6 +66,8 @@ defmodule FrameshiftPlatform.Telemetry do
   def owned_request?(_), do: false
 
   defp route("/api/sources"), do: :sources
+  defp route("/api/profiles"), do: :profiles
+  defp route("/api/profiles/" <> _), do: :profiles
   defp route("/api/health"), do: :health
   defp route("/ops/metrics"), do: :metrics
   defp route("/"), do: :page

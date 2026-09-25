@@ -11,6 +11,8 @@ defmodule FrameshiftPlatformWeb.Router do
     pipe_through :api
     get "/health", HealthController, :show
     get "/sources", SourceController, :index
+    get "/profiles", ProfileController, :index
+    get "/profiles/:digest", ProfileController, :show
   end
 
   get "/ops/metrics", FrameshiftPlatformWeb.MetricsController, :show

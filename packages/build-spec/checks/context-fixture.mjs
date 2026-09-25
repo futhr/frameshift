@@ -40,3 +40,10 @@ const canonical=json({
 });
 fixture('context',canonical);
 console.log(digest('frameshift.compilation.v1',canonical));
+const layout=readFileSync(new URL('../test/fixtures/layout-v1.json',import.meta.url),'utf8');
+const withLayout=JSON.parse(canonical);
+withLayout.bindings.push({identity:digest('frameshift.artifact-layout.v1',layout),kind:'artifact-layout'});
+withLayout.bindings.sort((a,b)=>JSON.stringify(a)<JSON.stringify(b)?-1:JSON.stringify(a)>JSON.stringify(b)?1:0);
+const complete=json(withLayout);
+fixture('context-layout',complete);
+console.log(digest('frameshift.compilation.v1',complete));

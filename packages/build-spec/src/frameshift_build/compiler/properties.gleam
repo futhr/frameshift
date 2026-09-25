@@ -70,7 +70,8 @@ fn component(key: String) -> Result(Property, Nil) {
     | "thermal.capacity" -> Ok(Number("mw", 0))
     "temperature.operating" | "thermal.ambient" -> Ok(Number("mc", -100_000))
     "temperature.ambient_rise" -> Ok(Number("mc", 0))
-    "storage.capacity" -> Ok(Number("byte", 0))
+    "storage.capacity" | "artifact.maximum" -> Ok(Number("byte", 0))
+    "storage.retained_artifacts" -> Ok(Number("count", 1))
     "refresh.minimum"
     | "refresh.maximum"
     | "refresh.recommended_minimum"

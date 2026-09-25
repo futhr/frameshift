@@ -50,9 +50,19 @@ pub fn context_budget(
   profiles: List(String),
   mappings: List(String),
 ) -> Result(Nil, Refusal) {
+  complete_budget(bytes, profiles, mappings, [])
+}
+
+pub fn complete_budget(
+  bytes: String,
+  profiles: List(String),
+  mappings: List(String),
+  layouts: List(String),
+) -> Result(Nil, Refusal) {
   use _ <- result.try(bounds.count(profiles, 0, 64))
   use _ <- result.try(bounds.count(mappings, 0, 64))
-  remaining([bytes, ..list.append(profiles, mappings)], 4_194_304)
+  use _ <- result.try(bounds.count(layouts, 0, 64))
+  remaining([bytes, ..list.flatten([profiles, mappings, layouts])], 4_194_304)
 }
 
 fn remaining(documents: List(String), available: Int) -> Result(Nil, Refusal) {

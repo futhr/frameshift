@@ -3,7 +3,7 @@
 /// complete value so two observations of one fact are never conflated.
 import frameshift_build/compiler/facts.{type Reading}
 import frameshift_build/compiler/model.{
-  type Input, BuildInput, MappingInput, ProfileInput,
+  type Input, BuildInput, LayoutInput, MappingInput, ProfileInput,
 }
 import gleam/dict
 import gleam/list
@@ -21,6 +21,8 @@ pub fn inputs(values: List(Input)) -> List(Input) {
         "p\u{0}" <> instance <> "\u{0}" <> string.join(path, "\u{0}")
       MappingInput(instance, _, path) ->
         "m\u{0}" <> instance <> "\u{0}" <> string.join(path, "\u{0}")
+      LayoutInput(instance, _, path) ->
+        "l\u{0}" <> instance <> "\u{0}" <> string.join(path, "\u{0}")
     }
   })
 }

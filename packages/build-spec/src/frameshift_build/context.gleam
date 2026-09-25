@@ -1,7 +1,9 @@
 /// Internal exact compilation inputs. Identity/byte pairs and the assembly pin
 /// must come from standard-crypto adapters. This module cannot authenticate them.
+import frameshift_build/artifact
 import frameshift_build/assembly/validation as identities
 import frameshift_build/bounds
+import frameshift_build/compiler/artifact_layout.{type Layout, Layout}
 import frameshift_build/compiler/signal_mapping
 import frameshift_build/mapping
 import frameshift_build/mapping/model.{type Document}
@@ -17,7 +19,11 @@ pub type ResolvedMapping {
 }
 
 pub type Context {
-  Context(resolution: Resolution, mappings: List(ResolvedMapping))
+  Context(
+    resolution: Resolution,
+    mappings: List(ResolvedMapping),
+    layouts: List(Layout),
+  )
 }
 
 pub fn resolve(
@@ -25,10 +31,20 @@ pub fn resolve(
   profiles: List(#(String, String)),
   mappings: List(#(String, String)),
 ) -> Result(Context, Refusal) {
-  use _ <- result.try(resolution.context_budget(
+  resolve_all(bytes, profiles, mappings, [])
+}
+
+pub fn resolve_all(
+  bytes: String,
+  profiles: List(#(String, String)),
+  mappings: List(#(String, String)),
+  layouts: List(#(String, String)),
+) -> Result(Context, Refusal) {
+  use _ <- result.try(resolution.complete_budget(
     bytes,
     list.map(profiles, fn(p) { p.1 }),
     list.map(mappings, fn(m) { m.1 }),
+    list.map(layouts, fn(l) { l.1 }),
   ))
   use resolved <- result.try(resolution.resolve(bytes, profiles))
   use _ <- result.try(bounds.unique(list.map(mappings, fn(m) { m.0 })))
@@ -39,12 +55,21 @@ pub fn resolve(
       Ok(ResolvedMapping(pair.0, document))
     }),
   )
+  use layouts <- result.try(
+    list.try_map(layouts, fn(pair) {
+      use _ <- result.try(identities.identity(pair.0))
+      use document <- result.try(artifact.decode(pair.1))
+      Ok(Layout(pair.0, document))
+    }),
+  )
   let context =
     Context(
       resolved,
       list.sort(mappings, fn(a, b) { string.compare(a.identity, b.identity) }),
+      list.sort(layouts, fn(a, b) { string.compare(a.identity, b.identity) }),
     )
   use _ <- result.try(signal_mapping.validate(route_mappings(context), resolved))
+  use _ <- result.try(artifact_layout.validate(context.layouts, resolved))
   Ok(context)
 }
 
@@ -68,27 +93,30 @@ pub fn canonical(
 ) -> Result(String, Refusal) {
   use _ <- result.try(identities.identity(assembly))
   let bindings =
-    list.sort(context.mappings, fn(a, b) {
-      string.compare(a.identity, b.identity)
+    list.append(
+      list.map(context.mappings, fn(m) { binding(m.identity, "signal-mapping") }),
+      list.map(context.layouts, fn(l) { binding(l.identity, "artifact-layout") }),
+    )
+    |> list.sort(fn(a, b) {
+      string.compare(json.to_string(a), json.to_string(b))
     })
   Ok(
     json.object([
       #("assembly", json.string(assembly)),
-      #(
-        "bindings",
-        json.array(bindings, fn(m) {
-          json.object([
-            #("identity", json.string(m.identity)),
-            #("kind", json.string("signal-mapping")),
-          ])
-        }),
-      ),
+      #("bindings", json.array(bindings, fn(b) { b })),
       #("compiler", json.string(context.resolution.assembly.semantics)),
       #("schema", json.int(1)),
     ])
     |> json.to_string
     |> string.append("\n"),
   )
+}
+
+fn binding(identity: String, kind: String) -> json.Json {
+  json.object([
+    #("identity", json.string(identity)),
+    #("kind", json.string(kind)),
+  ])
 }
 
 pub fn identity_payload(

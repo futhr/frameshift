@@ -1,11 +1,12 @@
-import { canonical, identity_payload, resolve } from '../build/dev/javascript/frameshift_build/frameshift_build/context.mjs';
-import { context_budget } from '../build/dev/javascript/frameshift_build/frameshift_build/resolution.mjs';
+import { canonical, identity_payload, resolve_all } from '../build/dev/javascript/frameshift_build/frameshift_build/context.mjs';
+import { complete_budget } from '../build/dev/javascript/frameshift_build/frameshift_build/resolution.mjs';
 import { refusal_code } from '../build/dev/javascript/frameshift_build/frameshift_build.mjs';
 import { Result$isOk, Result$Ok$0, Result$Error$0, toList } from '../build/dev/javascript/prelude.mjs';
 import { canonicalIdentity } from './identity.mjs';
 import { buildIdentity } from './build.mjs';
 import { profileIdentity } from './profile.mjs';
 import { mappingIdentity } from './mapping.mjs';
+import { layoutIdentity } from './layout.mjs';
 
 function inputTypes(documents) {
   if (!Array.isArray(documents)) return {ok:false,error:'invalid_document'};
@@ -34,13 +35,15 @@ async function hash(documents, identity) {
 }
 
 /** Verifies every document before building a context. Does not admit its evidence. */
-export async function resolveContext(bytes, profiles, mappings) {
+export async function resolveContext(bytes, profiles, mappings, layouts = []) {
   if (typeof bytes !== 'string') return {ok:false,error:'invalid_document'};
   const profileInput = inputTypes(profiles);
   if (!profileInput.ok) return profileInput;
   const mappingInput = inputTypes(mappings);
   if (!mappingInput.ok) return mappingInput;
-  const budget = normalize(context_budget(bytes,toList(profileInput.value),toList(mappingInput.value)));
+  const layoutInput = inputTypes(layouts);
+  if (!layoutInput.ok) return layoutInput;
+  const budget = normalize(complete_budget(bytes,toList(profileInput.value),toList(mappingInput.value),toList(layoutInput.value)));
   if (!budget.ok) return budget;
   const assembly = await buildIdentity(bytes);
   if (!assembly.ok) return assembly;
@@ -48,7 +51,9 @@ export async function resolveContext(bytes, profiles, mappings) {
   if (!profilePairs.ok) return profilePairs;
   const mappingPairs = await hash(mappingInput.value,mappingIdentity);
   if (!mappingPairs.ok) return mappingPairs;
-  const result = normalize(resolve(bytes,profilePairs.value,mappingPairs.value));
+  const layoutPairs = await hash(layoutInput.value,layoutIdentity);
+  if (!layoutPairs.ok) return layoutPairs;
+  const result = normalize(resolve_all(bytes,profilePairs.value,mappingPairs.value,layoutPairs.value));
   if (!result.ok) return result;
   const context = result.value;
   const encoded = normalize(canonical(assembly.identity,context));

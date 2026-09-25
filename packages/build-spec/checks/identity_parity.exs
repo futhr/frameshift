@@ -4,6 +4,7 @@ identity =
   case options do
     ["assembly"] -> &FrameshiftBuild.build_identity/1
     ["mapping"] -> &FrameshiftBuild.mapping_identity/1
+    ["layout"] -> &FrameshiftBuild.layout_identity/1
     _ -> &FrameshiftBuild.profile_identity/1
   end
 

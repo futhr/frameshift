@@ -37,6 +37,7 @@ pub type RegionEvidence {
   RegionEvidence(
     instance: String,
     role: String,
+    unit: String,
     possible: Option(Rectangle),
     guaranteed: Option(Rectangle),
   )

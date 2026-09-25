@@ -14,7 +14,7 @@ defmodule FrameshiftBuild.ContextTest do
     assert value.identity == @identity
     assert value.canonical == @canonical
     assert {:ok, value.assembly_identity} == FrameshiftBuild.build_identity(@assembly)
-    assert {:context, {:resolution, _, [_, _, _, _], []}, [_, _]} = value.context
+    assert {:context, {:resolution, _, [_, _, _, _], []}, [_, _], []} = value.context
 
     assert {:ok, ^value} =
              FrameshiftBuild.resolve_context(
@@ -60,7 +60,7 @@ defmodule FrameshiftBuild.ContextTest do
 
   test "unresolved profiles remain explicit and cannot support supplied mappings" do
     assert {:ok, value} = FrameshiftBuild.resolve_context(@assembly, [], [])
-    assert {:context, {:resolution, _, [], [_, _, _, _]}, []} = value.context
+    assert {:context, {:resolution, _, [], [_, _, _, _]}, [], []} = value.context
     refute value.identity == @identity
 
     assert {:error, "invalid_reference"} =

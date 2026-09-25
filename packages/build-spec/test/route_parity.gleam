@@ -1,5 +1,7 @@
 import frameshift_build/assembly/model as a
-import frameshift_build/compiler/model.{BuildInput, MappingInput, ProfileInput}
+import frameshift_build/compiler/model.{
+  BuildInput, LayoutInput, MappingInput, ProfileInput,
+}
 import frameshift_build/compiler/signal_routes
 import frameshift_build/resolution as r
 import frameshift_physical.{Compatible, Incompatible, Unknown}
@@ -65,6 +67,12 @@ pub fn main() {
               ]
               MappingInput(instance, identity, path) -> [
                 "mapping",
+                instance,
+                identity,
+                ..path
+              ]
+              LayoutInput(instance, identity, path) -> [
+                "layout",
                 instance,
                 identity,
                 ..path

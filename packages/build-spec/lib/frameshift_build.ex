@@ -1,6 +1,6 @@
 defmodule FrameshiftBuild do
   @moduledoc """
-  Canonical profile and assembly identity shared with the browser's Gleam codecs.
+  Canonical physical planning identities shared with the browser's Gleam codecs.
 
   A valid document preserves claims and provenance. It does not grant assembly
   compatibility, source authenticity, safety qualification or purchasing rights.
@@ -42,6 +42,17 @@ defmodule FrameshiftBuild do
 
   def mapping_identity(_), do: {:error, "invalid_document"}
 
+  @doc "Validates intended artifact layout bytes and returns their immutable identity."
+  @spec layout_identity(binary()) :: {:ok, binary()} | {:error, binary()}
+  def layout_identity(bytes) when is_binary(bytes) do
+    case :frameshift_build@artifact.identity_payload(bytes) do
+      {:ok, payload} -> {:ok, digest(payload)}
+      {:error, refusal} -> {:error, :frameshift_build.refusal_code(refusal)}
+    end
+  end
+
+  def layout_identity(_), do: {:error, "invalid_document"}
+
   @doc "Returns exact mapping scope and citations without admitting its evidence."
   @spec inspect_mapping(binary()) :: {:ok, map()} | {:error, binary()}
   def inspect_mapping(bytes) when is_binary(bytes) do
@@ -81,6 +92,13 @@ defmodule FrameshiftBuild do
   @doc "Resolves exact sourced mappings with assembly/profile inputs and a combined identity."
   @spec resolve_context(binary(), [binary()], [binary()]) :: {:ok, map()} | {:error, binary()}
   defdelegate resolve_context(bytes, profiles, mappings),
+    to: FrameshiftBuild.Context,
+    as: :resolve
+
+  @doc "Resolves explicit artifact layouts alongside the other pinned planning inputs."
+  @spec resolve_context(binary(), [binary()], [binary()], [binary()]) ::
+          {:ok, map()} | {:error, binary()}
+  defdelegate resolve_context(bytes, profiles, mappings, layouts),
     to: FrameshiftBuild.Context,
     as: :resolve
 

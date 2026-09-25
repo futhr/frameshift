@@ -1,5 +1,6 @@
 defmodule FrameshiftBuild.MappingTest do
   @moduledoc false
+
   use ExUnit.Case, async: true
 
   @fixture File.read!(Path.join(__DIR__, "fixtures/mapping-v1.json"))

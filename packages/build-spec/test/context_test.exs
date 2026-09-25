@@ -1,5 +1,6 @@
 defmodule FrameshiftBuild.ContextTest do
   @moduledoc false
+
   use ExUnit.Case, async: true
 
   @root Path.join(__DIR__, "fixtures/context-v1")

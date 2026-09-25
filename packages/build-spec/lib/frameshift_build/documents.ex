@@ -1,5 +1,5 @@
 defmodule FrameshiftBuild.Documents do
-  @moduledoc false
+  @moduledoc "Validates exact document inputs and normalizes Gleam refusals for Elixir callers."
 
   @spec input_types(term()) :: :ok | {:error, binary()}
   def input_types(documents) when length(documents) <= 64 do

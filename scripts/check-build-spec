@@ -24,11 +24,12 @@ mise exec -- node --check js/build.mjs
 mise exec -- node --check js/mapping.mjs
 mise exec -- node --check js/context.mjs
 mise exec -- node --check js/layout.mjs
+mise exec -- node --check js/preview.mjs
 mise exec -- node --check js/identity.mjs
 mise exec -- node --check test/identity_parity.mjs
 mise exec -- node --check checks/catalog.mjs
 mise exec -- node checks/catalog.mjs
-mise exec -- node --test test/profile.test.mjs test/catalog.test.mjs test/build.test.mjs test/resolution.test.mjs test/facts.test.mjs test/mapping.test.mjs test/context.test.mjs test/layout.test.mjs
+mise exec -- node --test test/profile.test.mjs test/catalog.test.mjs test/build.test.mjs test/resolution.test.mjs test/facts.test.mjs test/mapping.test.mjs test/context.test.mjs test/layout.test.mjs test/preview.test.mjs
 
 mise exec -- gleam run --target erlang --module profile_parity --no-print-progress > "$parity_directory/erlang.jsonl"
 mise exec -- gleam run --target javascript --module profile_parity --no-print-progress > "$parity_directory/javascript.jsonl"
@@ -75,6 +76,12 @@ mise exec -- gleam run --target javascript --module context_fixture --no-print-p
 cmp "$parity_directory/context.erlang.jsonl" "$parity_directory/context.javascript.jsonl"
 mise exec -- node --check checks/context-fixture.mjs
 mise exec -- node checks/context-fixture.mjs "$parity_directory/context.erlang.jsonl"
+
+mise exec -- gleam run --target erlang --module preview_parity --no-print-progress > "$parity_directory/preview.erlang.jsonl"
+mise exec -- gleam run --target javascript --module preview_parity --no-print-progress > "$parity_directory/preview.javascript.jsonl"
+cmp "$parity_directory/preview.erlang.jsonl" "$parity_directory/preview.javascript.jsonl"
+test "$(wc -l < "$parity_directory/preview.erlang.jsonl" | tr -d ' ')" = 3
+echo "Three complete stage/check/reference previews match on BEAM and JavaScript"
 
 mise exec -- gleam run --target erlang --module graph_parity --no-print-progress > "$parity_directory/graph.erlang.jsonl"
 mise exec -- gleam run --target javascript --module graph_parity --no-print-progress > "$parity_directory/graph.javascript.jsonl"
@@ -156,6 +163,9 @@ mise exec -- env -u MIX_HOME -u MIX_ARCHIVES MIX_ENV=prod mix release --overwrit
 {:ok, _} = FrameshiftBuild.mapping_identity(File.read!("test/fixtures/mapping-v1.json"))
 {:ok, _} = FrameshiftBuild.layout_identity(File.read!("test/fixtures/layout-v1.json"))
 {:ok, %{context: {:context, {:resolution, _, [], [_, _]}, [], []}}} = FrameshiftBuild.resolve_context(File.read!("test/fixtures/assembly-v1.json"), [], [])
+{:ok, %{status: preview_status, stages: preview_stages}} = FrameshiftBuild.planning_preview(File.read!("test/fixtures/assembly-v1.json"), [], [])
+true = preview_status in ["unknown", "incompatible"]
+13 = length(preview_stages)
 {:ok, [_, _]} = FrameshiftBuild.profile_pins(File.read!("test/fixtures/assembly-v1.json"))
 {:ok, %{resolution: {:resolution, _, [], [_, _]}}} = FrameshiftBuild.resolve_build(File.read!("test/fixtures/assembly-v1.json"), [])
 true = File.regular?(Application.app_dir(:frameshift_build, "priv/licenses/gleam_json.txt"))
@@ -210,6 +220,8 @@ true = File.regular?(Application.app_dir(:frameshift_decisions, "priv/licenses/g
 :non_existing = :code.which(:mapping_test)
 :non_existing = :code.which(:context_fixture)
 :non_existing = :code.which(:context_test)
+:non_existing = :code.which(:preview_test)
+:non_existing = :code.which(:preview_parity)
 :non_existing = :code.which(:artifact_fixture)
 :non_existing = :code.which(:artifact_parity)
 :non_existing = :code.which(:artifacts_test)
@@ -217,5 +229,5 @@ true = File.regular?(Application.app_dir(:frameshift_decisions, "priv/licenses/g
 :non_existing = :code.which(:layout_parity)
 :non_existing = :code.which(:layout_test)
 {:ok, []} = :frameshift_build@graph.cyclic_nodes(["a", "b"], [{"a", "b"}])
-IO.puts("Packaged BuildSpec codec and JSON runtime pass; test modules excluded")
+IO.puts("Packaged BuildSpec codec and planning preview pass; test modules excluded")
 '

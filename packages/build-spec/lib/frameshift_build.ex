@@ -102,6 +102,26 @@ defmodule FrameshiftBuild do
     to: FrameshiftBuild.Context,
     as: :resolve
 
+  @doc "Runs every retained v1 frame check on verified exact inputs; never grants admission."
+  @spec planning_preview(binary(), [binary()], [binary()]) :: {:ok, map()} | {:error, binary()}
+  @spec planning_preview(binary(), [binary()], [binary()], [binary()]) ::
+          {:ok, map()} | {:error, binary()}
+  def planning_preview(bytes, profiles, mappings, layouts \\ []) do
+    with {:ok, resolved} <- resolve_context(bytes, profiles, mappings, layouts),
+         {:ok, {:preview, status, stages}} <-
+           FrameshiftBuild.Documents.normalize(
+             :frameshift_build@compiler@preview.evaluate(resolved.context)
+           ) do
+      {:ok,
+       %{
+         identity: resolved.identity,
+         assembly_identity: resolved.assembly_identity,
+         status: Atom.to_string(status),
+         stages: stages
+       }}
+    end
+  end
+
   @doc "Returns validated immutable metadata and exact fact-to-source citations."
   @spec inspect_profile(binary()) :: {:ok, map()} | {:error, binary()}
   def inspect_profile(bytes) when is_binary(bytes) do

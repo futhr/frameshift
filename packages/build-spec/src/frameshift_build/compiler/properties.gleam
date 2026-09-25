@@ -62,7 +62,10 @@ fn component(key: String) -> Result(Property, Nil) {
     | "connector.clearance"
     | "cable.clearance" -> Ok(Number("um", 0))
     "mass" | "mount.capacity" -> Ok(Number("g", 0))
-    "power.maximum" | "heat.maximum" | "thermal.capacity" -> Ok(Number("mw", 0))
+    "power.maximum"
+    | "power.output_capacity"
+    | "heat.maximum"
+    | "thermal.capacity" -> Ok(Number("mw", 0))
     "temperature.operating" | "thermal.ambient" -> Ok(Number("mc", -100_000))
     "storage.capacity" -> Ok(Number("byte", 0))
     "refresh.minimum"
@@ -84,9 +87,10 @@ fn component(key: String) -> Result(Property, Nil) {
 
 fn power(key: String) -> Result(Property, Nil) {
   case key {
-    "input.voltage" | "output.voltage" -> Ok(Number("mv", 0))
+    "input.voltage" | "output.voltage" | "voltage.drop" -> Ok(Number("mv", 0))
     "current.maximum" | "current.capacity" -> Ok(Number("ma", 0))
     "power.maximum" | "power.capacity" -> Ok(Number("mw", 0))
+    "fanout.maximum" -> Ok(Number("count", 0))
     _ -> electrical_contract(key)
   }
 }

@@ -4,6 +4,7 @@ import frameshift_build/assembly/model as a
 import frameshift_build/compiler/model.{
   type Check, type Input, BuildInput, Check, ProfileInput,
 }
+import frameshift_build/compiler/ports
 import frameshift_build/graph
 import frameshift_build/model.{type Port, type Profile, type Refusal} as _
 import frameshift_build/resolution.{type Resolution}
@@ -230,24 +231,10 @@ type EndpointState {
 }
 
 fn endpoint(endpoint: a.Endpoint, value: Resolution) -> EndpointState {
-  case instance(endpoint.instance, value) {
+  case ports.resolve(endpoint, value) {
+    Ok(endpoint) -> FoundPort(endpoint.port)
+    Error(ports.MissingPort) -> AbsentPort
     Error(_) -> UnresolvedProfile
-    Ok(instance) ->
-      case profile(instance, value) {
-        Error(_) -> UnresolvedProfile
-        Ok(profile) ->
-          case list.find(profile.ports, fn(v) { v.id == endpoint.port }) {
-            Error(_) -> AbsentPort
-            Ok(port) -> FoundPort(port)
-          }
-      }
-  }
-}
-
-fn endpoint_input(endpoint: a.Endpoint, value: Resolution) -> List(Input) {
-  case instance(endpoint.instance, value) {
-    Error(_) -> []
-    Ok(instance) -> [input(instance, ["ports", endpoint.port])]
   }
 }
 
@@ -255,19 +242,7 @@ fn connection_inputs(
   connection: a.Connection,
   value: Resolution,
 ) -> List(Input) {
-  list.flatten([
-    [
-      BuildInput([
-        "connections",
-        connection.from.instance,
-        connection.from.port,
-        connection.to.instance,
-        connection.to.port,
-      ]),
-    ],
-    endpoint_input(connection.from, value),
-    endpoint_input(connection.to, value),
-  ])
+  ports.inputs(connection, value)
 }
 
 fn connection_checks(

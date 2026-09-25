@@ -1,4 +1,5 @@
 /// Evidence attached to a compiler-stage check. Never a whole-build admission.
+import frameshift_build/compiler/evidence
 import frameshift_build/compiler/facts.{type Reading}
 import frameshift_build/compiler/model.{type Check, Check}
 import frameshift_build/compiler/rectangles.{type Rectangle}
@@ -10,6 +11,7 @@ import gleam/option.{type Option, None, Some}
 
 pub type Relation {
   AtMost
+  Within
 }
 
 pub type Measurement {
@@ -27,6 +29,7 @@ pub type Finding {
     readings: List(Reading),
     measurement: Option(Measurement),
     regions: List(RegionEvidence),
+    common_terms: List(String),
   )
 }
 
@@ -43,17 +46,22 @@ pub fn with_regions(value: Finding, regions: List(RegionEvidence)) -> Finding {
   Finding(..value, regions:)
 }
 
+pub fn with_terms(value: Finding, common_terms: List(String)) -> Finding {
+  Finding(..value, common_terms:)
+}
+
 pub fn explain(check: Check, readings: List(Reading)) -> Finding {
   Finding(
     Check(
       ..check,
-      inputs: list.unique(list.append(
+      inputs: evidence.inputs(list.append(
         check.inputs,
         list.map(readings, facts.input),
       )),
     ),
-    readings,
+    evidence.readings(readings),
     None,
+    [],
     [],
   )
 }
@@ -65,13 +73,48 @@ pub fn at_most(
   required: Option(Interval),
   available: Option(Interval),
 ) -> Finding {
+  compare(check, readings, unit, required, available, AtMost)
+}
+
+pub fn within(
+  check: Check,
+  readings: List(Reading),
+  unit: String,
+  required: Option(Interval),
+  available: Option(Interval),
+) -> Finding {
+  compare(check, readings, unit, required, available, Within)
+}
+
+fn compare(
+  check: Check,
+  readings: List(Reading),
+  unit: String,
+  required: Option(Interval),
+  available: Option(Interval),
+  relation: Relation,
+) -> Finding {
   let check = case required, available {
-    Some(required), Some(available) ->
-      case required.maximum <= available.minimum {
-        True -> Check(..check, outcome: Compatible, reason: "within_bounds")
-        False ->
-          Check(..check, outcome: Incompatible, reason: "exceeds_capacity")
+    Some(required), Some(available) -> {
+      let permitted = case relation {
+        AtMost -> required.maximum <= available.minimum
+        Within ->
+          required.minimum >= available.minimum
+          && required.maximum <= available.maximum
       }
+      Check(
+        ..check,
+        outcome: case permitted {
+          True -> Compatible
+          False -> Incompatible
+        },
+        reason: case permitted, relation {
+          True, _ -> "within_bounds"
+          False, AtMost -> "exceeds_capacity"
+          False, Within -> "outside_range"
+        },
+      )
+    }
     _, _ ->
       Check(
         ..check,
@@ -81,7 +124,7 @@ pub fn at_most(
   }
   Finding(
     ..explain(check, readings),
-    measurement: Some(Measurement(unit, AtMost, required, available)),
+    measurement: Some(Measurement(unit, relation, required, available)),
   )
 }
 

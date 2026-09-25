@@ -71,6 +71,24 @@ cmp "$parity_directory/projection.erlang.jsonl" "$parity_directory/projection.ja
 mise exec -- node --check checks/projection-oracle.mjs
 mise exec -- node checks/projection-oracle.mjs "$parity_directory/projection.erlang.jsonl"
 
+mise exec -- gleam run --target erlang --module power_parity --no-print-progress > "$parity_directory/power.erlang.jsonl"
+mise exec -- gleam run --target javascript --module power_parity --no-print-progress > "$parity_directory/power.javascript.jsonl"
+cmp "$parity_directory/power.erlang.jsonl" "$parity_directory/power.javascript.jsonl"
+mise exec -- node --check checks/power-oracle.mjs
+mise exec -- node checks/power-oracle.mjs "$parity_directory/power.erlang.jsonl"
+
+mise exec -- gleam run --target erlang --module port_graph_parity --no-print-progress > "$parity_directory/port-graph.erlang.jsonl"
+mise exec -- gleam run --target javascript --module port_graph_parity --no-print-progress > "$parity_directory/port-graph.javascript.jsonl"
+cmp "$parity_directory/port-graph.erlang.jsonl" "$parity_directory/port-graph.javascript.jsonl"
+mise exec -- node --check checks/port-graph-oracle.mjs
+mise exec -- node checks/port-graph-oracle.mjs "$parity_directory/port-graph.erlang.jsonl"
+
+mise exec -- gleam run --target erlang --module flow_parity --no-print-progress > "$parity_directory/flow.erlang.jsonl"
+mise exec -- gleam run --target javascript --module flow_parity --no-print-progress > "$parity_directory/flow.javascript.jsonl"
+cmp "$parity_directory/flow.erlang.jsonl" "$parity_directory/flow.javascript.jsonl"
+mise exec -- node --check checks/flow-oracle.mjs
+mise exec -- node checks/flow-oracle.mjs "$parity_directory/flow.erlang.jsonl"
+
 cat "$repository_root"/data/physical/profiles/*.json > "$parity_directory/catalog.jsonl"
 mise exec -- env -u MIX_HOME -u MIX_ARCHIVES mix run --no-start --no-compile \
   checks/identity_parity.exs "$parity_directory/catalog.jsonl" > "$parity_directory/catalog.erlang.hashes"
@@ -103,6 +121,19 @@ true = File.regular?(Application.app_dir(:frameshift_decisions, "priv/licenses/g
 :non_existing = :code.which(:viewing_test)
 :non_existing = :code.which(:projection_test)
 :non_existing = :code.which(:projection_parity)
+:non_existing = :code.which(:power_fixture)
+:non_existing = :code.which(:power_interfaces_test)
+:non_existing = :code.which(:power_parity)
+:non_existing = :code.which(:load_fixture)
+:non_existing = :code.which(:power_loads_test)
+:non_existing = :code.which(:port_graph_test)
+:non_existing = :code.which(:port_graph_parity)
+:non_existing = :code.which(:contract_fixture)
+:non_existing = :code.which(:power_contracts_test)
+:non_existing = :code.which(:flow_fixture)
+:non_existing = :code.which(:power_flow_test)
+:non_existing = :code.which(:flow_parity)
+:non_existing = :code.which(:evidence_test)
 {:ok, []} = :frameshift_build@graph.cyclic_nodes(["a", "b"], [{"a", "b"}])
 IO.puts("Packaged BuildSpec codec and JSON runtime pass; test modules excluded")
 '

@@ -23,6 +23,23 @@ pub type ResolvedProfile {
   ResolvedProfile(identity: String, profile: Profile)
 }
 
+pub fn find_profile(
+  value: Resolution,
+  identity: String,
+) -> Result(Profile, Nil) {
+  use found <- result.try(
+    list.find(value.profiles, fn(profile) { profile.identity == identity }),
+  )
+  Ok(found.profile)
+}
+
+pub fn find_instance(
+  value: Resolution,
+  id: String,
+) -> Result(planning.Instance, Nil) {
+  list.find(value.assembly.instances, fn(instance) { instance.id == id })
+}
+
 /// Shared resource gate runs before standard crypto or native JSON decoding.
 pub fn budget(bytes: String, profiles: List(String)) -> Result(Nil, Refusal) {
   use _ <- result.try(bounds.count(profiles, 0, 64))

@@ -54,6 +54,9 @@ glob imports refuse at this boundary.
   downloads exact canonical bytes with a strong ETag and immutable caching.
   Source bindings and actor identifiers remain private. Admission recomputes
   identity and resolves every citation's digest, revision and evidence kind.
+- The public page lists candidate profiles and source records with explicit
+  qualification limits, manual bounded pagination and exact profile downloads.
+  This is catalog inspection, not the composition workbench or build admission.
 - Catalog writes are internal Ash actions requiring a typed editor or research
   worker actor. Constructing an actor is not authentication. There is no HTTP
   write route; an authenticated command boundary must precede browser writes.

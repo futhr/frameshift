@@ -1,0 +1,11 @@
+name = "frameshift_build"
+version = "0.1.0"
+gleam = ">= 1.18.1 and < 2.0.0"
+
+[dependencies]
+frameshift_decisions = { path = "../decision-kernel" }
+gleam_stdlib = "1.0.5"
+gleam_json = "3.1.0"
+
+[dev_dependencies]
+gleeunit = "1.11.0"

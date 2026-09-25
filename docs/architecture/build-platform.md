@@ -167,10 +167,13 @@ is removed from the successor path only after its producer export, consumer
 adapter and identity migration qualify. Retain one authoritative implementation.
 
 Keep the local Exqlite/SQLite writer and server AshPostgres records separate.
-Pure shared packages cannot import application internals or provider I/O. Current
-checks reject undeclared static module/path imports, native externals and
-unreviewed Gleam library operations, including randomness. Frontend alias and
-dynamic-import checks remain open. Static checks do not sandbox running code.
+Pure shared packages cannot import application internals or provider I/O. The
+workspace gate rejects undeclared Elixir module/path references, native externals
+and unreviewed Gleam library operations, including randomness. It also resolves
+declared frontend aliases and relative ESM imports through the component graph;
+literal dynamic imports obey the same graph, while opaque and glob imports
+refuse. New aliases and virtual imports must be declared in `workspace.json`.
+These source checks do not sandbox running code.
 
 Each extraction includes dependency locks, canonical migration, affected scripts,
 CI, assets, package paths and independent builds. Preserve test fixtures and

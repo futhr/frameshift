@@ -1,6 +1,6 @@
 defmodule FrameshiftWorkspace do
   @moduledoc """
-  Checks workspace ownership, static Elixir references and pure Gleam imports.
+  Checks workspace ownership, static Elixir and frontend imports, and pure Gleam imports.
 
   Reads syntax without evaluating project files. This is an architecture check,
   not a security sandbox for dynamic code or cross-process communication.
@@ -82,11 +82,171 @@ defmodule FrameshiftWorkspace do
     owner = owner_for_path(components, file)
 
     cond do
-      Path.basename(file) == "mix.exs" and is_nil(owner) -> ["#{file}: unowned Mix project"]
-      is_nil(owner) -> []
-      Path.extname(file) in [".ex", ".exs"] -> inspect_elixir(root, components, owner, file)
-      Path.extname(file) == ".gleam" -> inspect_gleam(root, owner, file)
-      true -> []
+      Path.basename(file) == "mix.exs" and is_nil(owner) ->
+        ["#{file}: unowned Mix project"]
+
+      is_nil(owner) ->
+        []
+
+      Path.extname(file) in [".ex", ".exs"] ->
+        inspect_elixir(root, components, owner, file)
+
+      Path.extname(file) == ".gleam" ->
+        inspect_gleam(root, owner, file)
+
+      Path.extname(file) in [".js", ".mjs", ".ts", ".svelte"] ->
+        inspect_frontend(root, components, owner, file)
+
+      true ->
+        []
+    end
+  end
+
+  defp inspect_frontend(root, components, owner, file) do
+    source = File.read!(Path.join(root, file))
+
+    scripts =
+      if Path.extname(file) == ".svelte" do
+        Regex.scan(~r/<script\b[^>]*>(.*?)<\/script>/s, source, capture: :all_but_first)
+        |> List.flatten()
+      else
+        [source]
+      end
+
+    scripts
+    |> Enum.flat_map(&frontend_imports/1)
+    |> Enum.flat_map(fn
+      {:opaque, kind} -> ["#{file}: #{kind} requires a literal import path"]
+      {:glob, _} -> ["#{file}: import.meta.glob bypasses workspace dependency checks"]
+      {_, specifier} -> frontend_import_errors(root, components, owner, file, specifier)
+    end)
+    |> Enum.uniq()
+  end
+
+  defp frontend_imports(source) do
+    tokens =
+      Regex.scan(
+        ~r/\/\/[^\n]*|\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|[A-Za-z_$][A-Za-z0-9_$]*|[^\s]/,
+        source
+      )
+      |> List.flatten()
+      |> Enum.reject(&(String.starts_with?(&1, "//") or String.starts_with?(&1, "/*")))
+      |> Enum.map(fn token ->
+        if String.starts_with?(token, ["\"", "'", "`"]),
+          do: {:quoted, token},
+          else: token
+      end)
+
+    embedded =
+      Enum.flat_map(tokens, fn
+        {:quoted, "`" <> _ = template} ->
+          if String.contains?(template, "${") and
+               Regex.match?(~r/\bimport\s*(?:\(|\.)/, template),
+             do: [{:opaque, "template import"}],
+             else: []
+
+        _ ->
+          []
+      end)
+
+    embedded ++ collect_frontend_imports(tokens, [])
+  end
+
+  defp collect_frontend_imports([], found), do: Enum.reverse(found)
+
+  defp collect_frontend_imports(["import", ".", "meta", ".", glob | rest], found)
+       when glob in ["glob", "globEager"] do
+    collect_frontend_imports(rest, [{:glob, nil} | found])
+  end
+
+  defp collect_frontend_imports(["import", "(" | rest], found) do
+    case rest do
+      [{:quoted, literal}, ")" | tail] ->
+        collect_frontend_imports(tail, [{:dynamic, literal} | found])
+
+      _ ->
+        collect_frontend_imports(rest, [{:opaque, "dynamic import"} | found])
+    end
+  end
+
+  defp collect_frontend_imports(["import", {:quoted, literal} | rest], found),
+    do: collect_frontend_imports(rest, [{:static, literal} | found])
+
+  defp collect_frontend_imports(["import" | rest], found) do
+    case import_from(rest) do
+      nil -> collect_frontend_imports(rest, found)
+      literal -> collect_frontend_imports(rest, [{:static, literal} | found])
+    end
+  end
+
+  defp collect_frontend_imports(["export", kind | rest], found) when kind in ["{", "*"] do
+    case import_from(rest) do
+      nil -> collect_frontend_imports(rest, found)
+      literal -> collect_frontend_imports(rest, [{:static, literal} | found])
+    end
+  end
+
+  defp collect_frontend_imports([_ | rest], found), do: collect_frontend_imports(rest, found)
+
+  defp import_from(tokens) do
+    tokens
+    |> Enum.take_while(&(&1 not in [";", "import", "export"]))
+    |> Enum.chunk_every(2, 1, :discard)
+    |> Enum.find_value(fn
+      ["from", {:quoted, literal}] -> literal
+      _ -> nil
+    end)
+  end
+
+  defp frontend_import_errors(root, components, owner, file, literal) do
+    specifier = binary_part(literal, 1, byte_size(literal) - 2)
+
+    cond do
+      String.starts_with?(literal, "`") or String.contains?(specifier, "\\") ->
+        ["#{file}: import path must be an unescaped string literal"]
+
+      String.starts_with?(specifier, ["./", "../"]) ->
+        frontend_path_errors(root, components, owner, file, specifier, Path.dirname(file))
+
+      String.starts_with?(specifier, "$") ->
+        frontend_alias_errors(root, components, owner, file, specifier)
+
+      String.starts_with?(specifier, ["/", "@frameshift/", "#"]) ->
+        ["#{file}: unregistered frontend import #{specifier}"]
+
+      true ->
+        []
+    end
+  end
+
+  defp frontend_alias_errors(root, components, owner, file, specifier) do
+    [alias_name | remainder] = String.split(specifier, "/", parts: 2)
+    aliases = Map.get(owner, "frontend_aliases", %{})
+
+    cond do
+      alias_name in Map.get(owner, "frontend_virtual_imports", []) ->
+        []
+
+      target = aliases[alias_name] ->
+        relative = Path.join([target | remainder])
+        frontend_path_errors(root, components, owner, file, specifier, relative, true)
+
+      true ->
+        ["#{file}: unknown frontend alias #{alias_name}"]
+    end
+  end
+
+  defp frontend_path_errors(root, components, owner, file, specifier, base, resolved? \\ false) do
+    target =
+      if resolved?,
+        do: Path.expand(base, root),
+        else: Path.expand(specifier, Path.join(root, base))
+
+    if target == root or not String.starts_with?(target, root <> "/") do
+      ["#{file}: import #{specifier} escapes the workspace"]
+    else
+      target_owner = owner_for_path(components, Path.relative_to(target, root))
+      dependency_error(owner, target_owner, "#{file}: import #{specifier}")
     end
   end
 

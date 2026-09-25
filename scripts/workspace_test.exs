@@ -24,6 +24,11 @@ defmodule FrameshiftWorkspaceTest do
         "root" => "apps/platform",
         "modules" => ["FrameshiftPlatform"],
         "depends_on" => ["decisions"],
+        "frontend_aliases" => %{
+          "$phoenix" => "apps/platform/assets/src/lib/generated",
+          "$lib" => "apps/platform/assets/src/lib"
+        },
+        "frontend_virtual_imports" => ["$app"],
         "planned" => true
       },
       %{
@@ -192,6 +197,82 @@ defmodule FrameshiftWorkspaceTest do
              )
 
     assert error =~ "platform cannot depend on decisions"
+  end
+
+  test "frontend static imports and reexports obey the component graph", context do
+    file = "apps/platform/assets/src/routes/+page.ts"
+
+    assert inspect_source(
+             context,
+             file,
+             ~s(import type { Profile } from "$phoenix/types"; export * from "$lib/view"; import "../app.css")
+           ) == []
+
+    for source <- [
+          ~s(import "../../../../core/lib/private.js"),
+          ~s(export * from "../../../../core/lib/private.js")
+        ] do
+      assert [error] = inspect_source(context, file, source)
+      assert error =~ "platform cannot depend on core"
+    end
+  end
+
+  test "frontend aliases resolve before dependency checks", context do
+    file = "apps/platform/assets/src/routes/+page.svelte"
+
+    assert inspect_source(
+             context,
+             file,
+             ~s(<script lang="ts">import type { Profile } from "$phoenix/types"; import { page } from "$app/stores"</script>)
+           ) == []
+
+    assert [error] =
+             inspect_source(
+               context,
+               file,
+               ~s(<script>import "$phoenix/../../../../../core/lib/private.js"</script>)
+             )
+
+    assert error =~ "platform cannot depend on core"
+    assert [error] = inspect_source(context, file, ~s(<script>import "$secret/data"</script>))
+    assert error =~ "unknown frontend alias $secret"
+  end
+
+  test "frontend dynamic imports require literal paths and reject glob escape hatches", context do
+    file = "apps/platform/assets/src/routes/+page.ts"
+    assert inspect_source(context, file, ~s|const page = import("$lib/view")|) == []
+
+    assert [error] = inspect_source(context, file, "import(path)")
+    assert error =~ "requires a literal import path"
+
+    assert [error] = inspect_source(context, file, ~s|import.meta.glob("../../core/**/*.ts")|)
+    assert error =~ "import.meta.glob"
+
+    assert [error] = inspect_source(context, file, ~s|const lazy = `${import(path)}`|)
+    assert error =~ "template import"
+  end
+
+  test "frontend strings and comments cannot invent an import", context do
+    file = "apps/platform/assets/src/routes/+page.ts"
+
+    assert inspect_source(
+             context,
+             file,
+             ~s|// import "../../../../../core/private.js"\nconst note = 'import(path)'; /* require(path) */|
+           ) == []
+  end
+
+  test "frontend imports cannot escape the workspace or disguise a path", context do
+    file = "apps/platform/assets/src/routes/+page.ts"
+
+    for source <- [
+          ~s(import "../../../../../../outside.js"),
+          ~s(import "@frameshift/unregistered"),
+          ~s(import `../${name}.js`),
+          ~s(import "..\\/../../core/private.js")
+        ] do
+      assert [_] = inspect_source(context, file, source)
+    end
   end
 
   defp inspect_source(context, file, source) do

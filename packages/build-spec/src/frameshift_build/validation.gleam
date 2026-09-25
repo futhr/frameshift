@@ -41,7 +41,7 @@ pub fn profile(profile: Profile) -> Result(Nil, Refusal) {
   list.try_each(profile.ports, port)
 }
 
-fn kinds() -> List(String) {
+pub fn kinds() -> List(String) {
   [
     "display",
     "controller",

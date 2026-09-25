@@ -32,4 +32,21 @@ defmodule FrameshiftBuildTest do
     refute :profile_parity in modules
     refute :frameshift_build_test in modules
   end
+
+  test "inspection binds immutable identity to separate port and fact citations" do
+    assert {:ok, profile} = FrameshiftBuild.inspect_profile(@fixture)
+    assert profile.identity == @identity
+    assert profile.profile_key == "fixture-0"
+    assert profile.profile_revision == "1"
+    assert profile.classes == ["paper"]
+    assert profile.kind == "display"
+    assert [first, second] = profile.citations
+    assert first["port_id"] == ""
+    assert first["fact_key"] == "outline.width"
+    assert second["port_id"] == "dc"
+    assert second["fact_key"] == "voltage"
+    assert first["digest"] == second["digest"]
+    assert {:error, "noncanonical"} = FrameshiftBuild.inspect_profile(" " <> @fixture)
+    assert {:error, "invalid_document"} = FrameshiftBuild.inspect_profile(nil)
+  end
 end

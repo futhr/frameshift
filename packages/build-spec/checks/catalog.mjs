@@ -49,16 +49,17 @@ export async function validateCatalog(manifest, files) {
 }
 
 function validateSource(source) {
-  fields(source, ['digest', 'revision', 'url', 'title', 'media_type', 'byte_size', 'retrieved_on'], 'invalid_source');
+  fields(source, ['digest', 'revision', 'url', 'title', 'media_type', 'byte_size', 'retrieved_on', 'retrieved_at'], 'invalid_source');
   require(typeof source.digest === 'string' && digest.test(source.digest), 'invalid_source_digest');
   require(typeof source.revision === 'string' && token.test(source.revision), 'invalid_source_revision');
-  require(text(source.title, 256) && text(source.url, 2048), 'invalid_source_metadata');
+  require(text(source.title, 200) && text(source.url, 2048), 'invalid_source_metadata');
   const url = new URL(source.url);
   require(url.protocol === 'https:' && !url.username && !url.password && !url.hash, 'invalid_source_url');
   require(['application/pdf', 'text/html'].includes(source.media_type), 'invalid_source_media');
   require(Number.isSafeInteger(source.byte_size) && source.byte_size > 0 && source.byte_size <= 64 * 1024 * 1024, 'invalid_source_size');
   require(typeof source.retrieved_on === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(source.retrieved_on), 'invalid_source_date');
   require(new Date(source.retrieved_on).toISOString().slice(0, 10) === source.retrieved_on, 'invalid_source_date');
+  require(typeof source.retrieved_at === 'string' && new Date(source.retrieved_at).toISOString() === source.retrieved_at && source.retrieved_at.startsWith(source.retrieved_on), 'invalid_source_time');
 }
 
 function validateEntry(entry) {

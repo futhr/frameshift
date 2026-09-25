@@ -54,4 +54,8 @@ pub type Refusal {
   InvalidSource
   InvalidFact
   NonCanonical
+  InvalidIdentity
+  InvalidReference
+  UnsupportedSemantics
+  UnreferencedProfile
 }

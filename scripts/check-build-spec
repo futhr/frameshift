@@ -20,10 +20,12 @@ mise exec -- env -u MIX_HOME -u MIX_ARCHIVES mix compile --warnings-as-errors
 mise exec -- env -u MIX_HOME -u MIX_ARCHIVES mix test
 mise exec -- env -u MIX_HOME -u MIX_ARCHIVES mix credo --strict
 mise exec -- node --check js/profile.mjs
+mise exec -- node --check js/build.mjs
+mise exec -- node --check js/identity.mjs
 mise exec -- node --check test/identity_parity.mjs
 mise exec -- node --check checks/catalog.mjs
 mise exec -- node checks/catalog.mjs
-mise exec -- node --test test/profile.test.mjs test/catalog.test.mjs
+mise exec -- node --test test/profile.test.mjs test/catalog.test.mjs test/build.test.mjs test/resolution.test.mjs
 
 mise exec -- gleam run --target erlang --module profile_parity --no-print-progress > "$parity_directory/erlang.jsonl"
 mise exec -- gleam run --target javascript --module profile_parity --no-print-progress > "$parity_directory/javascript.jsonl"
@@ -35,6 +37,16 @@ mise exec -- node test/identity_parity.mjs "$parity_directory/javascript.jsonl" 
 cmp "$parity_directory/erlang.hashes" "$parity_directory/javascript.hashes"
 echo "256 canonical profiles and SHA-256 identities match on BEAM and JavaScript"
 
+mise exec -- gleam run --target erlang --module assembly_parity --no-print-progress > "$parity_directory/assembly.erlang.jsonl"
+mise exec -- gleam run --target javascript --module assembly_parity --no-print-progress > "$parity_directory/assembly.javascript.jsonl"
+cmp "$parity_directory/assembly.erlang.jsonl" "$parity_directory/assembly.javascript.jsonl"
+test "$(wc -l < "$parity_directory/assembly.erlang.jsonl" | tr -d ' ')" = 256
+mise exec -- env -u MIX_HOME -u MIX_ARCHIVES mix run --no-start --no-compile \
+  checks/identity_parity.exs "$parity_directory/assembly.erlang.jsonl" assembly > "$parity_directory/assembly.erlang.hashes"
+mise exec -- node test/identity_parity.mjs "$parity_directory/assembly.javascript.jsonl" assembly > "$parity_directory/assembly.javascript.hashes"
+cmp "$parity_directory/assembly.erlang.hashes" "$parity_directory/assembly.javascript.hashes"
+echo "256 canonical assemblies and SHA-256 identities match on BEAM and JavaScript"
+
 cat "$repository_root"/data/physical/profiles/*.json > "$parity_directory/catalog.jsonl"
 mise exec -- env -u MIX_HOME -u MIX_ARCHIVES mix run --no-start --no-compile \
   checks/identity_parity.exs "$parity_directory/catalog.jsonl" > "$parity_directory/catalog.erlang.hashes"
@@ -45,9 +57,15 @@ echo "Sourced candidate profiles and hashes match on BEAM and JavaScript"
 mise exec -- env -u MIX_HOME -u MIX_ARCHIVES MIX_ENV=prod mix release --overwrite --path "$parity_directory/release" >/dev/null
 "$parity_directory/release/bin/frameshift_build" eval '
 {:ok, _} = FrameshiftBuild.profile_identity(File.read!("test/fixtures/profile-v1.json"))
+{:ok, _} = FrameshiftBuild.build_identity(File.read!("test/fixtures/assembly-v1.json"))
+{:ok, [_, _]} = FrameshiftBuild.profile_pins(File.read!("test/fixtures/assembly-v1.json"))
+{:ok, %{resolution: {:resolution, _, [], [_, _]}}} = FrameshiftBuild.resolve_build(File.read!("test/fixtures/assembly-v1.json"), [])
 true = File.regular?(Application.app_dir(:frameshift_build, "priv/licenses/gleam_json.txt"))
 true = File.regular?(Application.app_dir(:frameshift_decisions, "priv/licenses/gleam_stdlib.txt"))
 :non_existing = :code.which(:profile_fixture)
 :non_existing = :code.which(:frameshift_build_test)
+:non_existing = :code.which(:assembly_fixture)
+:non_existing = :code.which(:assembly_test)
+:non_existing = :code.which(:resolution_test)
 IO.puts("Packaged BuildSpec codec and JSON runtime pass; test modules excluded")
 '

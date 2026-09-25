@@ -1,0 +1,18 @@
+services:
+  postgres:
+    image: postgres@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+    environment:
+      POSTGRES_USER: frameshift_dev
+      POSTGRES_PASSWORD: frameshift_local_only
+      POSTGRES_DB: frameshift_platform_dev
+    ports:
+      - "127.0.0.1:54329:5432"
+    volumes:
+      - platform_postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U frameshift_dev -d frameshift_platform_dev"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+volumes:
+  platform_postgres:

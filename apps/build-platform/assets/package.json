@@ -1,0 +1,29 @@
+{
+  "name": "@frameshift/build-platform",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "lint": "biome check . && phoenix-assets-lint-svelte && phoenix-assets-lint-tailwind"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.14",
+    "@phoenix-assets/lint": "1.1.1",
+    "@phoenix-assets/vite": "1.1.1",
+    "@sveltejs/adapter-static": "3.0.10",
+    "@sveltejs/kit": "2.70.3",
+    "@sveltejs/vite-plugin-svelte": "7.3.1",
+    "@tailwindcss/vite": "4.3.3",
+    "svelte": "5.57.1",
+    "svelte-check": "4.7.6",
+    "tailwindcss": "4.3.3",
+    "typescript": "6.0.3",
+    "vite": "8.3.1"
+  },
+  "overrides": {
+    "cookie": "0.7.2"
+  }
+}

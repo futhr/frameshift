@@ -1,0 +1,19 @@
+import Config
+
+config :frameshift_platform, FrameshiftPlatform.Repo,
+  hostname: "127.0.0.1",
+  port: 54329,
+  username: "frameshift_dev",
+  password: "frameshift_local_only",
+  database: "frameshift_platform_test",
+  pool: Ecto.Adapters.SQL.Sandbox,
+  pool_size: 10
+
+config :frameshift_platform, FrameshiftPlatformWeb.Endpoint,
+  http: [ip: {127, 0, 0, 1}, port: 4081],
+  secret_key_base:
+    "frameshift-isolated-test-secret-not-for-production-00000000000000000000000000000",
+  server: false
+
+config :ash, :disable_async?, true
+config :logger, level: :warning

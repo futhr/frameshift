@@ -1,0 +1,4 @@
+{
+  "extends": ["@phoenix-assets/lint/biome.base.json"],
+  "files": { "includes": ["!src/lib/generated", "!.svelte-kit", "!package-lock.json"] }
+}

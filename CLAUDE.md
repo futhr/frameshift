@@ -1,7 +1,8 @@
 # Frameshift maintainer instructions
 
-Frameshift is a complete product specification under active implementation for
-thin, frameable digital art displays. Read `README.md` and `docs/README.md`
+Frameshift is a modular reference product and integration proof of concept for
+Conjunct, with an independent native application for thin digital art displays.
+Read `README.md` and `docs/README.md`
 before changing the repository. The documents under `docs/` are the current
 design record; implementation status does not reduce their scope.
 
@@ -53,20 +54,31 @@ design record; implementation status does not reduce their scope.
 12. Frameshift reference builds contain no Raspberry Pi hardware. Prior art
     built around it may be cited only as research evidence, not adopted as the
     reference architecture.
-13. Frameshift handles still images only. Do not add Membrane, video, motion,
-    animation, audio, or streaming infrastructure.
+13. Frame artwork and its device protocol handle still images only. Do not add
+    Membrane, video, motion, audio or streaming infrastructure to that path.
+    Assembly instruction animation is a separate Conjunct viewer capability;
+    it does not change the artwork protocol or Zig raster worker.
 14. Builders may choose any frame class and are not required to build all of
     them. Prototype-first is risk-reduction advice within a chosen track, not a
     mandatory sequence across Paper, Photo, and Pixel.
 15. Zero visible cable is a design priority, not a universal pass/fail rule.
     Describe the real power path; only bistable Paper can be passive while the
     image remains visible.
-16. Follow `docs/architecture/build-platform.md` for companion-platform scope
-    and ordering. Finish the independent visual builder and printable shopping
-    list before final-milestone dropshipping, purchasing and care. Frameshift
-    packs live here; Refpath remains an external runtime. Keep specification and
-    verification records aligned with implementation changes. External release,
-    company and hardware evidence must not excuse missing codeable work.
+16. Follow `docs/architecture/build-platform.md` and
+    `docs/architecture/conjunct-integration.md` for composition, instructions,
+    producer ownership and identity migration. Preserve the existing compiler,
+    v1 identities and tests until a qualified Conjunct export replaces each
+    generic boundary. Retention is for replay, regression and migration, not
+    authorization to grow a second generic workbench engine. Conjunct owns
+    generic composition, comparison, check aggregation, catalog projection,
+    procedure planning and portable instruction semantics. Frame profiles,
+    product rules, procedures and packs stay here; Refpath
+    owns generic adaptation/effects, Rivure financial operations and DocShell
+    explanatory artifacts. Transactional shop implementation is on hold.
+    A printable parts/shopping list is a composition output. Optional service
+    work follows independent instructions/list and relevant operational gates
+    if resumed. Keep specs and verification aligned. External evidence must
+    not excuse missing implementable refusal, simulation or recovery behavior.
 
 ## Authoritative locations
 

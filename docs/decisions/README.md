@@ -3,7 +3,8 @@
 This ledger records decisions that materially constrain Frameshift. It is not
 a substitute for the detailed specifications linked from each entry. A
 decision can change when measurements or upstream changes invalidate its
-evidence, but it must change explicitly.
+evidence, but it must change explicitly. Company strategy and monetization
+are outside this technical ledger; historical revisions remain in Git.
 
 ## D-001 — Product name
 
@@ -19,9 +20,10 @@ evidence, but it must change explicitly.
   animation, live streams, motion graphics, or animated transitions.
 - **Consequence:** A slideshow is a sequence of independently cached still
   assets with discrete swaps and dwell times. Membrane and media-streaming
-  infrastructure are outside the architecture.
+  infrastructure are outside the artwork architecture. Companion assembly
+  instruction animation is a separate visualization system.
 - **Rationale:** This matches the product intent and removes continuous
-  decoding, frame-rate, streaming, and audio concerns from every layer.
+  decoding, frame-rate, streaming, and audio concerns from device artwork.
 
 ## D-003 — Language boundary
 
@@ -88,17 +90,16 @@ evidence, but it must change explicitly.
 ## D-008 — Thin electronics and honest power classes
 
 - **State:** accepted constraint; controllers remain candidates
-- **Decision:** No Raspberry Pi hardware belongs in a Frameshift reference
-  build.
-  Paper targets a sleeping MCU and battery. Photo and Pixel use thin embedded
-  controllers and concealed/remote continuous power because their panels are
-  emissive.
-- **Consequence:** “Cable-free and passive” is a Paper-frame capability.
-  “No visible cable” for Photo and Pixel requires an installation accessory,
-  wall contact, or concealed low-voltage wiring; it does not mean no power
-  connection. Controller boards, connectors, bend radii, batteries, converters,
-  and thermal clearances all count toward depth.
-- **Detail:** [Hardware platform research](../research/hardware-platforms.md)
+- **Decision:** No Raspberry Pi hardware belongs inside a Frameshift reference
+  frame. Complete installed thinness, not an arbitrary diagonal limit, governs
+  the design. Paper supports sleeping/battery profiles where evidenced; Photo
+  and Pixel require qualified thin scanout/controllers and continuous power.
+- **Consequence:** Cable-free passive operation is a particular evidenced
+  capability, not a universal label. Concealed low-voltage wiring does not mean
+  no power connection. Boards, connectors, bend radii, batteries, converters,
+  backing, mounting and thermal clearances all count toward depth.
+- **Detail:** [Hardware platforms](../research/hardware-platforms.md) and
+  [thin compositions](../research/thin-composition-evidence.md)
 
 ## D-009 — No mandatory cloud
 
@@ -135,13 +136,11 @@ evidence, but it must change explicitly.
   extensions. Required unknown profiles fail explicitly. Specific vendors,
   panels, controllers, and packers are represented by exact capability and
   artifact-profile data, not conditional endpoint logic.
-- **Implementation reference:** The sibling Wotex checkout supplies patterns
-  for bounded admission, deterministic selection, explicit credential and
-  transport ports, supervised subscriptions, and evidence-scoped conformance.
-  Frameshift consumes the qualified Wotex packages from the Wotex GitHub
-  organization at one pinned full commit; it still owns binary artifact
-  transfer, transport security policy, canonical state, and proof of physical
-  display effects.
+- **Implementation reference:** Wotex supplies patterns for bounded admission,
+  deterministic selection, explicit credential/transport ports, supervised
+  subscriptions and evidence-scoped conformance. Consume qualified packages at
+  one pinned full commit. Frameshift retains binary transfer, transport
+  security policy, canonical state and physical display-effect evidence.
 - **Detail:** [Protocol foundations](../research/protocol-foundations.md) and
   [Universal Frame Protocol](../architecture/frame-protocol.md)
 
@@ -194,10 +193,9 @@ evidence, but it must change explicitly.
 - **Decision:** Publish an accessible static installation guide first at
   `frameshift.wotex.io`. Mac direct download, Homebrew Cask, and Sparkle consume
   one signed and notarized release artifact. Ubuntu uses architecture-specific
-  packages authenticated by a signed release manifest or APT repository;
-  public binaries live in a separate release channel created
-  public from the outset. The private source repository's visibility is never
-  changed as part of distribution.
+  packages authenticated by a signed release manifest or APT repository.
+  Source visibility and public artifact distribution are separate decisions;
+  this work does not change repository visibility.
 - **Consequence:** `frameshift.se` is optional. No public release claim or
   install command precedes signing, licensing, notices, clean-install tests,
   and manifest/digest verification.
@@ -205,17 +203,15 @@ evidence, but it must change explicitly.
 
 ## D-016 — Shared browser decision kernel
 
-- **State:** accepted design; generated cross-target parity passes locally,
-  while browser and installed release acceptance remain open
-- **Decision:** Extract a bounded pure decision kernel into Gleam, compiled
-  from the same source to Erlang for the host and JavaScript for the public
-  installation simulation. The browser runs locally and holds no pairing
+- **State:** accepted design; existing generated cross-target parity evidence
+  is bounded, while browser and installed release acceptance remain open
+- **Decision:** Use the same bounded pure Gleam source for Erlang and browser
+  JavaScript decisions. The browser runs locally and holds no pairing
   credentials or delivery authority. Exact raster bytes remain the Zig
   renderer's responsibility.
 - **Consequence:** The guide can demonstrate capability and failure behavior
-  without a hosted Elixir execution service. BEAM/JavaScript parity and safe
-  integer bounds are release gates. Native deep links carry non-secret setup
-  choices only; pairing remains an installed-app action.
+  without hosted Elixir execution. Cross-target parity and safe integer bounds
+  are release gates. Deep links carry non-secret choices only.
 - **Detail:** [Installation and interactive guide](../architecture/install-and-guide.md)
 
 ## D-017 — Linux host and Pi appliance roles
@@ -233,57 +229,75 @@ evidence, but it must change explicitly.
 
 ## D-018 — Companion platform and repository ownership
 
-- **State:** accepted design, 2026-09-24; implementation evidence open
-- **Decision:** Build the companion platform with Phoenix, Ash/AshPostgres and
-  phoenix-assets/Svelte 5/SvelteKit. Embed one qualified external Refpath runtime.
-  Frameshift packs, physical models, rubrics and evaluations live in Frameshift.
-  Establish monorepo dependency boundaries before verified directory moves.
-- **Consequence:** Commercial server domains never replace the local single-writer
-  SQLite core or make ordinary frame operation depend on accounts. The static
-  installation/offline guide remains available; D-015 does not require the entire
-  companion application to be static. Generic tooling/runtime changes go upstream.
+- **State:** selected design, revised 2026-09-25; implementation evidence open
+- **Decision:** Use Phoenix, Ash/AshPostgres and phoenix-assets/Svelte 5/SvelteKit
+  with one qualified Refpath runtime. Frameshift-specific profiles, packs,
+  models and evaluations stay here. Generic Conjunct extraction follows D-022.
+- **Consequence:** Server domains do not replace the single-writer local core.
+  The static/offline guide remains available. Establish dependency checks
+  before verified path moves and keep generic producer changes upstream.
 - **Detail:** [Build platform](../architecture/build-platform.md)
 
-## D-019 — Independent shopping first, dropshipping last
+## D-019 — Composition and instructions first; service work on hold
 
-- **State:** accepted scope and ordering, 2026-09-24
-- **Decision:** Deliver the full visual configurator and printable exact shopping
-  list in D, then complete research/operational qualification in E. Optional
-  supplier-direct purchasing, percentage fees, fulfillment and care are final
-  milestone F. Preparation can overlap by dependency; F starts only after D/E.
-- **Consequence:** Shopping-list usefulness cannot depend on live checkout,
-  supplier APIs or an account. No mandatory lead assembler, stockholding or
-  Frameshift-branded assembled hardware. This supersedes the corresponding
-  assumptions in the `7527cb3` build-branch proposal. Role/contract review gates
-  real transactions; external administration and hardware measurements are not
-  additional software milestones or grounds to omit codeable work.
-- **Detail:** [Commerce](../architecture/build-commerce.md),
+- **State:** revised 2026-09-25; transactional shop implementation on hold
+- **Decision:** D demonstrates composition, visual procedures and exact printable
+  output; E qualifies research and adaptive producer integration. The parts and
+  shopping list is a composition projection. Optional provider/financial work,
+  purchasing and care remain deferred F after D/E; they do not gate the engine
+  integration proof or independent native product.
+- **Consequence:** The guide does not depend on an account or live provider.
+  Operator capability, role and financial-policy choices enter through explicit
+  approved contracts rather than a selected business model in product code.
+  External permissions and measurements gate relevant activation but do not
+  excuse missing implementable simulations, refusal and recovery behavior.
+- **Detail:** [Service integration](../architecture/build-commerce.md) and
   [implementation order](../architecture/implementation-plan.md)
 
-## D-020 — Deterministic composition, bounded formal checks and evaluated models
+## D-020 — Deterministic composition, formal checks and evaluated models
 
-- **State:** accepted boundaries, 2026-09-24; physical kernel/formal implementation
-  and Frameshift model benchmarks remain open
-- **Decision:** Extend pure Gleam decisions for BEAM/JavaScript physical
-  compatibility. Use ExMaude for targeted CI/async verification with independent
-  predicates, explicit search outcomes and counterexample replay. Use explicit
-  controls/rules first; evaluate local Ollama and compact models per task, with
-  Jev an optional challenger. No model receives compatibility or spending authority.
-- **Consequence:** The generic ExMaude completion/trace contract needs upstream
-  work; bounded empty search is not exhaustive proof. Frameshift owns formal
-  models. No candidate classifier creates an exception to D-003's no-Python rule.
+- **State:** required boundaries; physical/formal implementation and actual
+  Frameshift model benchmarks remain open
+- **Decision:** Use pure Gleam for shared decisions and ExMaude for targeted
+  independent predicates, explicit search outcomes and counterexample replay.
+  Evaluate optional local/hosted models per task. Models cannot grant physical
+  compatibility or external-action authority.
+- **Consequence:** Generic completion/trace support belongs upstream. Empty
+  bounded search is not proof. Product-specific models remain here; no model
+  candidate creates an exception to D-003.
 - **Detail:** [Physical contract](../architecture/physical-build-contract.md),
-  [orchestration/evaluation](../architecture/build-orchestration.md),
-  [research](../research/build-platform-decisions.md)
+  [orchestration](../architecture/build-orchestration.md) and
+  [technical research](../research/build-platform-decisions.md)
 
-## D-021 — Read-only server investigation and independent telemetry
+## D-021 — Read-only investigation and independent telemetry
 
-- **State:** accepted design, 2026-09-24; production qualification open
-- **Decision:** Include Beamlens explicitly in the server dependency graph with
-  one configured supervisor, authorized bounded observations and no domain-write
-  authority. Configure and budget its BAML provider separately from Refpath's
-  ordinary inference path; account for both centrally.
-- **Consequence:** Early-development dependency/skill behavior needs exact-version
-  qualification. Provider outage and exhausted budgets cannot disable ordinary
-  telemetry, alerts or app actions. D-013 native Console.app/CLI access remains.
+- **State:** selected design; production qualification open
+- **Decision:** Use one authorized, bounded Beamlens supervisor. Configure its
+  BAML provider at the actual diagnostic boundary; ordinary Refpath inference
+  and diagnostics do not automatically share a registry. Retain the current
+  Prometheus exporter; qualify GreptimeDB ingestion as the selected shared-host
+  metric destination and a bounded log/trace path without ELK.
+- **Consequence:** Exact dependency/skill qualification and resource ceilings
+  are required. Diagnostic/provider failure cannot disable ordinary telemetry,
+  alerts or commands. D-013 native OS/CLI diagnostics remain independent.
 - **Detail:** [Diagnostics](../architecture/diagnostics.md)
+
+## D-022 — Conjunct product-engine consumer and technical-only corpus
+
+- **State:** extraction direction, 2026-09-25; producer and consumer evidence open
+- **Decision:** Frameshift is the first modular reference product and integration
+  proof of concept for Conjunct. Its physical BuildSpec becomes a versioned
+  product profile of qualified Conjunct composition
+  semantics. Frame-specific code/procedures/evidence remain here; generic
+  product compilation belongs in Conjunct, adaptive execution in Refpath,
+  financial primitives in Rivure and documentation data in DocShell.
+- **Consequence:** No competing encoders, UI graph, effect journal or copied
+  manufacturer applications. Preserve native/device independence and exact
+  accepted identities through migration. Preserve the existing app moves,
+  compiler and recorded tests for v1 replay and frame-rule regression through an
+  explicit migration; they do not authorize a parallel successor workbench.
+  Private corporate strategy, monetization and legal analysis remain outside
+  this repository.
+- **Detail:** [Conjunct integration](../architecture/conjunct-integration.md),
+  [adoption evidence](../research/conjunct-adoption.md),
+  [thin composition evidence](../research/thin-composition-evidence.md)

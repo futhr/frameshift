@@ -1,40 +1,62 @@
 # Final-Product Completion Plan
 
-**Status:** required product work, ordered only by dependency and evidence
+**Status:** required product work, ordered by dependency and evidence
 
 This plan decomposes the complete product definition. Builders can start with
-Paper, Photo, Pixel, the Mac app, or a protocol implementation. The seams below
-keep those choices interoperable. Track completion of all codeable requirements
-and software tests separately from release administration, company agreements
-and physical measurements. Those external gates constrain activation and claims;
-they do not excuse unfinished software or become later software milestones.
+Paper, Photo, Pixel, the Mac app or a protocol implementation. The seams below
+keep those choices interoperable. Track code/tests separately from external
+permissions, signing and physical measurements. Those gates constrain relevant
+activation and claims; they do not excuse unfinished implementable software.
 
-## Companion platform milestone order
+## Composition and product dependency gates
 
-The full requirements, owners and acceptance criteria are in the
-[canonical build-platform plan](build-platform.md) and its physical,
-orchestration and commerce contracts. That plan supersedes the earlier build
-branch proposal's assembled-product seller assumptions.
+Frameshift is a modular reference product and integration proof of concept for
+Conjunct. The [platform contract](build-platform.md) defines BP-01–BP-11;
+[CI-01–CI-08](conjunct-integration.md) defines the ownership, migration and
+consumer evidence. A printable parts/shopping list is an output of a physical
+composition. Transactional shop
+work is on hold; no implementation resumes merely because its contract remains.
 
-| Milestone | Required outcome | Dependency |
+[PC-01–PC-09](producer-contracts.md) is the library-delivery contract. It names
+what Conjunct and each other producer must supply, what Frameshift provides and
+the joined refusal/recovery evidence. Specified but unfinished producer work
+may proceed alongside its consumer; it is distinct from undecided requirements.
+
+| Gate | Required outcome | Dependency/evidence |
 | --- | --- | --- |
-| A | Aligned specifications and evidence map | Accepted product decisions |
-| B | Monorepo/domain boundaries, Phoenix/Ash/phoenix-assets/Svelte 5 foundation, Refpath host seam and Beamlens diagnostics | A |
-| C | Sourced profiles, immutable BuildSpec, Gleam compatibility and targeted ExMaude verification | A and package boundary |
-| D | Complete visual configurator and printable independent shopping list, save/export, assembly and installation handoff | C and required B surface |
-| E | Autonomous nontransactional research, model evaluation, admission and operational qualification | B/C; preparation may overlap D |
-| F — FINAL | Optional dropshipping coordination: supplier/PSP adapters, checkout, percentage fees, purchasing, fulfillment, returns/refunds and care | D and E complete |
+| A — Contract foundation | Product/producer ownership and current implementation boundaries | Exact source/API map, preserved v1 identity and evidence ledger |
+| B — Host boundaries | Existing Phoenix/Ash/phoenix-assets/Svelte foundation, authorized commands and bounded diagnostics | Existing app moves retained; complete missing auth, logs/traces and qualified producer interfaces |
+| C — Physical profile and extraction | Frameshift profile and complete Conjunct compiler/report with independent checks | Producer schemas/exports, old-byte replay, explicit successor migration, cross-runtime parity and formal outcome/replay gates |
+| D — Composition and visual procedures | Source-bound geometry, steps, local save/export/print and list for each claimed frame profile; one exact fixture is the first slice | Corresponding C profile and required B surface; valid/invalid/unknown cases, accessible offline/low-graphics output, no account or payment dependency |
+| E — Generality and adaptation | Upstream passive/sensor consumers, two operator profiles and bounded autonomous research | Actual producer conformance, no frame imports in generic core, source/rights admission, revocation/restart/budget tests |
+| F — Optional external services, on hold | Later admitted supplier/service and Rivure financial integration plus complete care | Separate resumption; D/E complete and all applicable BC-01–BC-10 evidence |
 
-The shopping list cannot depend on an account, live checkout, guaranteed quote,
-supplier purchasing API, or the final milestone. All transactional commerce
-implementation belongs to F, including purchasing/refund/cancellation pack and
-adapter work. Earlier Refpath integration supplies research and common runtime
-qualification. Milestones have dependency/acceptance gates, not time estimates.
+Conjunct core owns generic validation, normalization, composition, comparison,
+catalog/parts projection, predicates and CheckReport aggregation. Its
+instruction profiles own procedure planning and portable presentation semantics.
+Frameshift C supplies frame profiles, mandatory rules, exact fixtures, v1 replay
+and a qualified consumer adapter; D supplies the product interface, content and
+authorized local/server I/O. The retained BuildSpec planning preview is a
+non-admitting migration aid, not a way to implement D ahead of Conjunct by
+duplicating those producer roles. Refpath P1 is required for E's operator
+generation, not for independent composition and instructions.
 
-The host, protocol, receiver and simulator work below is the parallel independent
-computer-product lane, not another milestone after F. Native frame operation
-must remain independent of commercial server availability. Update the
-[verification ledger](verification.md) with bounded evidence per completed slice.
+These are dependency and acceptance gates without time estimates. A missing
+generic producer capability has an upstream owner and reproducing consumer test;
+it cannot be filled by a second Frameshift runtime. Narrow deterministic paths
+remain usable while broader profiles are unavailable.
+
+Conjunct core/instructions work, Refpath P1 durable-generation work and ExMaude
+P2 search-evidence work can progress together. Only the dependent operator or
+formal claim waits for the real producer join. A per-profile C-to-D slice does
+not wait for the remaining frame classes or optional CAD/service/device profile;
+complete claimed Paper/Photo/Pixel coverage remains the overall C/D gate.
+
+Host, protocol, receiver and simulator work below remains a separate product
+lane. Conjunct proof-of-concept completion does not claim these installed-product
+requirements have passed. The native product stays independent of the platform
+and optional transactions. Update the [verification ledger](verification.md)
+with evidence for each actual implementation slice.
 
 ## Shared contracts
 
@@ -48,10 +70,13 @@ These artifacts reduce rework across every track:
 5. golden source/preview/artifact fixtures for each display profile;
 6. repository-wide build, format, test, and license checks; no project-owned
    Python code, with pinned upstream build tools isolated and recorded;
-7. decision/evidence records for every dependency and exact hardware revision.
+7. decision/evidence records for every dependency and exact hardware revision;
+8. explicit product-bundle, physical-composition, application-generation and
+   external-commitment identities with migration and consumer-conformance tests.
 
 The simulator can be an Elixir application on macOS and need not imply Nerves
-or Linux hardware inside a frame.
+or Linux hardware inside a frame. No global diagonal limit follows from the
+particular reference candidates selected for a test.
 
 ## Host track
 
@@ -94,7 +119,8 @@ and rejects corrupt or missing objects before activation.
 **Exit:** BEAM/JavaScript decisions agree for valid and adversarial inputs;
 the guide works without an account or hosted code execution; no browser
 simulation is described as physical display evidence. See
-[installation and guide](install-and-guide.md).
+[installation and guide](install-and-guide.md). Generic physical extraction
+must preserve this parity and retain product-owned decisions where appropriate.
 
 ### H2 — Deterministic renderer
 
@@ -105,7 +131,8 @@ simulation is described as physical display evidence. See
 - golden fixtures and target previews.
 
 **Exit:** deterministic byte-for-byte results, bounded malformed inputs, clean
-worker crash/timeout recovery, and no in-process native crash surface.
+worker crash/timeout recovery, and no in-process native crash surface. The
+Conjunct assembly viewer is separate from this artwork renderer.
 
 ### H3 — Native shell
 
@@ -129,7 +156,7 @@ AI provider configured.
 - local MediaGenerationKit candidate;
 - experimental Ollama adapter that proves a real generation before enabling;
 - Draw Things+ cloud and optional Gemini API behind explicit cost/privacy
-  disclosure;
+  disclosure and current authorization;
 - recipe/cache/provenance and cancellation.
 
 **Exit:** local-only mode emits no provider traffic; no automatic cloud switch;
@@ -144,8 +171,8 @@ cached repeat avoids provider call; secrets remain in Keychain.
   candidate combinations against software fixtures and measured frame cohorts;
 - persist candidate, evidence, admission, and active cohort selection under
   the single writer; preserve legacy pending work without retroactive claims;
-- pin accepted render work and push/pull intents to exact work and qualification digests across
-  restart, candidate activation, rollback, and reconciliation;
+- pin accepted render work and push/pull intents to exact work and qualification
+  digests across restart, candidate activation, rollback, and reconciliation;
 - add bounded diagnostic coverage and adversarial tests for incompatibility,
   exact replay, uncertain effects, duplicate transfer, and last-good retention.
 
@@ -187,82 +214,73 @@ display success still requires authoritative frame evidence. See
 - atomic storage/state recovery;
 - still-only negative cases.
 
-**Exit:** all protocol compliance tests pass against the simulator and at least
-one real selected hardware track.
+**Exit:** protocol compliance tests pass against the simulator and at least
+one real selected hardware track for the corresponding claimed profile.
 
 ## Hardware tracks
 
 ### Paper track
 
-Qualify one exact small color e-paper/driver assembly, build a sleeping
-controller spike, implement exact packing/refresh, then measure the
-complete energy and depth cycle. A large-format Paper path is independent and
-does not block the smaller reference.
+Qualify an exact colour e-paper/driver assembly, build its low-profile
+controller path, implement exact packing/refresh and measure the complete
+energy/depth cycle. Small and large paths can proceed independently. A battery
+variant needs its own protection, charging and interrupted-refresh evidence.
 
 ### Photo track
 
-Choose either donor or raw-panel prototype, verify exact panel/controller,
-implement boot-to-retained-still behavior, then measure optical quality, power,
-heat, depth, and mount/cable options. Do not design a custom high-resolution
-controller before the prototype identifies the actual interface risk.
+A donor or raw-panel prototype can identify interface risks. Verify exact
+panel/controller and retained-still boot behavior, then measure optics, power,
+heat, complete depth and mounting/cable options. A controller that merely
+lights a panel is not a final qualified design. Still artwork does not remove
+continuous scanout/framebuffer requirements.
 
 ### Pixel track
 
-Prove one exact module with a timed-parallel/DMA driver, mapping, refresh,
-and hardware power limit. Scaling to the chosen module count is a recommended
-risk-reduction step, not a requirement on how a contributor starts. Full-array
-power and thermals remain a separate reference exit gate.
+Prove exact module/driver revision, scan mapping, refresh and power limits.
+Scaling is a recommended risk-reduction method, not a mandated start point.
+Full-array current, power distribution, timing and thermals are independent
+qualification obligations.
 
-No track is required before another, and no contributor must build all three.
+No track must precede another or be implemented by every contributor. The
+[thin composition matrix](../research/thin-composition-evidence.md) preserves
+technical candidate sources and unresolved geometry/controller evidence.
 
 ## Evidence and release gates
 
 Development snapshots may contain only some components, but they are never a
-different product scope. The verification ledger marks each bounded claim as
-missing, partial, or proven and names its evidence profile.
+different product scope. The verification ledger names each bounded claim and
+its evidence profile.
 
 A releasable software build requires the installed end-to-end flow, compatible
-protocol bindings, authenticated lifecycle, migration/recovery, accessibility,
-signing, hardened runtime, notarization, dependency/license inventory, and
-security review appropriate to its claim.
+bindings, authenticated lifecycle, migration/recovery, accessibility, signing,
+hardened runtime, notarization, dependency/license inventory and required
+security review. Product and upstream conformance are checked separately.
 
 ## Distribution and platform gates
 
 Mac distribution uses one signed, notarized DMG for direct download, Homebrew
-Cask, and Sparkle updates. Ubuntu amd64/arm64 and Pi 5 Ubuntu Server arm64 use
-target-specific packages authenticated by a signed release manifest or APT
-repository and the same host contracts. A dedicated Nerves Pi 5 image is a
-separately qualified bridge/appliance. The static public guide
-links only to real, digest-verified release artifacts. See
+Cask and Sparkle. Ubuntu amd64/arm64 and Pi 5 Ubuntu Server arm64 use target
+packages authenticated by a signed release manifest or APT repository and the
+same host contracts. Nerves Pi 5 is a separately qualified external appliance.
+The guide links only to real verified artifacts. See
 [installation and guide](install-and-guide.md) and [Linux host](../host/linux.md).
 
-The distribution work has this dependency order:
+1. Freeze release manifest, OS/CPU matrix, signing identities, package names
+   and external artifact channel without changing source visibility.
+2. Qualify object/SQLite backup and restore, native logging limits and the Mac
+   signed/notarized lifecycle.
+3. Prove Gleam on the pinned OTP and JavaScript targets; build and accessibility
+   test the guide against exact fixtures.
+4. Publish only after direct Mac/Cask/Sparkle artifact identity and update
+   tests pass and the actual claimed product/hardware evidence exists.
+5. Port the same core to Ubuntu amd64/arm64; qualify Pi-host storage, power and
+   service behavior; publish each package only after its own gates.
+6. Build/test the separately signed Nerves appliance's validation/revert,
+   credentials, persistent state and logging.
 
-1. Freeze the release manifest, supported OS/CPU matrix, signing identities,
-   package names, and external artifact channel without changing source-repo
-   visibility.
-2. Qualify SQLite/object backup and restore, native logging/metric ceilings,
-   and the Mac signed/notarized installed lifecycle.
-3. Prove the Gleam kernel on the pinned OTP 29 release and JavaScript target;
-   build and accessibility-test the static guide against its exact fixtures.
-4. Publish the release artifact only after direct Mac, Cask, and Sparkle paths
-   pass the same artifact identity and upgrade tests and the product's
-   applicable end-to-end and hardware claims have evidence; make guide
-   download links manifest-driven.
-5. Port the same core to Ubuntu amd64/arm64, then qualify Pi 5 Ubuntu storage,
-   power, and service behavior; publish each package only after its own gates.
-6. Build the separately signed Nerves Pi 5 appliance image and test firmware
-   validation/revert, credential provisioning, persistent state, and logs.
-
-Hardware tracks can proceed independently. A guide simulation or platform
-package does not certify a frame assembly.
-
-A released hardware profile additionally requires one exact assembly with a
-reproducible build record, signed rollback-capable firmware, protocol
-conformance, interrupted-update recovery, and measured electrical, power,
-thermal, optical, depth, mounting, and service evidence.
-
-Calling a hardware revision “reference” does not constitute consumer
-certification or permission to conceal mains wiring. Commercialization still
-requires the applicable independent regulatory, battery, EMC/radio, thermal,
-mechanical, manufacturing, and safety work.
+A guide simulation or host package does not certify a frame assembly. A released
+hardware profile also requires an exact reproducible assembly, signed
+rollback-capable firmware, protocol conformance, interrupted-update recovery
+and measured electrical, power, thermal, optical, installed-depth, mounting
+and service evidence. Required independent safety/conformity evidence is
+tracked for the actual claim; naming a profile reference cannot replace it.

@@ -1,220 +1,268 @@
-# Visual Build Platform
+# Composition Workbench and Product Integration
 
-**Status:** accepted specification; application implementation remains open
-**Decision date:** 2026-09-24
-**Scope:** companion website, physical configuration, research, and optional purchasing
+**Status:** adopted specification direction, 2026-09-25; existing host/compiler
+slices retained, Conjunct integration open, transactional shop implementation on hold.
+**Scope:** Frameshift product bundle, physical composition, instructions,
+research and optional later service capabilities.
 
-This is the canonical replacement for the proposal introduced on `origin/build`
-at `7527cb3`. The current product decisions below supersede that proposal's
-mandatory lead assembler and single assembled-product seller assumptions.
-The private visual plan is a presentation of these specifications, not a
-separate source of requirements. No implementation duration is specified.
+The [Conjunct source and readiness record](../research/conjunct-adoption.md)
+identifies the producer specification used here. [CI-01–CI-08](conjunct-integration.md)
+defines identity migration and producer ownership. Existing site presentations
+are implementation evidence only where the verification map names a test.
 
-## Product and journey contract
+## Product and output contract
 
-Frameshift is the computer application and its companion services. Customers
-choose manufacturer-branded components and their own assembly route. Frameshift
-does not stock, manufacture, or sell a mandatory Frameshift-branded assembled
-frame. Future manufacturer licensing of the name requires a separate decision.
+Frameshift is the first modular reference product and integration proof of
+concept for Conjunct's generic physical composition and instruction engine.
+Frameshift supplies frame profiles, product rules, procedures, evidence and
+presentation. Its native app, renderer, device protocol and firmware remain
+independent product software. Conjunct's inspected cohort contains specifications,
+not an installed engine. Integration claims require actual exports and tests.
 
-**BP-01 — Independent configuration.** The website must provide a complete,
-visual Paper, Photo, and Pixel configuration journey and a printable exact
-shopping list before coordinated purchasing is built. Customers can use the
-list to buy from any selected store without a Frameshift account, coordination
-fee, payment integration, or participating supplier API. Unsupported purchasing
-integrations do not exclude a component from exploration or planning output.
+**BP-01 — Independent composition.** Provide visual Paper, Photo and Pixel
+configuration, explained constraints and exact printable output. Users can
+inspect parts, save/reload/import/export and obtain instructions and a parts or
+shopping list without an account, model, payment provider or supplier API. The
+list is a projection of the physical composition. Unsupported stores and missing
+prices do not exclude parts from planning. A first exact frame fixture proves
+one slice; it cannot close acceptance for all claimed profiles.
 
-**BP-02 — Optional coordination.** The final milestone adds supplier-direct
-dropshipping and purchasing coordination for an explicitly disclosed percentage
-fee. Each supplier's goods contract and identity remain visible. The independent
-journey remains fully available. [Commerce](build-commerce.md) specifies the
-complete final milestone, including fulfillment and care.
+**BP-02 — Optional services.** Transactional shop implementation is on hold.
+Retain [BC-01–BC-10](build-commerce.md) as a deferred contract for later admitted
+quotes, component handoff, purchasing, production, packaging and care. They use
+explicit capabilities, counterparties, policy and authority. No fixed seller,
+assembler, fee rate or company business model defines the composition engine.
+An enabled service must meet its full applicable contract; speculative service
+work must not displace usable composition and instructions.
 
 **BP-03 — Local independence.** Library, artwork, generation choices, rendering,
-pairing, playlists, and frame delivery continue without a shopping account or
-commercial server. The website neither shares the local database nor gains
-frame-control authority from a configuration link. Hardware qualification and
-signed release evidence remain separate from completion of codeable work.
+pairing, playlists and frame delivery remain usable without the web host,
+Conjunct server, inference or a service account. A composition URL or product
+bundle grants no device-control authority. The web host never reads the local
+SQLite database. Native device and render-generation admission remain separate.
 
-## Visual configurator and shopping list
+## Visual configuration and instructions
 
-**BP-04 — Interaction.** Provide live proportions and artwork preview, frame,
-mat, finish, display, controller, power, mounting, and assembly choices. Support
-component comparison, fit inspection, custom parts, and immediately explained
-constraints. Use 2D or 3D where it helps inspect the setup; a 3D engine is not a
-prerequisite for every page. Show the consequences for dimensions, appearance,
-refresh, energy use, assembly demands, and price. Preview fidelity must be
-explicit: a browser illustration is not measured color or physical fit proof.
+**BP-04 — Interaction.** Show proportions and artwork preview, frame, mat,
+finish, display, controller, power, mounting and assembly choices. Explain
+changes to dimensions, appearance, refresh, power, required assembly operations
+and available indicative prices. Support comparison, fit inspection, custom
+parts and explicit unknowns. Use 2D/3D where it improves inspection. A presentation
+mesh cannot establish tolerances or actual optical output.
 
-The customer can save locally, reload, duplicate, compare, and export a
-configuration without signing in. A server-saved or shared configuration is an
-explicit optional operation with access and retention rules. Artwork stays in
-the browser unless the customer explicitly requests an operation that uploads
-it. Do not put private artwork or customer details into public share URLs.
+Conjunct owns generic geometry/procedure/viewer semantics; Frameshift binds
+exact parts, source features and procedure steps. Source CAD/drawings, analysis
+geometry and delivery meshes remain separate. The assembly viewer is distinct
+from the Zig artwork renderer. Complete installed depth includes electronics,
+connectors, cable bends, backing, mounting and service access. No arbitrary
+product diagonal limit replaces these constraints; versioned software limits
+remain explicit and enforced.
 
-**BP-05 — Complete independent output.** Print and portable structured export
-must contain the BuildSpec identity and version, exact component/profile
-revisions, quantities, manufacturer and supplier links, dimensions, compatibility
-results, unresolved facts, source/evidence dates, required tools, assembly steps,
-and installation/profile handoff. Printing must remain usable without color,
-without clipped tables, and across multiple pages. Unknowns stay visible.
-Instructions cannot turn an unqualified assembly into a safety claim.
+Users can save locally, reload, duplicate and compare without signing in.
+Conjunct defines the canonical composition, comparison, CheckReport, parts
+projection and procedure/output semantics used in those flows. The Frameshift
+browser supplies frame-specific controls, renders qualified Conjunct results and
+performs local file/storage I/O; local persistence does not authorize a second
+physical compiler or procedure planner. The retained v1 BuildSpec preview may
+inspect historical inputs during migration but is not the workbench's successor
+engine or an accepted-build result.
+Server saving/sharing is a separate explicit operation with access and retention
+rules. Artwork stays in the browser until the user requests an upload. Public
+share URLs, metrics and generated metadata contain no private artwork or
+customer/operator data.
 
-Maintain a visible cost summary. Sourced indicative prices carry currency,
-observation date, included/excluded costs, and stale/missing status; a partial
-sum is labelled partial. A complete list must be exportable when price or stock
-is unavailable. Guaranteed availability, landed quotes, tax calculation, and
-supplier reservations belong to the final purchasing milestone. Disclose
-optional affiliate links and allow independent buying elsewhere.
+**BP-05 — Reproducible output.** Print and portable export contain exact
+composition identity/version, parts/profile revisions, quantities, permitted
+manufacturer/source links, dimensions, check results, unknowns and evidence
+scope. Bind procedure, geometry/scene and explanatory-document revisions.
+Include required tools, skills, steps, stop conditions, observations and native
+installation handoff. A missing physical parameter prevents acceptance of the
+affected operation; instructions cannot fill it with plausible prose.
 
-Keyboard, screen-reader, narrow-screen, loading, empty, invalid, offline/reconnect,
-and source-unavailable paths are part of the journey. Selection, reload, export,
-and import must round-trip through the same compiler. The offline guide and
-saved planning output remain usable independently of checkout.
+Output must work without colour, clipped tables, network-only assets or a 3D
+canvas. Keyboard, screen reader, reduced motion, low graphics capability,
+narrow-screen/high-zoom, loading, invalid, offline/reconnect and missing-source
+paths are required. Selection, save, reload, import and export use the same
+compiler semantics. DocShell supplies explanations through a qualified contract;
+procedure meaning and physical evidence have their own owners.
+
+Indicative prices retain currency, observation date, inclusions and stale/missing
+status. Label partial sums; missing stock or price cannot block an exact parts
+list. Binding amounts, tax calculations and reservations belong to an enabled
+service profile and its financial/policy owner.
 
 ## Server and frontend architecture
 
-**BP-06 — Selected stack.** Use Phoenix, Ash, AshPostgres, phoenix-assets, and
-Svelte 5/SvelteKit, consistent with the other platforms. One Phoenix application
-hosts the commercial domains and embeds the qualified Refpath runtime.
+**BP-06 — Selected host.** Retain Phoenix, Ash/AshPostgres and
+phoenix-assets/Svelte 5/SvelteKit in `apps/build-platform`. Refpath is an exact
+external dependency. Conjunct will supply qualified composition/host capabilities;
+Frameshift supplies the product specialization. Package boundaries do not imply
+one service per package or one application fork per operator.
 
-- Ash domains/resources own explicit actions, validations, policies, and
-  database access through AshPostgres. Require actor context and authorization
-  for browser, worker, administrative, and pack entry points alike.
-- Phoenix owns sessions, HTTP commands/queries, boundary validation, and
-  authenticated subscriptions. Customer and supplier isolation is enforced on
-  the server; frontend hiding is not authorization.
-- SvelteKit owns browser routes and interactive views. Use phoenix-assets'
-  Vite/manifest integration and generated `$phoenix/*` contracts, including
-  deliberately exposed Ash metadata. Exclude secret/internal fields. Do not
-  maintain a second handwritten schema generator.
-- Pure physical contracts remain independent of Ash, PostgreSQL, and Phoenix.
-  Gleam's JavaScript output provides local feedback; server actions recompute
-  accepted specifications against pinned inputs and current admission policy.
-- Begin with commands, queries, and scoped PubSub. Electric/Phoenix.Sync needs
-  a demonstrated synchronization requirement and separate decision. Do not
-  assume the asset integration provides a fully qualified server-rendered
-  Svelte application merely because it can serve a manifest or HTML.
-- Frameshift owns product UI and domain behavior. Generic asset tooling belongs
-  in phoenix-assets; generic orchestration belongs in Refpath.
+- Ash actions enforce validation, actor/operator scope, policy and server writes
+  across browser, worker, administrative and product-pack entry points.
+- Phoenix owns sessions, HTTP boundary checks and authenticated subscriptions.
+  Frontend visibility or a product hash cannot authorize a command.
+- SvelteKit consumes phoenix-assets' Vite/manifest and generated `$phoenix/*`
+  contracts. Expose metadata deliberately; retain one schema-generation owner.
+- Pure physical decisions depend on neither hosts, databases, models nor I/O.
+  The retained Gleam/JavaScript v1 preview supplies bounded historical planning
+  feedback. The workbench uses a qualified Conjunct browser binding for new
+  generic decisions; server acceptance recomputes the same semantics from exact
+  inputs and checks current admission, including revocation on a cache hit.
+- Use commands, queries and scoped PubSub. Synchronization and server-rendering
+  claims require demonstrated requirements and consumer evidence.
+- Refpath owns approved UI-graph and generation authority. Registered viewer,
+  inspector, procedure and explanation components resolve to authorized commands;
+  a model may propose data or an approved configuration, never executable code.
 
-**BP-07 — Domain ownership.** These are consistency/API boundaries, not a
-requirement for separate applications, services, or one process per resource.
+**BP-07 — Domain ownership.** Keep explicit consistency/API boundaries:
 
-| Domain | Owns | First required milestone |
+| Domain | Responsibility | State/dependency |
 | --- | --- | --- |
-| Catalog & Compatibility | Components, profiles, sources, evidence, compiled specs, eligibility and quarantine | C |
-| Access & Policy | Actors, authorization, admission policy, retention and audit access | B, extended in F |
-| Quotes & Mandates | Offers, accepted quote snapshots, seller terms, fee basis, consent and authority limits | F |
-| Purchasing | Purchase group and separate supplier commitments | F |
-| Payments & Fees | PSP references, accounting entries, reversals, disputes and reconciliation | F |
-| Fulfillment & Care | Parcels, cases, cancellation, returns and safety actions | F |
+| Product Catalog & Evidence | Frame sources, claims, profiles and current assessments; consume Conjunct generic semantics | Immutable sources/profiles implemented; assessment and federation open |
+| Composition & Instructions | Frame rules and content, Conjunct consumer adapter, authorized product storage and installation handoff | Retained v1 checks exist; Conjunct selection, reports, projection and instruction consumers open |
+| Access & Policy | Actor/operator authorization, external decision references, retention and audit access | Internal actions exist; browser write authentication open |
+| Product Research | Frameshift source/task mappings, rubrics and evaluations through Refpath | Packs and joined runtime conformance open |
+| Service Commitments & Care | Optional exact accepted provider plans, production/packaging/fulfillment observations and cases | Deferred F |
+| Financial Integration | Product-event and commitment references through Rivure public commands/results | Deferred F; no Frameshift ledger or provider engine |
 
-Packs call typed domain commands; models and packs cannot write domain tables.
-Refpath owns schedules, task/attempt identity, runtime authority, effects, and
-recovery through its public contracts. A PostgreSQL transaction cannot make a
-remote supplier purchase atomic. Domain truth and runtime effect truth have
-distinct owners and reconcile through durable command/effect identities.
+The existing source boundary retains immutable UUID, public title/HTTPS URI,
+publisher revision, content digest, source kind, observation time and recording
+actor. URI/revision conflicts refuse; successful inserts and audit attribution
+commit atomically. Exact profile bytes derive identity and bind every source
+citation. These records do not grant assessment or physical acceptance. Preserve
+these guarantees when adapting to Conjunct's richer evidence vocabulary.
+
+Packs cannot write domain tables. Refpath owns attempts/effects, Rivure owns
+financial state, and the host owns product state. Use immutable joins and public
+commands; do not create a second effect journal or update producer tables.
 
 ## Monorepo boundaries and migration
 
-**BP-08 — Target ownership.** Establish dependency checks before directory moves.
-The intended layout is:
+**BP-08 — Actual paths and staged extraction.** The current tree already has:
 
 ```text
-apps/
-  macos/                 # current host/macos
-  core/                  # current host/core; direct Exqlite/SQLite writer
-  build-platform/        # Phoenix + Ash + embedded Refpath
-    assets/              # Svelte 5/SvelteKit through phoenix-assets
-  guide/                 # installation guide and offline lab
-packages/
-  build-spec/            # pure physical contracts and compiler
-    verification/        # Frameshift Maude models and fixtures
-  decision-kernel/       # current host/decision_kernel; Gleam BEAM/JS
-packs/frameshift/        # domain workflows, rubrics and evals
-data/physical/           # sourced immutable profile revisions
+apps/{macos,core,build-platform,guide}/
+packages/decision-kernel/
+packages/build-spec/
+data/physical/
 protocol/ renderer/ firmware/ simulator/ release/ docs/ scripts/
 ```
 
-These are target paths, not claims that directories already exist. Add packages
-only for actual reuse or authority boundaries. Preserve the existing local
-single-writer SQLite contract; AshPostgres is the server persistence choice.
-Neither app imports the other's private modules or accesses its tables. Shared
-packages cannot depend on either application, a UI framework, or provider I/O.
+`workspace.json` enforces the component graph and pure import allowlists. The
+four app moves are implemented and have recorded build/package evidence.
+`packages/build-spec` remains the current frame contract/compiler owner through
+the explicit CI-03/CI-04 transition for v1 replay and frame-specific checks.
+It does not become a parallel successor for Conjunct composition, comparison,
+report aggregation or instructions. A directory rename cannot establish a
+Conjunct dependency or a generic vocabulary.
 
-Move one verified component with its scripts, CI, assets, packaging, generated
-content, and documentation. Preserve public contracts and accepted identities
-during refactoring. CI rejects forbidden imports and stale generated contracts;
-each application builds independently. Commit boundary rules, context extraction,
-and path migration in reviewable slices using repository Git conventions.
+Introduce `product/bundle`, profiles, procedures, packaging and presentation
+only with real artifacts and conformance. `packages/frameshift-domain` is a
+possible future product boundary, not a required empty scaffold.
+`packs/frameshift` will hold product workflows/rubrics/evaluations. Generic
+compiler, viewer and integration code belongs upstream; the retained v1 code
+is removed from the successor path only after its producer export, consumer
+adapter and identity migration qualify. Retain one authoritative implementation.
 
-**BP-09 — Repository ownership.** All Frameshift workflows, physical models,
-fixtures, rubrics, and evaluations live in this repository. Refpath is an
-external dependency at an exact admitted revision, not a vendored fork or home
-for Frameshift packs. The runtime loads the qualified pack revision. Upstream
-generic improvements must expose a tested public contract before adoption.
+Keep the local Exqlite/SQLite writer and server AshPostgres records separate.
+Pure shared packages cannot import application internals or provider I/O. Current
+checks reject undeclared static module/path imports, native externals and
+unreviewed Gleam library operations, including randomness. Frontend alias and
+dynamic-import checks remain open. Static checks do not sandbox running code.
+
+Each extraction includes dependency locks, canonical migration, affected scripts,
+CI, assets, package paths and independent builds. Preserve test fixtures and
+accepted historical identities; no wholesale replacement of current code by a
+specification-only producer.
+
+**BP-09 — Producer contracts.** Pin Conjunct, Refpath, Wotex, Rivure, DocShell,
+ExMaude and phoenix-assets only where the selected execution profile uses them.
+Record actual exports and joined consumer conformance. A sibling checkout is
+research evidence, not a distributable dependency. Generic fixes belong with the
+producer and require a consumer reproduction. Product-specific rules, evidence
+and tests stay here. Do not copy private producer code or publish it to resolve
+a distribution gap.
+
+[PC-01–PC-09](producer-contracts.md) states the required deliveries from Conjunct,
+Refpath, ExMaude, DocShell, the web libraries, Wotex, diagnostics and optional
+Rivure. Missing specified implementation is producer work; undecided behavior
+is a contract gap. Implement producers and consumer fixtures together without
+claiming the joined profile works before its real boundary passes.
+
+Product bundle, physical composition, procedure, application generation,
+assessment and external commitment have distinct identities and authority.
+Current operator data and secrets never enter portable bundles. Company strategy
+and legal interpretation live outside product semantics; applications still
+validate and enforce the supplied policy's issuer, subject, scope and revocation.
 
 ## Operational architecture
 
-**BP-10 — First-class observability.** Metrics, structured logs, immutable domain
-audit, and bounded traces are required with each slice. Follow the
-[diagnostics contract](diagnostics.md) for the computer app and the server
-extensions there. macOS uses Console.app and `log`; no custom log UI is required.
-Use standard server observability tools for metrics, alerts, traces, and logs.
+**BP-10 — First-class diagnostics.** Keep the implemented bounded metric catalog,
+Prometheus exposition and alert fixtures. Conjunct CJ.07 proposes GreptimeDB as
+the shared operated-host destination through qualified Prometheus/OpenTelemetry
+interfaces. This is a deployment direction; no GreptimeDB integration or runtime
+result is claimed. Exact ingestion, retention, authentication and outage tests
+must precede adoption. Structured logs and bounded traces remain required.
 
-Include Beamlens for read-only server investigation of runtime health, queues,
-logs, and database behavior, with Frameshift observations for compatibility,
-verification, research, and, in F, stalled purchasing/reconciliation. Explicitly
-declare the production dependency and choose one supervision owner. If the host
-starts Beamlens, disable Refpath's automatic instance. Refpath's optional
-development/test dependency does not provide a production host integration.
+CJ.07's reference operated-host direction is the shared Hetzner estate with
+Terraform/Ansible, PostgreSQL and independently supervised applications. Map
+actual deployment conventions and backup/restore ownership before selecting
+systemd or containers. This contract adds no infrastructure and does not mandate
+Kubernetes, Kafka or a separate service for each package. Browser/AtomVM or
+network-edge execution remains a separately qualified optional profile.
 
-Configure Beamlens' BAML client registry explicitly. Its inference path is
-separate from Refpath's usual provider calls: apply investigation frequency,
-concurrency, token, time, and spend ceilings at that boundary and account for
-usage centrally. Prefer a qualified local provider; intent-model qualification
-does not qualify diagnostic reasoning. Restrict observations to bounded,
-redacted queries and authorized operators. Diagnostics cannot change catalog,
-purchase, or payment state. Dependency failure or budget exhaustion must leave
-ordinary logs, telemetry, alerts, and application actions available. Qualify the
-exact library, native dependencies, skills, and measured runtime overhead.
+Use Console.app and `log` on macOS, standard collectors on the server, and
+immutable audit for domain evidence. Keep geometry/converter and model workers
+bounded and isolated from authoritative commands and recovery. Do not introduce
+ELK or a second custom log UI. See the [diagnostics contract](diagnostics.md).
 
-## Adaptive milestones and completion evidence
+Beamlens has one authorized read-only supervision owner and an explicitly
+configured BAML provider. Bound frequency, concurrency, context, time and
+centrally accounted usage at the actual inference boundary. Redact observations;
+model or collector failure cannot disable normal product actions or telemetry.
+No diagnostic process may mutate product, authority, device or financial state.
 
-**BP-11 — Required order.** Dependency permits parallel preparation, but the
-independent shopping-list journey must be complete before the dropshipping
-milestone begins. All transactional commerce implementation is in **F, the final
-milestone**. Earlier Refpath work is nontransactional research and qualification.
-This ordering must appear consistently in specs, task plans, and presentations.
+## Milestones and evidence
 
-| Milestone | Scope and dependencies | Required completion evidence |
+**BP-11 — Dependency order.** The primary plan is composition and instructions.
+D's parts/shopping list remains available independently. Optional transactions
+stay on hold and, if resumed, follow D and applicable E qualification. They do
+not define completion of the engine-consumer proof or native product.
+
+| Gate | Scope and dependency | Required evidence |
 | --- | --- | --- |
-| A — Specifications | Reconcile the branch proposal with all accepted decisions | Canonical contracts, owner/acceptance mapping, aligned existing docs and plan artifact |
-| B — Boundaries and web foundation | After A; dependency rules, Phoenix/Ash shell, assets, actor policies, Refpath host seam, diagnostics; verified component moves | Independent builds, packaging preserved, generated-contract checks, authorization and single-supervisor tests |
-| C — Physical model | After A and package boundary; sourced profiles, BuildSpec, Gleam compatibility and targeted ExMaude verification | Deterministic bytes/hash, cross-runtime fixtures, three-class coverage, unknown/refusal tests, proof outcome and counterexample replay tests |
-| D — Visual builder and printable shopping list | After C and required B surface; complete independent customer journey | Selection/save/reload/export parity, useful printed output, explicit missing facts/prices, keyboard/accessibility/responsive/offline/error acceptance; no account or purchasing dependency |
-| E — Autonomous research and operational qualification | After B/C; research packs, source admission, bounded model evaluation and operational recovery; preparation can overlap D | Scheduled safe admission/quarantine, exact pack/runtime qualification, revocation/restart/reconciliation, provider outage and budget tests; no purchase/payment writes |
-| F — Optional dropshipping, purchasing and care — FINAL | Starts after D and E are complete; supplier and PSP integrations, checkout, fees, purchasing, fulfillment and complete care | Every requirement in the commerce contract implemented and tested against deterministic provider simulators and available selected-provider sandboxes; no repeated purchase under uncertain outcomes |
+| A — Contract foundation | Frameshift product scope, current tree and Conjunct contracts | Owner/API map, preserved v1 identities, explicit migration and aligned specs |
+| B — Product host | Existing foundation plus missing auth/diagnostics and producer interfaces | Independent builds, generated contracts, isolation and one supervisor per owner |
+| C — Physical profile | Conjunct core compiler/report plus Frameshift profile rules, adaptation and consumer evidence per claimed profile | Existing v1 replay, successor migration, deterministic checks, source/assessment scope; required formal evidence through P2 |
+| D — Visual composition and procedures | Corresponding C profile plus relevant B surface | Exact part/feature/step binding, local save/import/export, accessible print/offline output and explicit unknowns; all three classes for complete Frameshift coverage |
+| E — Generality and adaptation | B/C; preparation may overlap D | Upstream passive/sensor fixtures, two operator profiles, safe research, restart/revocation/budget and producer-outage evidence |
+| F — Optional services, on hold | Separate resumption after D/E | Applicable BC-01–BC-10, producer/provider simulations and available sandbox evidence; no duplicate uncertain effect |
 
-The independent computer-app lane continues alongside B–E under the
-[implementation plan](implementation-plan.md). It is not a milestone after F
-and cannot be made dependent on commerce. Hardware measurement, legal/company
-agreements, and release administration are separately tracked activation/evidence
-work, not additional software milestones or reasons to omit code and tests.
-Real transactions remain disabled until their actual operating gates pass.
+A complete C-to-D frame slice can proceed before the other classes pass. P1
+durable-generation and P2 solver-evidence work can run alongside core/viewer
+development; they gate their dependent claims. The independent instruction
+profile needs no live Refpath/DocShell host, finance or device-control profile.
+Synthetic geometry permits instruction development before CAD qualification.
+None of these dependency choices waives full claimed frame coverage.
 
-## Requirement and specification map
+The independent native-product lane is tracked in the
+[implementation plan](implementation-plan.md). Codeable refusal, simulation and
+recovery work remains required even where credentials, physical samples, source
+permissions or release administration are absent. No document or producer status
+can substitute for the missing evidence.
 
-| Plan area | Canonical owner | Software evidence |
+## Requirement map
+
+| Area | Canonical contract | Evidence owner |
 | --- | --- | --- |
-| Product, visual choice, two journeys, Ash/frontend, repository boundaries | This document, BP-01–BP-11 | Boundary, authorization, browser and export checks |
-| Physical profiles, BuildSpec, evidence, compatibility, Gleam and Maude | [Physical build contract](physical-build-contract.md), PB-01–PB-09 | Schema/identity/parity, property, mutation, trace and invalidation checks |
-| Frameshift packs, Refpath seams, research, intent/models and evaluation | [Build orchestration](build-orchestration.md), BO-01–BO-08 | Runtime conformance, source admission, task/effect fault tests and held-out evals |
-| Suppliers, legal roles, percentage fees, mandates, orders and care | [Build commerce](build-commerce.md), BC-01–BC-10 | Final-milestone end-to-end and provider fault evidence |
-| Metrics, native/server logs and Beamlens | [Diagnostics](diagnostics.md), BP-10 and BO-08 | Redaction, budgets, cardinality, outage and overhead checks |
-| Research, dependency gaps, model benchmarks and cost/role assumptions | [Decision research](../research/build-platform-decisions.md) | Dated sources; distinguishes published claims from project measurements |
-| Current implementation status | [Verification ledger](verification.md) | Evidence remains missing until the named checks exist and pass |
-
-New implementation commits must update the corresponding evidence rows. A spec
-commit does not close an implementation or external validation gate.
+| Product workbench and host | BP-01–BP-11 here | Frameshift host/browser |
+| Conjunct boundary and migration | [CI-01–CI-08](conjunct-integration.md) | Producer plus Frameshift consumer |
+| Required library deliveries | [PC-01–PC-09](producer-contracts.md) | Named producer, product adapter and joined tests |
+| Current frame physical/profile semantics | [PB-01–PB-09](physical-build-contract.md), [artifact layouts](build-artifacts.md) | Shared package/product fixtures |
+| Adaptive research/runtime integration | [BO-01–BO-08](build-orchestration.md) | Frameshift packs and producer consumer suites |
+| Deferred service scope | [BC-01–BC-10](build-commerce.md) | Enabled service/financial/runtime owners |
+| Diagnostics | [Diagnostics](diagnostics.md) | Local and server evidence kept separate |
+| Technical research | [Adoption](../research/conjunct-adoption.md), [decisions](../research/build-platform-decisions.md), [thin compositions](../research/thin-composition-evidence.md) | Dated source/inspection records |
+| Completion status | [Verification](verification.md) | Named tests and retained results |

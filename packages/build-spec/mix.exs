@@ -1,5 +1,6 @@
 defmodule FrameshiftBuild.MixProject do
   @moduledoc false
+
   use Mix.Project
 
   def project do
@@ -21,6 +22,7 @@ end
 
 defmodule Mix.Tasks.Compile.GleamBuildSpec do
   @moduledoc false
+
   use Mix.Task
 
   @root __DIR__

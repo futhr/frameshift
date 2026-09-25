@@ -1,5 +1,6 @@
 defmodule FrameshiftBuildTest do
   @moduledoc false
+
   use ExUnit.Case, async: true
 
   @fixture File.read!(Path.join(__DIR__, "fixtures/profile-v1.json"))

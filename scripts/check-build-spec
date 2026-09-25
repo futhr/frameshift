@@ -21,7 +21,9 @@ mise exec -- env -u MIX_HOME -u MIX_ARCHIVES mix test
 mise exec -- env -u MIX_HOME -u MIX_ARCHIVES mix credo --strict
 mise exec -- node --check js/profile.mjs
 mise exec -- node --check test/identity_parity.mjs
-mise exec -- node --test test/profile.test.mjs
+mise exec -- node --check checks/catalog.mjs
+mise exec -- node checks/catalog.mjs
+mise exec -- node --test test/profile.test.mjs test/catalog.test.mjs
 
 mise exec -- gleam run --target erlang --module profile_parity --no-print-progress > "$parity_directory/erlang.jsonl"
 mise exec -- gleam run --target javascript --module profile_parity --no-print-progress > "$parity_directory/javascript.jsonl"
@@ -32,6 +34,13 @@ mise exec -- env -u MIX_HOME -u MIX_ARCHIVES mix run --no-start --no-compile \
 mise exec -- node test/identity_parity.mjs "$parity_directory/javascript.jsonl" > "$parity_directory/javascript.hashes"
 cmp "$parity_directory/erlang.hashes" "$parity_directory/javascript.hashes"
 echo "256 canonical profiles and SHA-256 identities match on BEAM and JavaScript"
+
+cat "$repository_root"/data/physical/profiles/*.json > "$parity_directory/catalog.jsonl"
+mise exec -- env -u MIX_HOME -u MIX_ARCHIVES mix run --no-start --no-compile \
+  checks/identity_parity.exs "$parity_directory/catalog.jsonl" > "$parity_directory/catalog.erlang.hashes"
+mise exec -- node test/identity_parity.mjs "$parity_directory/catalog.jsonl" > "$parity_directory/catalog.javascript.hashes"
+cmp "$parity_directory/catalog.erlang.hashes" "$parity_directory/catalog.javascript.hashes"
+echo "Sourced candidate profiles and hashes match on BEAM and JavaScript"
 
 mise exec -- env -u MIX_HOME -u MIX_ARCHIVES MIX_ENV=prod mix release --overwrite --path "$parity_directory/release" >/dev/null
 "$parity_directory/release/bin/frameshift_build" eval '

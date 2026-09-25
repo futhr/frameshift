@@ -22,7 +22,7 @@ archives belong in the public release artifact channel, not the site bundle.
 The user or domain owner must configure DNS and any public release repository;
 the private source repository's visibility is never changed by automation.
 
-## Companion builder and independent shopping
+## Composition and independent instructions
 
 The [build platform](build-platform.md) extends the public experience with
 Phoenix/Ash/AshPostgres and phoenix-assets/Svelte 5/SvelteKit. The static-guide
@@ -30,13 +30,15 @@ decision applies to documentation and the offline lab, not to all companion
 application routes. Route/deployment integration must preserve real release
 links, offline behavior and the non-secret native handoff described here.
 
-Milestone D delivers the full visual configurator and printable exact shopping
-list before any coordinated dropshipping. Include exact revisions/quantities,
-supplier links, evidence/unknowns, assembly steps and app handoff without requiring
-accounts, live landed quotes or a supplier purchasing API. Indicative prices
-remain dated and incomplete totals are labelled. Saving/exporting and useful
-print output work independently of payments. Research qualification is E;
-all optional checkout, purchasing, fulfillment and care is final milestone F.
+Milestone D delivers visual composition, exact procedures and printable parts
+and shopping-list projections. Include exact revisions/quantities, source links,
+evidence/unknowns, required tools/steps and app handoff without an account or
+supplier API. Conjunct geometry/procedure references and DocShell explanations
+bind to the same exact composition under [CI-05–CI-07](conjunct-integration.md).
+Essential content remains usable without WebGL, colour or network access.
+Indicative prices are dated and partial sums labelled. Optional transactions,
+purchasing and care remain deferred F, currently on hold; they do not gate the
+guide, engine-consumer proof or native installation.
 
 ## One Mac release artifact
 

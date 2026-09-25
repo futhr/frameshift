@@ -8,9 +8,15 @@ for frame operations. Server Ash domains and Refpath do not share those records.
 
 ## Companion server metrics and diagnostic access
 
+[PC-08](producer-contracts.md) assigns the library delivery and joined outage/
+restore tests. Pure Conjunct calls are measured by the invoking host or harness;
+they do not start collectors or perform telemetry I/O. Producer implementation
+and operational qualification remain separate from the metric definitions here.
+
 The [build-platform contract](build-platform.md) requires first-class telemetry
 with each implemented slice. Ash domains own domain transition/audit meaning;
-Refpath owns runtime task/attempt/effect meaning. Emit measurements after the
+Conjunct owns compiler/procedure assessment meaning, Refpath owns runtime
+task/attempt/effect meaning, and Rivure owns any later financial facts. Emit measurements after the
 corresponding durable fact, with explicit definitions preventing double counting
 at both boundaries. Operational logs and metrics never establish an external
 purchase, refund or physical display outcome.
@@ -25,14 +31,19 @@ before production activation; a dashboard alone is not an operating contract.
 
 | Family | Required measurements | Owner / first milestone |
 | --- | --- | --- |
-| Configuration | Compile/decision count by bounded outcome/reason, duration, stale-fact refusal and browser/server disagreement | Catalog & Compatibility / C |
-| Verification | Queue depth/age, duration, bounds class, typed outcome, witness replay, cache hit/invalidation and resource refusal | Catalog verification / C |
-| Independent journey | Successful/failed save/export/print preparation, latency and contract errors without recording private artwork or selected parts as labels | Web boundary / D |
+| Composition | Compile/decision count by bounded outcome/reason, duration, stale-fact refusal and browser/server disagreement | Conjunct producer + Frameshift profile / C |
+| Verification | Queue depth/age, duration, bounds class, typed outcome, witness replay, cache hit/invalidation and resource refusal | Producer verification + product admission / C |
+| Geometry and procedures | Import/conversion refusal, unsupported capability, stale feature/step binding and rights/revocation refusal, duration and resource ceilings | Producer adapters + product evidence / C–D |
+| Independent instructions | Successful/failed save/export/print preparation, viewer fallback, latency and contract errors without recording private artwork or selected parts as labels | Web boundary / D |
 | Research | Source freshness, candidate/admission/quarantine counts, eligible unattended completion denominator, manual interventions and pending exception age | Catalog + Refpath / E |
 | Inference | Requests, input/output tokens, estimated/reserved/actual cost, retries, failures, abstentions, latency, model/task qualification results | Refpath provider boundary / E |
 | Diagnostics | Investigation count/duration, tokens/cost, budget refusal, observation redaction failures, dropped telemetry and process/queue overhead | Beamlens host boundary / B/E |
 | Purchasing | Confirmed/refused/unknown outcomes, unknown age, reconciliation, partial-order count, expired/revoked mandates and completion duration | Purchasing + Refpath / F |
-| Money and care | Authorized/captured/refunded amounts, fee earnings/reversals, disputes, realized contribution, late parcels and case age | Payments & Fees / Fulfillment & Care / F |
+| Money and care | Read projections of authoritative authorized/captured/refunded amounts, fee reversals and disputes; late parcels and case age | Rivure integration + product care / optional F |
+
+The F families apply only to a resumed, enabled service profile. They neither
+require a Frameshift ledger nor block the independent composition/instruction
+profile. Financial reconciliation is not inferred from telemetry totals.
 
 Quality evaluation reports include false acceptance, coverage and calibration
 with task/dataset version and uncertainty; production self-reported model
@@ -48,9 +59,19 @@ commands to Refpath tasks/attempts/effects without creating a second effect
 journal. Preserve native Console.app and `log` plus the local diagnostic CLI;
 no custom log-reader UI is required for either product lane.
 
+CJ.07 selects GreptimeDB as the shared-host metric/time-series destination with
+Prometheus/OpenTelemetry-compatible ingestion. Retain the current Prometheus
+exporter and qualify the exact receiver version, collector, authentication,
+label mapping, retention/disk budget, redaction and outage behavior before
+claiming this integration works. Do not introduce a separate ELK stack or use
+telemetry storage as a receipt/effect journal. Structured log/trace collection
+and GreptimeDB deployment are planned; the current bounded exporter is the
+implemented boundary. GreptimeDB log/trace features are optional until qualified;
+bounded journald/structured files and an approved collector are a separate path.
+
 Beamlens is an explicit read-only server integration with one supervision owner,
 bounded observations and operator authorization. Qualify generic skills and
-Frameshift observations for compatibility, verifier/research queues and final-F
+Frameshift observations for composition, verifier/research queues and optional-F
 purchasing reconciliation. Its BAML provider configuration, resource ceilings
 and inference spend are independently enforced and included in central usage
 accounting. No diagnostic skill can mutate domain state or call purchasing tools.
@@ -62,6 +83,50 @@ budget exhaustion, process failure and measured idle/load overhead. Normal
 telemetry, alerts, logs and application actions must survive diagnostic failure.
 Local Ollama incident reasoning requires its own evaluation; passing a simple
 intent-routing evaluation does not qualify the diagnostic model.
+
+### Server catalog v3 and collection limits
+
+The server uses `Telemetry.Metrics` definitions with an explicit Prometheus
+reporter backed by `prometheus.erl` fixed histogram buckets. It must aggregate
+observations on arrival; retaining every sample until a scrape is prohibited.
+The server's registry is separate from upstream runtime registries. Register
+only this catalog, normalize dimensions before storage and reject non-numeric,
+negative or over-limit measurements. No raw telemetry metadata enters storage.
+
+| Name suffix (`frameshift_platform_`) | Event / owner | Type and unit | Dimensions / aggregation |
+| --- | --- | --- | --- |
+| `catalog_source_total` | Source action after transaction / Catalog | Counter, actions | `outcome=ok,error,other`; sum per outcome; not a durable audit count |
+| `catalog_profile_total` | Profile action after transaction / Catalog | Counter, actions | `outcome=ok,error,other`; sum per outcome; not a durable audit count |
+| `http_responses_total`, `http_duration_seconds` | Endpoint response preparation / Web | Counter, responses; histogram, seconds | `route=sources,profiles,health,metrics,page,other`, `outcome=success,client_error,server_error,other`; sum counters/buckets across instances |
+| `http_transport_exceptions_total` | Bandit exception for this endpoint / Web | Counter, exceptions | Same fixed route enum; independent of prepared responses |
+| `database_duration_seconds`, `database_queue_seconds` | Host Repo query completion / Repo | Histogram, seconds | No query text, table, actor or error labels; includes both owned schemas |
+| `vm_memory_bytes`, `vm_processes`, `vm_run_queue` | Ten-second sample / runtime | Gauge, bytes or processes | No labels; report per instance; sums only for fleet totals |
+| `collector_started_seconds`, `collector_sampled_seconds` | Reporter initialization and ten-second sample / reporter | Gauge, Unix seconds | No labels; compare per instance, never sum |
+| `telemetry_rejected_total` | Invalid measurement / reporter | Counter, observations | No labels; invalid events are omitted from their target metric |
+
+Duration buckets are 0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1 and 5 seconds plus
+infinity. Accept elapsed native integers up to one day and sample counts/bytes
+up to JavaScript's safe integer maximum. Responses are counted once before
+transmission; duration excludes subsequent socket/body transmission. Bandit
+exceptions are counted separately and must not be added to that denominator:
+an exception can follow response preparation. Scraping and static assets are
+included in HTTP traffic. Partial requests that emit no completion are not
+invented as successful samples.
+
+Counters/histograms reset when this reporter restarts. `collector_started_seconds`
+marks the beginning of the current observation interval. A sampling delay does
+not establish zero activity. Expose no scrape while the reporter is unavailable;
+alert on missing scrapes and a sample age exceeding 30 seconds for two minutes.
+No completeness is claimed across restarts or known rejected observations. All
+accepted events are measured without sampling; gauges sample every ten seconds.
+Fixed series and buckets bound storage independently of time and traffic. The
+acceptance workload sends at least 100,000 observations without scraping, checks
+stable storage size and concurrent counts, and checks reporter restart/outage.
+The qualified remote receiver owns retention (initial deployment contract:
+30 days, subject to an explicit disk budget); the app keeps only current
+aggregates. Existing Prometheus scrape/alert fixtures remain evidence for that
+path, not evidence of GreptimeDB ingestion. Latency and
+availability objectives still require an admitted workload baseline.
 
 ## Signals and privacy
 

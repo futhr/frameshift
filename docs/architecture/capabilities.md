@@ -15,6 +15,12 @@ Custom parts may have explicit unknowns. New data can reuse a qualified contract
 new protocols, drivers or artifact formats require code and conformance evidence.
 Source manufacturer refresh recommendations without inventing energy savings.
 
+The [Conjunct integration](conjunct-integration.md) may link a physical selection
+or as-built record to these device profiles. A physical composition, product
+bundle or application generation cannot pair a frame or grant its credential.
+Passive Conjunct products have no mandatory WoT interface. The installed host
+continues to admit actual device capabilities through the protocol below.
+
 The words MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY are interpreted as in
 [RFC 8174](https://datatracker.ietf.org/doc/html/rfc8174).
 

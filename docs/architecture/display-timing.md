@@ -15,10 +15,11 @@ provisional profile. It must be at least the minimum. An operator override is st
 clamped to its current capability minimum when submitted. The host displays
 the source and basis, and warns if a changed profile forces a longer dwell.
 
-The Paper Waveshare E6 candidate manual calls for at least 180 seconds between
+The Paper Waveshare E6 candidate guide recommends at least 180 seconds between
 refreshes, at least one refresh per 24 hours while in use, and panel sleep or
-power removal after refresh. The 180 seconds is a **minimum**, not the
-energy-optimal interval. Until assembled-frame measurements exist, Frameshift
+power removal after refresh. Frameshift enforces the 180-second lower bound in
+its provisional receiver profile; the source remains a manufacturer
+recommendation, not an absolute electrical rating or measured energy optimum. Until assembled-frame measurements exist, Frameshift
 uses a provisional six-hour cycling suggestion for this candidate. Its
 receiver advertises `minimumDwellMs: 180000`,
 `recommendedDwellMs: 21600000`, and

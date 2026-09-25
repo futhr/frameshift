@@ -4,10 +4,12 @@
 
 This map owns the computer application's domains and SQLite atomicity. The
 [build-platform domain map](build-platform.md#server-and-frontend-architecture)
-owns the separate Phoenix/Ash/AshPostgres server: Catalog & Compatibility,
-Access & Policy, Quotes & Mandates, Purchasing, Payments & Fees, and Fulfillment
-& Care. Packs call authorized domain actions; Refpath owns runtime attempts and
-effects. Neither server domains nor Ash migrations replace this local writer.
+owns the separate Phoenix/Ash/AshPostgres product server: Catalog & Evidence,
+Composition & Instructions, Access & Policy and Product Research. Optional
+service/financial integration remains on hold. Conjunct owns generic physical
+and procedure semantics; Rivure owns financial state for an enabled profile.
+Packs call authorized actions; Refpath owns runtime attempts and effects.
+Neither server domains nor Ash migrations replace this local writer.
 Shared physical contracts and the Gleam kernel cannot import either app's
 private persistence or UI modules.
 
@@ -79,9 +81,9 @@ Image I/O, and the Zig worker stay outside those functions. A port is introduced
 for a real external or platform boundary, not for every table.
 Bounded capability admission, profile selection, state labels, and simulation
 transitions use the shared Gleam kernel. The companion physical contract adds
-pure bounded composition decisions under [its own boundary](physical-build-contract.md).
-The Elixir
-application service still owns commands, durable Delivery decisions, audit,
+retained v1 physical decisions under [its own boundary](physical-build-contract.md);
+Conjunct owns successor generic composition semantics. The Elixir application
+service still owns commands, durable Delivery decisions, audit,
 and effect reconciliation. A browser run cannot commit a domain transition.
 
 ## Public operations

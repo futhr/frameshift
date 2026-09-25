@@ -1,180 +1,94 @@
-# Optional Purchasing, Dropshipping and Care
+# Optional Service, Purchasing and Care Integration
 
-**Status:** normative final-milestone specification; implementation open
-**Milestone:** F — FINAL, after the complete independent shopping list (D) and
-research/operational qualification (E)
-**Planning market:** Swedish operator serving EU consumers; qualify each enabled route
+**Status:** deferred optional technical contract; transactional shop implementation on hold
+**Revision date:** 2026-09-25
+**Milestone:** F — on hold, after independent composition/instructions/list (D)
+and applicable producer/research/operations qualification (E)
 
-This milestone includes all transactional supplier/PSP integrations, purchasing
-packs, checkout, fulfillment and care. Earlier milestones may define contracts
-and build reusable runtime seams, but do not implement a partial checkout at
-the expense of the complete independent journey. The [build-platform plan](build-platform.md)
-defines the required sequence.
+This document specifies code, data ownership, integration, authorization and failure behavior. It does not choose a company business model, fee rate, seller/manufacturer role or admitted market. Such decisions enter as approved external configuration/evidence. Company strategy, economics and legal interpretation are outside this repository.
 
-## Operating model and legal-role contract
+If resumed, the extension includes all transactional provider integrations, purchasing/service packs, commitment UI, fulfillment and care. It does not gate the Conjunct consumer proof or native product completion. Earlier milestones define contracts and qualify reusable seams; transactional implementation remains parked. The [build-platform plan](build-platform.md) defines the required sequence. [Conjunct adoption](../research/conjunct-adoption.md) defines the generic versus product-specific ownership.
 
-**BC-01 — Disclosed service.** Customers can optionally pay for coordinated
-supplier-direct purchasing. Each identified supplier sells and ships its own
-goods under its own goods contract. Frameshift supplies software and a defined
-coordination service with a disclosed percentage fee. No stockholding,
-mandatory lead assembler or Frameshift-branded assembled hardware is assumed.
-The independent printable list remains available without the service or fee.
+## Service and authority contracts
 
-Record seller, manufacturer, importer and responsible economic operator as
-distinct roles, with destination/market scope and evidence. Do not infer seller
-identity from a brand or treat a customer checkbox as assigning importer duties.
-The actual contracts, payment flows, invoices, marketing and product UI must
-match the operating model. DIY assembly does not waive consumer rights or
-excuse inaccurate compatibility claims. Indemnities provide contractual recourse;
-they cannot erase duties to customers. Legal role and applicability require
-review of the implemented flow, using the [dated primary-source research](../research/build-platform-decisions.md).
+**BC-01 — Optional capabilities.** The independent visual builder, exact printable list and local computer application remain usable without service enrollment or a payment integration. Additional profiles may expose component handoff, quote requests, purchasing, kitting, assembly, packaging, installation or care only when their actual capabilities and authority are admitted. No mandatory assembler, one-seller topology or per-product source fork is encoded.
 
-**BC-02 — Partner and market admission.** Implement versioned readiness records
-and enable real transactions only for admitted supplier/PSP/destination routes:
+Record seller, manufacturer, importer, responsible economic operator, assembler, packer and carrier as distinct externally evidenced role references where the selected operation requires them. One actor may hold several roles, but fulfillment or branding metadata cannot infer the assignments. Preserve exact counterparty and accepted terms in the user-visible commitment. Product code validates the external decision's scope; it does not generate legal conclusions.
 
-- Supplier identity, trading role, authority to relay orders, invoices, terms,
-  exact revision/no-substitution policy, permitted feeds/assets, price/stock
-  API, fulfillment promises, returns address, cancellation/refund capabilities,
-  support escalation, recalls, insurance and agreed loss/indemnity terms.
-- PSP merchant onboarding, supported markets/currencies, charge/fee topology,
-  authentication, payout, refunds, disputes, negative balances and reserves.
-  A supplier direct-charge/platform-fee arrangement is a candidate, not a
-  committed PSP selection or a legal exemption.
-- Product/supply-chain evidence, relevant EU operator, safety information,
-  customs/VAT and producer-responsibility assessment. Component evidence does
-  not certify the customer assembly.
-- Company/hosting/model processor agreements, data region/transfers, provider
-  data use, access controls, backup/restore, incident response, export and exit.
-- Versioned legal decisions for platform safety/due diligence, consumer/service
-  withdrawal, tax/reporting, privacy and software-security applicability.
+A frame configuration/share link grants no device-control, supplier-order or financial authority. Changes to application presentation cannot change accepted composition or commitment identity.
 
-New research cannot modify banking instructions or these authorities. Unsupported
-stores remain in shopping lists. Prefer contracted APIs/feeds and supported
-commerce endpoints; a component profile alone cannot automate a retailer.
+**BC-02 — Capability and scope admission.** Implement versioned readiness records for provider operations, product/evidence scope and operator context. Required input groups are:
 
-## Quotes, mandates and fees
+- Provider identity, supported operation descriptors, exact revision/no-substitution contract, permitted feeds/assets, quote/stock/reservation semantics, status lookup, cancellation, tracking, returns and exception capabilities.
+- Qualified financial-provider account and operation references through Rivure, including supported currency/account context, authentication and reversal/reconciliation behavior.
+- Applicable product, source, geometry and procedure evidence with current quarantine/revocation checks. Component evidence cannot substitute for combined-assembly qualification.
+- Approved external policy/permission envelopes identifying issuer, subject, scope, effective interval, conditions, required disclosures, review/authority and revocation reference.
+- Hosting, data-access and processor-policy bindings, retention, export and operational recovery evidence required for the selected profile.
 
-**BC-03 — Immutable acceptance.** A purchase snapshot pins the exact BuildSpec,
-current compatibility/evidence decision, line quantities/revisions, named seller
-per line, offer IDs/expiry, currency, taxes, shipping, duties where applicable,
-delivery promises, fee rule/amount, terms version, consent and authorization
-limits. Separate indicative configuration cost from a valid landed quote.
+Missing support is `unavailable`, not a simulated successful operation. Unsupported stores remain usable as informational shopping-list references where permitted. Models cannot alter provider credentials, banking destinations or policy authority. Prefer explicit supported APIs/feeds; a component profile alone cannot automate a retailer.
 
-Recheck current quarantine, supported operations, stock, offer expiry and route
-eligibility before commitment. Reservations are used only where a supplier
-supports them, with explicit expiration. Material changes require new customer
-acceptance; no silent substitution, increased amount or changed seller.
+## Quotes and financial references
 
-A bounded mandate must specify permitted operations, exact configuration or
-allowed changes, sellers, monetary ceiling/currency, fee limit, expiry,
-revocation, substitution and partial-order policy. The allowed scope cannot
-expand from model output or a refreshed workflow. Capture customer payment
-authentication when required. Preserve durable accepted terms and confirmations.
+**BC-03 — Immutable acceptance.** An accepted snapshot pins exact BuildSpec/CompositionSpec, current compatibility/evidence decision, quantities/revisions, named counterparty per commitment, offer IDs/expiry, amounts/currencies and their typed components, delivery conditions, financial-rule references, terms version, consent and authority limits. Indicative planning observations are not binding quotes.
 
-**BC-04 — Percentage accounting.** The contract supports an explicitly chosen
-supplier commission, customer service fee, or disclosed combination. The actual
-rate and payer are commercial configuration, not assumed research examples.
-Display the percentage, eligible merchandise base and final amount before
-acceptance; state shipping/tax treatment, earning event, refund/withdrawal rules,
-rounding and currency. Do not silently charge both parties. Use integer minor
-units and versioned calculations; never floating-point payment arithmetic.
+Recheck current quarantine, operation support, offer/reservation expiry and route eligibility before commitment. Use reservations only where the provider actually supports them. Material changes require a new accepted snapshot; no silent part substitution, increased amount or changed counterparty.
 
-Track gross merchandise value, supplier funds, earned commission, customer fees,
-tax and reversals separately. Compute realized contribution after PSP fees,
-refunds, disputes, research/provider cost and other allocated variable costs.
-Keep fixed hosting, database/backups, operations, security, legal/accounting and
-insurance costs visible in operational economics. Avoid advancing supplier
-purchase costs without a separate financing decision. Refundability follows the
-accepted and lawful service terms, not a blanket nonrefundable default.
+A bounded mandate specifies allowed operations, exact configuration or permitted changes, counterparties, monetary ceilings/currency where relevant, expiry, revocation and partial-completion policy. Model output or a refreshed workflow cannot widen it. Preserve required authentication and durable confirmations.
+
+**BC-04 — Financial owner boundary.** Rivure owns reusable financial primitives, provider interaction, fee/commission calculations, reversals, disputes and settlement evidence. Frameshift supplies typed product/commitment references and consumes approved results; it must not maintain a competing money ledger, Stripe adapter or fee engine.
+
+Use integer minor units and explicit currency/rounding semantics at the boundary. Rule version, payer, earning event, required disclosures, reversal behavior and amount composition are explicit external inputs. Never infer a charge from a generated estimate or charge two parties without their respective admitted commitments. Do not encode company rates, margins, reserves or infrastructure-cost allocations in product fixtures.
+
+[PC-09](producer-contracts.md) defines the joined delivery contract. Refpath
+delivers the financial command; Rivure owns financial execution and provider
+retries. Persist both identities. Refpath never independently retries the PSP
+operation. A provider binding declares idempotency retention, account/environment
+and lookup semantics; an unknown outcome cannot be resent after key expiry merely
+because its old key is available. These requirements do not resume deferred F.
+
+Distinguish financial authorization, capture, transfer, payout, refund and accounting projection. A financial receipt does not establish supplier acceptance, physical delivery or completed assembly. Provider account and loss allocation are qualified financial configuration, not facts inferred from the words marketplace or direct charge.
 
 ## Execution and state ownership
 
-**BC-05 — Separate commitments.** A customer purchase group relates multiple
-supplier orders; it does not pretend they form an atomic transaction. Show seller
-identity and separate contracts before payment and in progress/care views.
-Record independently the quote, customer mandate, PSP authorization/capture,
-supplier order acknowledgement, fulfillment, refunds and fee settlement.
-A payment receipt is not proof of supplier acceptance, and shipment is not
-proof of delivery or successful assembly.
+**BC-05 — Separate commitments.** A coordination group relates independently accepted goods/service commitments and fulfillment allocations. One seller with several dispatching providers differs from several separate sellers. The selected structure comes from admitted inputs, not a fixed actor hierarchy.
 
-Use typed Ash commands under the correct actor and current mandate. Refpath
-executes the admitted purchasing/care packs and owns runtime effects. Provider
-adapters advertise actual placement, lookup/reconciliation, cancellation,
-tracking, notification and refund capabilities. Extend upstream generic
-contracts where missing; implement Frameshift mappings here. Do not claim a
-draft notification, an abstract adapter, or a local settlement record sent money
-or created a supplier order.
+Record independently quote, mandate, financial references, provider acknowledgement, production/testing, fulfillment, care and accepted outcome. A database transaction cannot make multiple external commitments atomic.
 
-**BC-06 — Uncertain outcomes and partial orders.** Before every external write,
-persist the authorized intent and stable idempotency/reconciliation identity
-through the Refpath effect contract. Link it to the domain commitment. Classify
-outcomes as confirmed success, definite refusal or unknown; a timeout or crash
-after dispatch is unknown. Reconcile by supported external lookup before a
-potential repeat. An adapter lacking safe lookup/idempotency cannot be admitted
-for unattended writes. Receipts bind provider, operation, authority, exact
-request and external reference. Reject changed-payload reuse.
+Typed Ash commands enforce actor and current scope. Refpath owns generic work/effect execution and recovery; Rivure owns financial state. Provider adapters advertise actual placement, lookup, cancellation, tracking, notification and applicable reversal operations. Generic gaps belong upstream; Frameshift maps its product semantics here. No direct writes to another application's private tables or competing effect journal are allowed.
 
-Handle duplicate/out-of-order callbacks, signature verification, replay windows,
-bounded parsing and eventual consistency. Monotonic state rules must prevent
-late callbacks from reopening canceled/refunded commitments. Use the preaccepted
-partial-order policy when a supplier fails after another accepts: compensate
-only confirmed reversible effects, retain unknown holds, and request new consent
-when the accepted policy cannot resolve the remaining order. Never describe
-compensation as an atomic rollback across suppliers.
+**BC-06 — Unknown outcomes and partial execution.** Before every external mutation, persist authorized intent and a stable idempotency/reconciliation identity through the canonical effect owner. Join that identity to the domain commitment and the producer's financial command identity where applicable. One layer dispatches the actual provider mutation; nested orchestration must not dispatch it twice.
 
-## Fulfillment, care and responsibility
+Outcomes are confirmed success, definite refusal or unknown. Timeout/crash after dispatch is unknown. Use supported lookup/reconciliation before repeat. An adapter without safe reconciliation/idempotency cannot perform unattended uncertain retries. Receipts bind provider/account context, operation, authority, exact request digest and external reference. Reject same-key changed-payload reuse.
 
-**BC-07 — Complete care.** Implement per-seller/parcel tracking and notification
-delivery, delayed/missing/damaged/wrong-revision handling, cancellation before
-and after acceptance, returns, partial/full refunds, fee reversal, disputes,
-recalls and safety notices. Distinguish requested, acknowledged and completed
-external actions. Provide a customer progress view and a bounded operator
-exception queue with reason, owner, next action and safe resume conditions.
-Preserve accepted terms and communication evidence. Routine admitted flows run
-unattended; authentication, material changes and unresolved authority return to
-the appropriate person.
+Authenticate, bound, deduplicate and scope callbacks. Handle replay, out-of-order observations and eventual consistency without reopening terminal commitments incorrectly. Apply the preaccepted partial-completion policy after partial success: compensate only confirmed reversible effects, preserve unknown outcomes, and require new authority when existing policy cannot resolve the remainder. Compensation is not an atomic rollback across independent providers.
 
-**BC-08 — Applicable obligations.** Implement policy-driven data/operations for
-seller due diligence and reporting (including DAC7 where applicable), VAT/fee
-accounting and qualifying deemed-supplier cases, product-safety contacts/listing
-information/unsafe-offer handling and recall cooperation, service withdrawal and
-early-performance consent, accessible durable confirmations, and privacy access,
-export, correction, retention and deletion. Handle legally retained financial
-records separately from erasable profile data. Apply controller/processor and
-international-transfer decisions to actual providers. Record CRA applicability
-and software vulnerability/security processes for the commercial product.
-Do not base the model on an assumed payment-agent exemption or customer waiver.
+## Fulfillment and care
+
+**BC-07 — Complete care.** Implement per-commitment and per-parcel tracking, notification delivery, delay/loss/damage/wrong-revision handling, cancellation before and after acceptance, returns, repair/replacement, partial/full refund references, financial reversals, disputes, recalls and safety notices.
+
+As-built evidence binds actual serial/lot, part/firmware revisions, test method/result, procedure and packaging revision where required. Completing a UI task is not a replacement for a required physical measurement. Distinguish requested, acknowledged and completed external actions.
+
+Provide an accessible progress view and bounded exception queue identifying owner, reason, next action and safe-resume conditions. Retain accepted terms and communication evidence. Routine actions may run unattended within their admitted scope; material changes and unresolved authority require the appropriate approval. Disabling new transactions must not disable authorized care and reconciliation for existing commitments.
+
+**BC-08 — Policy-driven operations.** Implement typed obligations and evidence references for required identity fields, listing/disclosure content, tax/reporting inputs, product notices, withdrawal/cancellation consent where required, durable confirmations, privacy access/export/correction and retention/deletion dispositions.
+
+The policy issuer determines applicability through its own approved process. Product code checks subject, scope, effective period, required evidence and current revocation; it cannot waive an obligation or select a jurisdiction from model preference. Keep legally retained financial records distinct from erasable profile data according to the supplied retention policy. Support security/vulnerability and product-notice workflows without presenting software conformance as physical certification.
+
+Denied or unsupported operations yield explicit refusal and the permitted narrower output, such as a guide or quote request. Informational fallback is not permission to perform otherwise prohibited external actions.
 
 ## Qualification and activation
 
-**BC-09 — Required fault evidence.** Build deterministic supplier, PSP, shipping
-and notification simulators (containerized where useful) and exercise selected
-provider sandboxes where available. Cover at least:
+**BC-09 — Required fault evidence.** Use deterministic provider simulations and the selected producers' consumer suites; add real provider sandboxes where supported. Cover:
 
-- exact revisions, changed stock/price/shipping, expired quote/mandate, current
-  quarantine, unsupported market and unauthorized actor refusals;
-- duplicate commands, changed-payload replay, concurrent budget claims, repeated
-  callbacks, invalid signatures, out-of-order state and partial acceptance;
-- timeout after remote success, process/database restart before/after receipt,
-  unknown outcome reconciliation, provider outage, exhausted budget and revoked
-  authority without duplicate order, charge, cancellation or refund;
-- separate-seller authentication, partial delivery/cancellation/return, refused
-  refund, chargeback, fee reversal, recall, customer data requests and recovery;
-- backup/restore, migrations, bounded queues/backpressure, privacy/redaction,
-  policy isolation, accessible UI, and deployed artifact/configuration identity.
+- exact revisions, changed stock/amounts/shipping, expired offer/mandate, current quarantine and unauthorized actor/scope;
+- missing capabilities, single-seller versus multi-seller topology and separate fulfillment roles;
+- duplicate commands, changed-payload replay, concurrent budget claims, invalid signatures, repeated/out-of-order callbacks and partial acceptance;
+- remote success followed by timeout, process/database restart around receipt, reconciliation after provider outage or revoked authority, and no duplicate purchase/charge/cancellation/refund;
+- partial delivery/cancellation/return, refused refund, dispute, earning-event reversal, failed QC, recall and customer-data requests;
+- producer/account isolation, backups/restores, migrations, bounded queues, redaction, accessible UI and deployed artifact/generation identity.
 
-Golden accounting fixtures reconcile accepted amounts, fees and every reversal.
-Use contract/property tests around transitions and real provider sandbox
-round trips to verify concrete adapters. A simulator passes only its own
-contract; unavailable credentials leave sandbox evidence explicitly open,
-without excusing missing code or deterministic recovery tests.
+Financial fixtures use Rivure's actual exported calculations and reconcile accepted amounts and cumulative reversals. A simulator qualifies only its simulated contract; missing credentials leave sandbox/live evidence open, without excusing implementable recovery tests.
 
-**BC-10 — Completion versus activation.** F is the final software milestone and
-includes every codeable requirement above with named evidence in the
-[verification ledger](verification.md). External agreements, legal review,
-company setup, production credentials, release administration and real hardware
-measurements have their own readiness records. They gate the claims or real
-transactions that depend on them; they are not later software milestones and
-must not be used to postpone implementable functionality. Keep real money
-disabled until the selected operating route is admitted. The independent
-builder, shopping list and computer app remain usable throughout.
+**BC-10 — Completion versus activation.** An enabled F profile includes every applicable codeable requirement above with named evidence in the [verification ledger](verification.md). External agreements, source/asset permissions, role/policy admission, credentials, release administration and physical measurement have separate readiness records. They gate the operations or claims that depend on them, not the existence of implementable code and simulations.
+
+Keep real effects disabled until the selected profile is admitted. The independent builder, exact list and local application remain usable throughout. Documentation changes do not claim implementation or live readiness.

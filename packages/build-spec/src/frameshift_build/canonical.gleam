@@ -65,7 +65,7 @@ pub fn source_key(value: Source) -> String {
   source(value) |> json.to_string
 }
 
-fn source(source: Source) -> json.Json {
+pub fn source(source: Source) -> json.Json {
   json.object([
     #("digest", json.string(source.digest)),
     #("evidence", json.string(source.evidence)),

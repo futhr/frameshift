@@ -46,7 +46,7 @@ fn instance(value: m.Instance) -> Result(Nil, Refusal) {
   placement(value.placement)
 }
 
-fn identity(value: String) -> Result(Nil, Refusal) {
+pub fn identity(value: String) -> Result(Nil, Refusal) {
   case value {
     "sha256:" <> digest -> {
       case

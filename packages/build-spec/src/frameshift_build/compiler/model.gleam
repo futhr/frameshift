@@ -16,4 +16,5 @@ pub type Check {
 pub type Input {
   BuildInput(path: List(String))
   ProfileInput(instance: String, identity: String, path: List(String))
+  MappingInput(instance: String, identity: String, path: List(String))
 }

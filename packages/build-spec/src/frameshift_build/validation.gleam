@@ -123,7 +123,7 @@ fn limits(unit: String) -> Result(#(Int, Int), Refusal) {
   }
 }
 
-fn source(source: Source) -> Result(Nil, Refusal) {
+pub fn source(source: Source) -> Result(Nil, Refusal) {
   use _ <- result.try(
     case
       string.byte_size(source.digest) == 64

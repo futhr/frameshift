@@ -45,3 +45,15 @@ test('crypto loss fails closed even when no profile body was supplied',async()=>
     assert.deepEqual(await resolveBuild(plan,[]),{ok:false,error:'crypto_unavailable'});
   }finally{Object.defineProperty(globalThis,'crypto',original);}
 });
+
+test('async profile hashing retains the preflight input snapshot',async context=>{
+  const profiles=[first,second];
+  const digest=globalThis.crypto.subtle.digest.bind(globalThis.crypto.subtle);
+  context.mock.method(globalThis.crypto.subtle,'digest',async(...args)=>{
+    profiles.splice(0,profiles.length,'x'.repeat(262145));
+    return digest(...args);
+  });
+  const result=await resolveBuild(plan,profiles);
+  assert.equal(result.ok,true);
+  assert.deepEqual(result.resolution.missing.toArray(),[]);
+});

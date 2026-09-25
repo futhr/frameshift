@@ -1,6 +1,6 @@
 import frameshift_build/compiler/evidence
 import frameshift_build/compiler/facts
-import frameshift_build/compiler/model.{BuildInput, ProfileInput}
+import frameshift_build/compiler/model.{BuildInput, MappingInput, ProfileInput}
 import frameshift_build/model as p
 import frameshift_build/resolution
 import gleam/list
@@ -18,6 +18,8 @@ pub fn exact_observations_survive_short_key_collisions_in_stable_order_test() {
   let inputs = [
     ProfileInput("i", "a", ["b"]),
     ProfileInput("i", "other", ["b"]),
+    MappingInput("i", "a", ["b"]),
+    MappingInput("i", "other", ["b"]),
     BuildInput(["a", "b"]),
     BuildInput(["a\u{0}b"]),
   ]

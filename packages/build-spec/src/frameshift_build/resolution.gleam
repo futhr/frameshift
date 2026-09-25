@@ -42,8 +42,17 @@ pub fn find_instance(
 
 /// Shared resource gate runs before standard crypto or native JSON decoding.
 pub fn budget(bytes: String, profiles: List(String)) -> Result(Nil, Refusal) {
+  context_budget(bytes, profiles, [])
+}
+
+pub fn context_budget(
+  bytes: String,
+  profiles: List(String),
+  mappings: List(String),
+) -> Result(Nil, Refusal) {
   use _ <- result.try(bounds.count(profiles, 0, 64))
-  remaining([bytes, ..profiles], 4_194_304)
+  use _ <- result.try(bounds.count(mappings, 0, 64))
+  remaining([bytes, ..list.append(profiles, mappings)], 4_194_304)
 }
 
 fn remaining(documents: List(String), available: Int) -> Result(Nil, Refusal) {

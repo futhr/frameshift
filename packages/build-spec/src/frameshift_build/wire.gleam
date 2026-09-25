@@ -45,7 +45,7 @@ fn fact() -> decode.Decoder(model.Fact) {
   decode.success(model.Fact(key:, sources:, unit:, value:))
 }
 
-fn source() -> decode.Decoder(model.Source) {
+pub fn source() -> decode.Decoder(model.Source) {
   use digest <- decode.field("digest", decode.string)
   use evidence <- decode.field("evidence", decode.string)
   use locator <- decode.field("locator", decode.string)

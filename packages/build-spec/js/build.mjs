@@ -23,7 +23,12 @@ export async function resolveBuild(text, profiles) {
   if (typeof text !== 'string' || !Array.isArray(profiles)) return {ok:false,error:'invalid_document'};
   if (profiles.length > 64) return {ok:false,error:'invalid_count'};
   // Iteration also exposes sparse array entries instead of silently skipping them.
-  for (const bytes of profiles) if (typeof bytes !== 'string') return {ok:false,error:'invalid_document'};
+  const snapshot = [];
+  for (const bytes of profiles) {
+    if (typeof bytes !== 'string') return {ok:false,error:'invalid_document'};
+    snapshot.push(bytes);
+  }
+  profiles = snapshot;
   const admission = budget(text, toList(profiles));
   if (!Result$isOk(admission)) return {ok:false,error:refusal_code(Result$Error$0(admission))};
   const build = await buildIdentity(text);

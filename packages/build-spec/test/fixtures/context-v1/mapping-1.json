@@ -1,0 +1,1 @@
+{"artifact":"fixture-rgb24","firmware":"fixture-v1","pairs":[{"input":"in","output":"out"}],"profile":"sha256:7ed366677e173c333408126c7f3d98456d5966c0a56a9817af9fbdb1acdff110","protocol":"fixture-protocol","schema":1,"sources":[{"digest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","evidence":"custom","locator":"fixture-only","revision":"test-1"}]}

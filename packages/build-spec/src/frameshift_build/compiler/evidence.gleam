@@ -2,7 +2,9 @@
 /// avoid repeatedly hashing whole source documents; buckets still compare the
 /// complete value so two observations of one fact are never conflated.
 import frameshift_build/compiler/facts.{type Reading}
-import frameshift_build/compiler/model.{type Input, BuildInput, ProfileInput}
+import frameshift_build/compiler/model.{
+  type Input, BuildInput, MappingInput, ProfileInput,
+}
 import gleam/dict
 import gleam/list
 import gleam/string
@@ -17,6 +19,8 @@ pub fn inputs(values: List(Input)) -> List(Input) {
       BuildInput(path) -> "b\u{0}" <> string.join(path, "\u{0}")
       ProfileInput(instance, _, path) ->
         "p\u{0}" <> instance <> "\u{0}" <> string.join(path, "\u{0}")
+      MappingInput(instance, _, path) ->
+        "m\u{0}" <> instance <> "\u{0}" <> string.join(path, "\u{0}")
     }
   })
 }

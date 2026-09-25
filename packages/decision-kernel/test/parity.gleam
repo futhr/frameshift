@@ -1,7 +1,9 @@
 // Test-only deterministic corpus, executed on Erlang and JavaScript.
 import frameshift_decisions as decisions
+import frameshift_physical as physical
 import gleam/int
 import gleam/io
+import gleam/option.{None, Some}
 
 pub fn main() -> Nil {
   emit(0, 256)
@@ -28,6 +30,60 @@ fn record(index: Int) -> String {
   <> direct_record(index)
   <> "|"
   <> pull_record(index)
+  <> "|"
+  <> physical_record(index)
+}
+
+fn physical_record(index: Int) -> String {
+  let fact = case divisible(index, 13), divisible(index, 17) {
+    True, _ -> physical.Missing
+    _, True -> physical.Conflicting
+    _, _ -> physical.Known(index * 500, index * 500 + 100)
+  }
+  let modules = case int.remainder(index, 10) {
+    Ok(value) -> value
+    Error(_) -> 0
+  }
+  case
+    physical.grid_axis(
+      modules,
+      fact,
+      physical.Known(1, 2),
+      physical.Known(5, 10),
+      physical.Known(200_000, 210_000),
+    )
+  {
+    Ok(result) -> {
+      let outcome = case result.outcome {
+        physical.Compatible -> "compatible"
+        physical.Incompatible -> "incompatible"
+        physical.Unknown -> "unknown"
+      }
+      outcome
+      <> ":"
+      <> physical.reason_code(result.reason)
+      <> ":"
+      <> interval_record(result.required)
+      <> ":"
+      <> interval_record(result.available)
+    }
+    Error(reason) ->
+      case reason {
+        physical.InvalidRange -> "refused:range"
+        physical.InvalidCount -> "refused:count"
+        physical.InvalidDecimal -> "refused:decimal"
+        physical.OutOfRange -> "refused:overflow"
+        physical.InvalidDimension -> "refused:dimension"
+      }
+  }
+}
+
+fn interval_record(value: option.Option(physical.Interval)) -> String {
+  case value {
+    None -> "unknown"
+    Some(physical.Interval(low, high)) ->
+      int.to_string(low) <> "-" <> int.to_string(high)
+  }
 }
 
 fn divisible(index: Int, divisor: Int) -> Bool {

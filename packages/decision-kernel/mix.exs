@@ -17,7 +17,7 @@ defmodule Mix.Tasks.Compile.Gleam do
   use Mix.Task
 
   @root __DIR__
-  @source Path.join(@root, "build/dev/erlang/frameshift_decisions/ebin/frameshift_decisions.beam")
+  @ebin Path.join(@root, "build/dev/erlang/frameshift_decisions/ebin")
   @stdlib Path.join(@root, "build/dev/erlang/gleam_stdlib/ebin")
 
   def run(_) do
@@ -31,9 +31,17 @@ defmodule Mix.Tasks.Compile.Gleam do
 
     if status != 0, do: Mix.raise("Gleam build failed:\n#{output}")
 
-    destination = Path.join(Mix.Project.compile_path(), "frameshift_decisions.beam")
-    File.mkdir_p!(Path.dirname(destination))
-    File.cp!(@source, destination)
+    File.mkdir_p!(Mix.Project.compile_path())
+
+    Mix.Project.compile_path()
+    |> Path.join("*.beam")
+    |> Path.wildcard()
+    |> Enum.each(&File.rm!/1)
+
+    @root
+    |> Path.join("src/**/*.gleam")
+    |> Path.wildcard()
+    |> Enum.each(&copy_module/1)
 
     @stdlib
     |> Path.join("*.beam")
@@ -41,5 +49,16 @@ defmodule Mix.Tasks.Compile.Gleam do
     |> Enum.each(&File.cp!(&1, Path.join(Mix.Project.compile_path(), Path.basename(&1))))
 
     {:ok, []}
+  end
+
+  defp copy_module(source) do
+    beam =
+      source
+      |> Path.relative_to(Path.join(@root, "src"))
+      |> Path.rootname()
+      |> String.replace("/", "@")
+      |> Kernel.<>(".beam")
+
+    File.cp!(Path.join(@ebin, beam), Path.join(Mix.Project.compile_path(), beam))
   end
 end

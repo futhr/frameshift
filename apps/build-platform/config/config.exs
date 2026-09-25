@@ -4,6 +4,13 @@ config :ash, default_string_length_count: :codepoints
 config :frameshift_platform, ecto_repos: [FrameshiftPlatform.Repo]
 config :frameshift_platform, :ash_domains, [FrameshiftPlatform.Access, FrameshiftPlatform.Catalog]
 
+config :frameshift_platform, FrameshiftPlatform.Repo,
+  types: Refpath.Repo.PostgrexTypes,
+  migration_default_prefix: "public"
+
+config :frameshift_platform, :orchestration_enabled, config_env() != :test
+config :refpath, :storage_adapter, :postgres
+
 config :frameshift_platform, FrameshiftPlatformWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,

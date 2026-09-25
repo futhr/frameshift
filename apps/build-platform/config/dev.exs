@@ -1,5 +1,8 @@
 import Config
 
+config :refpath, Refpath.Security.Vault,
+  ciphers: [aes_gcm: {Cloak.Ciphers.AES.GCM, tag: "AES.GCM.V1", key: <<0::256>>, iv_length: 12}]
+
 config :frameshift_platform, FrameshiftPlatform.Repo,
   hostname: "127.0.0.1",
   port: 54329,

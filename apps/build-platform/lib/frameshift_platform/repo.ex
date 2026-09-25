@@ -4,6 +4,21 @@ defmodule FrameshiftPlatform.Repo do
   use AshPostgres.Repo, otp_app: :frameshift_platform
 
   @impl true
+  def default_options(_), do: [prefix: "public"]
+
+  @impl true
+  def init(type, config) do
+    {:ok, config} = super(type, config)
+
+    {:ok,
+     Keyword.put(
+       config,
+       :after_connect,
+       {Postgrex, :query!, ["SET search_path TO public, refpath", []]}
+     )}
+  end
+
+  @impl true
   def installed_extensions, do: ["ash-functions"]
 
   @impl true

@@ -15,7 +15,11 @@ defmodule FrameshiftPlatform.Application do
       {:telemetry_poller, measurements: [], period: 10_000}
     ]
 
-    children = children ++ PhoenixAssets.child_specs() ++ [FrameshiftPlatformWeb.Endpoint]
+    children =
+      children ++
+        FrameshiftPlatform.Orchestration.child_specs() ++
+        PhoenixAssets.child_specs() ++ [FrameshiftPlatformWeb.Endpoint]
+
     Supervisor.start_link(children, strategy: :one_for_one, name: FrameshiftPlatform.Supervisor)
   end
 

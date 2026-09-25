@@ -3,6 +3,13 @@ import Config
 config :frameshift_platform, :metrics_token, System.get_env("FRAMESHIFT_METRICS_TOKEN")
 
 if config_env() == :prod do
+  cloak_key = System.fetch_env!("CLOAK_KEY") |> Base.decode64!()
+
+  if byte_size(cloak_key) != 32, do: raise("CLOAK_KEY must encode exactly 32 bytes")
+
+  config :refpath, Refpath.Security.Vault,
+    ciphers: [aes_gcm: {Cloak.Ciphers.AES.GCM, tag: "AES.GCM.V1", key: cloak_key, iv_length: 12}]
+
   config :frameshift_platform, FrameshiftPlatform.Repo,
     url: System.fetch_env!("DATABASE_URL"),
     pool_size: String.to_integer(System.get_env("POOL_SIZE", "10"))

@@ -11,6 +11,15 @@ defmodule FrameshiftPlatform.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       elixirc_options: [warnings_as_errors: true],
+      # Current paths use Bandit/Req and guarded Gun headers, never cowlib encoders.
+      # See the scoped reachability record and DependencyBoundaryTest.
+      hex: [
+        ignore_advisories: [
+          "EEF-CVE-2026-43966",
+          "EEF-CVE-2026-43969",
+          "GHSA-w4f7-4cxr-rv3c"
+        ]
+      ],
       aliases: aliases(),
       deps: deps()
     ]
@@ -28,10 +37,22 @@ defmodule FrameshiftPlatform.MixProject do
   defp deps do
     [
       {:frameshift_decisions, path: "../../packages/decision-kernel"},
+      {:refpath,
+       git: "https://github.com/refpath/refpath.git",
+       ref: "4a8e128628cac28706b0479bd2eabd3b9d240236"},
+      # Match the researched runtime's numerical ABI; newer Axon requires Nx 1.
+      {:axon, "0.8.1"},
+      {:scholar, "0.4.1"},
+      {:nx, "0.12.1"},
+      # BAML uses its precompiled NIF; Refpath builds native code with Rustler 0.38.
+      {:rustler, "0.38.0", runtime: false, override: true},
       {:phoenix, "~> 1.8.14"},
       {:phoenix_assets, "~> 1.1.1"},
       {:ash, "~> 3.33.9"},
-      {:ash_postgres, "~> 2.13.1"},
+      {:ash_postgres,
+       git: "https://github.com/futhr/ash_postgres.git",
+       ref: "528177429ab9bd72ab6ee7bfdf278f94c9fd8252",
+       override: true},
       {:simple_sat, "~> 0.1"},
       {:postgrex, "~> 0.22"},
       {:bandit, "~> 1.12"},

@@ -2,7 +2,7 @@
 
 **Status:** normative integration and evaluation contract; implementation open
 **Owner:** Frameshift domain commands and `packs/frameshift/`; external Refpath runtime
-**Milestone:** E for research/qualification; transactional workflows only in final F
+**Milestone:** E for research and adaptive-host qualification; optional F is on hold
 
 ## Runtime ownership and admission
 
@@ -13,12 +13,46 @@ contracts. Do not implement a second scheduler, generic effect ledger, agent
 engine or adaptive composition runtime. Refpath status labels are not consumer
 conformance evidence; verify the actual host API and migrations at that revision.
 
-**BO-02 — Frameshift-owned packs.** Research and, in F, procurement/care packs,
+Conjunct owns generic physical composition and procedure semantics. Frameshift
+supplies the product profile, evidence and typed commands. Refpath owns generic
+adaptive application binding, UI graphs and generation admission. The
+[CI-01–CI-08 integration contract](conjunct-integration.md) defines these
+boundaries; none of the planned Conjunct exports is installed by this spec.
+
+[PC-03](producer-contracts.md) defines the required Refpath delivery, including
+Conjunct P1/CJ6-07–CJ6-08 durable scoped admission. The existing volatile
+generation surface is not that completion evidence. Implement the extension in
+Refpath while Conjunct/Frameshift build consumer fixtures; core and portable
+instructions do not require a live operator host.
+
+The initial embedded host uses the public `Refpath.BootConfig.Contract`,
+`Refpath.Migrations` and readiness probe. The host owns one PostgreSQL pool and
+PubSub service. Runtime tables use the `refpath` schema; Frameshift tables and
+its migration ledger use `public`. Injected connections must resolve Refpath's
+raw SQL through `public, refpath` while Frameshift's Repo qualifies its own
+Ecto operations with `public`. Keeping `public` first also protects Ecto's
+unqualified migration-ledger operations. Domain table names must not collide
+across these schemas. Test both routes. A runtime
+readiness label alone does not establish schema ownership or working queries.
+The host disables Refpath's Beamlens instance, public API, MCP, file watchers,
+plugin runtime and optional model-serving processes. Later research admission
+enables only the required pack/capability surface. Do not copy the dependency's
+development configuration, provider defaults or secrets into the host.
+
+**BO-02 — Frameshift-owned packs.** Research and, if F resumes, procurement/care packs,
 task bindings, schemas, methods, rubrics and evaluations are versioned and tested
 in `packs/frameshift/` in this repository. Refpath loads an admitted exact pack
-revision. The host owns catalog/order truth and exposes authorized typed actions;
+revision. The host owns product catalog/composition truth and exposes authorized typed actions;
 packs cannot write domain tables, change policies, or grant purchasing authority.
 Reusable runtime, provider and capability-contract improvements belong upstream.
+
+Keep product/evidence bundles distinct from executable workflow packs. Join
+exact product, composition, procedure and assessment identities to Refpath's
+generation and execution identities. Recheck current revocation at admission
+and resume without rewriting accepted input snapshots. Reuse the producer's
+generation pointer and activation authority; no parallel host registry or
+shadow active-generation state is allowed. Later service adapters join order
+projections and Rivure financial records by their authoritative receipt IDs.
 
 Pin each execution's task contract, pack/rule/model/source revisions, permitted
 capabilities, actor and resource scope, cost/time limits, and authority expiry.
@@ -30,6 +64,8 @@ evidence that these boundaries are already implemented upstream.
 
 | Existing seam | Required integration evidence or known gap |
 | --- | --- |
+| SY.33 / DF.35–DF.36 / RT.35 / RT.61–RT.62 | Map actual public exports for product/operator solution bindings, registered UI components and generation compilation/admission; specification numbers alone are not callable APIs |
+| Refpath P1 / CJ6-07–CJ6-08 consumer contract | Durable operator/project head, compare-and-swap predecessor, monotonic fence, idempotent receipt, verified cold-start closure and explicit old-work dispositions; existing attempts/effects retain identity |
 | RT.03 / RT.64 schedules | Exact task binding, duplicate/DST occurrence behavior, report/assisted/unattended operation, budget, pause, maker/checker and recovery |
 | RT.68 task/attempt contract | Consumer tests for identity and terminal/unknown outcomes; inspected implementation/spec remains partial |
 | RT.77 / SY.33 effect and capability contracts | Admitted operation, durable effect intent, normalized receipt, explicit unknown outcome and reconciliation; inspected status labels and narrative do not consistently establish completion |
@@ -43,7 +79,8 @@ evidence that these boundaries are already implemented upstream.
 budget, cutoff, freshness targets and required evidence. The loop must:
 
 1. Acquire permitted manufacturer documents and supported supplier feeds,
-   retaining exact revisions, content digests, retrieval dates and provenance.
+   retaining exact revisions, content digests, retrieval dates, provenance and
+   permitted retention/redistribution rights for documents and geometry assets.
 2. Extract candidate facts with field-level source references. Preserve missing
    values and conflicting observations; distinguish source facts from inference.
 3. Independently check schema, physical constraints, required formal results,
@@ -52,7 +89,8 @@ budget, cutoff, freshness targets and required evidence. The loop must:
    passes. Otherwise retain a candidate or quarantine and record a recoverable
    exception with the missing evidence and responsible owner.
 5. Detect changed sources, end-of-life, safety notices, stale evidence and
-   affected derived configurations. Recompute or quarantine affected projections
+   affected compositions, geometry feature maps and procedure steps. Recompute
+   or quarantine affected projections
    without rewriting accepted specs or paired-device state.
 
 Treat acquired text as untrusted data. It cannot modify permissions, supplier
@@ -138,8 +176,8 @@ database transactions open over provider I/O. Persist reconciliation links and
 test interruption between runtime receipt and domain commit in either direction.
 
 Research provider outages leave work pending and preserve the last admitted
-catalog. Customers can still inspect deterministic configurations and export
-shopping lists. Routine admitted work proceeds unattended. Exceptions require
+catalog. Users can still inspect supported deterministic compositions,
+instructions and parts-list exports. Routine admitted work proceeds unattended. Exceptions require
 the specific missing fact, authority or external action; a human cannot approve
 away an unknown physical fact or convert an unknown payment into failure.
 
@@ -152,8 +190,17 @@ Measure source freshness, eligible automatic completions, manual interventions,
 false admissions, queue age, unknown outcomes, inference spend and diagnostic
 resource limits under the [diagnostics contract](diagnostics.md).
 
+Prove two differently scoped operator applications use the same reviewed code
+and product data. Exercise stale UI actions, cross-operator authority, successor
+and rollback, concurrent generation admission, VM restart and pending effects.
+Conjunct producer conformance separately includes passive enclosure/packaging
+and connected-sensor fixtures without frame imports. An unavailable adaptive
+profile must leave supported deterministic composition and native paths usable.
+
 Prove Beamlens redaction, authorized read-only queries, single supervision,
 provider/budget failure and runtime overhead separately from intent-model
 qualification. E must not place an order, charge, cancel, refund or alter a
-supplier commitment. Those adapters, packs and failure proofs are part of
-[F, the final purchasing milestone](build-commerce.md).
+supplier commitment. Those adapters, packs and failure proofs belong to
+[optional F](build-commerce.md), currently on hold and requiring a separate
+resumption decision after independent instructions/list and operational gates.
+They do not gate completion of the engine integration proof of concept.

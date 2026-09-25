@@ -93,7 +93,7 @@ binary artifact mapping, mutual-TLS client/server ownership, and display-state
 reconciliation around the selected Wotex Forms.
 
 Frameshift consumes `wotex`, `wotex_runtime`, and `wotex_binding_http`, all
-pinned in `host/core/mix.lock` to the inspected full commit from the Wotex
+pinned in `apps/core/mix.lock` to the inspected full commit from the Wotex
 GitHub organization. No sibling path participates in the build; `../wotex` may
 advance independently. At that revision WTX.01 through WTX.04 and WRT.01
 through WRT.03 are catalogued as implemented, with their claims explicitly

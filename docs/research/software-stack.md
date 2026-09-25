@@ -16,10 +16,14 @@ cross-target and distribution gates.
 **Companion-platform decision, 2026-09-24:** Phoenix + Ash/AshPostgres and
 phoenix-assets + Svelte 5/SvelteKit provide the separate visual configurator.
 Embedded Refpath executes Frameshift-owned packs; bounded read-only Beamlens
-provides server investigations. Pure Gleam compatibility and targeted ExMaude
-checks extend the physical model. Optional classifiers require project-specific
-evaluation and do not change the language boundary. The complete shopping list
-precedes final-milestone dropshipping/purchasing. See the
+provides server investigations. The retained v1 Gleam physical checks and
+targeted ExMaude tests extend the existing model. Optional classifiers require project-specific
+evaluation and do not change the language boundary. The 2026-09-25
+[Conjunct integration](../architecture/conjunct-integration.md) retains this
+host while assigning successor generic physical/procedure/viewer semantics to
+Conjunct; the v1 code remains for replay and migration.
+Frameshift is its first modular product consumer. A parts/shopping list is a
+composition output; transactional service implementation is on hold. See the
 [platform specification](../architecture/build-platform.md) and
 [dated dependency/model research](build-platform-decisions.md).
 

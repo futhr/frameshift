@@ -3,19 +3,37 @@
 **Status:** required cross-target host, guide and physical-composition contract;
 implementation evidence is recorded separately.
 
+The package now lives at `packages/decision-kernel/`. The host Mix dependency,
+guide generator, repository checks and parity runner use that path. The move
+preserves its compiled application/module identity and existing behavior.
+
 ## Companion physical composition extension
 
-The [physical build contract](physical-build-contract.md) adds planned bounded
-dimension/tolerance, interface, controller, power, mounting and refresh decisions
-to the same Gleam package for browser preview and authoritative server recheck.
-It requires canonical units, explicit unknowns, safe integers and cross-target
-fixtures. This extension is not evidence that physical composition is already
-implemented by the existing host/guide functions below.
+The [physical build contract](physical-build-contract.md) extends bounded pure
+decisions through the separate `packages/build-spec` package. It requires
+canonical units, explicit unknowns, safe integers and cross-target fixtures.
+The [Conjunct integration map](conjunct-integration.md#extraction-ownership)
+identifies reusable physical algorithms for extraction; native capability,
+profile-selection and delivery decisions remain Frameshift-owned.
 
-BuildSpec identity and server actions are specified separately; no Ash/database,
-provider, purchase authority or I/O enters the pure kernel. Targeted ExMaude
-models and traces stay in Frameshift's build-spec verification package and
-verify stated assumptions/bounds independently of the implementation. The
+`frameshift_physical` now implements exact decimal conversion, tolerance
+normalization, bounded grid/stack/load/aperture comparisons and voltage-range
+containment. Its unknown and refusal results are distinct. The caller must
+provide the complete constraint set and attach source/part references; these
+primitives are not a BuildSpec compiler or assembly qualification.
+
+The separate `packages/build-spec` package supplies canonical profiles,
+assemblies, signal mappings, artifact layouts and exact contexts, plus the
+implemented stages in the [verification map](verification.md). Its codecs
+consume this arithmetic package; the complete compiler/report and qualification
+remain open. This retained v1 implementation supports replay and migration,
+not a new generic workbench. Conjunct owns successor composition, comparison,
+CheckReport, parts projection and instruction semantics; the Frameshift kernel
+continues to own native frame capability, render-profile and delivery decisions.
+Current identities and both-target fixtures survive extraction.
+No Ash/database, provider authority or I/O enters the pure kernel. Generic
+formal predicates belong in Conjunct; frame assumptions and counterexample
+replay remain Frameshift consumer evidence. The
 [orchestration contract](build-orchestration.md) keeps optional classifiers out
 of deterministic compatibility and authority decisions.
 
@@ -51,7 +69,8 @@ Every decision has canonical fixtures covering valid, invalid, boundary, and
 uncertain cases. Run those fixtures on both targets and compare results. The
 test harness additionally emits 256 deterministic generated cases from a
 documented bounded integer sequence. It serializes each dwell, RGB24 profile,
-direct-confirmation, and pull-confirmation result into one stable text record.
+direct-confirmation, pull-confirmation and physical-grid result (including
+worst-case intervals) into one stable text record.
 The check compares the complete Erlang and JavaScript records byte for byte
 and rejects a missing, duplicate, or reordered case. The generator and record
 encoder live only in test code; production decisions remain pure. A browser
@@ -60,6 +79,8 @@ a parity test against its former decision behavior
 before deleting that behavior. Package the BEAM output with the OTP release;
 do not rely on a developer's Gleam installation at runtime. The JS output is
 versioned with the guide and cannot be treated as physical display evidence.
+The Mix wrapper copies every module originating in the production `src/` tree
+and its standard library, excludes test modules, and removes stale BEAM outputs.
 
 The kernel selects only the currently implemented uncompressed,
 tightly packed RGB24 profile in continuous sRGB. It rejects dimensions above

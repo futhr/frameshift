@@ -3,6 +3,7 @@ import frameshift_build/assembly/model as a
 import frameshift_build/compiler/model.{type Input, BuildInput, ProfileInput}
 import frameshift_build/model.{type Port} as _
 import frameshift_build/resolution.{type Resolution}
+import frameshift_physical.{type Outcome, Incompatible, Unknown}
 import gleam/list
 import gleam/result
 
@@ -49,6 +50,35 @@ pub fn inputs(connection: a.Connection, value: Resolution) -> List(Input) {
     endpoint_input(connection.from, value),
     endpoint_input(connection.to, value),
   ])
+}
+
+pub fn ordinary(
+  from: Endpoint,
+  to: Endpoint,
+  kind: String,
+  bidirectional_reason: String,
+) -> Result(Nil, #(Outcome, String)) {
+  case from.instance.id == to.instance.id {
+    True -> Error(#(Incompatible, "self_connection"))
+    False ->
+      case from.port.kind != kind || to.port.kind != kind {
+        True -> Error(#(Incompatible, "port_kind_mismatch"))
+        False -> {
+          let permitted =
+            list.contains(["source", "bidirectional"], from.port.direction)
+            && list.contains(["sink", "bidirectional"], to.port.direction)
+          case
+            permitted,
+            from.port.direction == "bidirectional"
+            || to.port.direction == "bidirectional"
+          {
+            False, _ -> Error(#(Incompatible, "direction_mismatch"))
+            True, True -> Error(#(Unknown, bidirectional_reason))
+            True, False -> Ok(Nil)
+          }
+        }
+      }
+  }
 }
 
 fn endpoint_input(endpoint: a.Endpoint, value: Resolution) -> List(Input) {

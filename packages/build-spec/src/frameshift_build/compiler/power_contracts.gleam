@@ -1,6 +1,7 @@
 /// Whole connected-set agreement. Pairwise alternatives cannot imply a shared
 /// selection; matching terms still do not establish registered qualification.
 import frameshift_build/assembly/model as a
+import frameshift_build/compiler/declarations
 import frameshift_build/compiler/facts.{type Reading}
 import frameshift_build/compiler/finding.{type Finding}
 import frameshift_build/compiler/model.{
@@ -10,10 +11,9 @@ import frameshift_build/compiler/ports
 import frameshift_build/model.{type Refusal, InvalidReference} as _
 import frameshift_build/port_graph
 import frameshift_build/resolution.{type Resolution}
-import frameshift_physical.{Compatible, Incompatible, Unknown}
+import frameshift_physical.{Unknown}
 import gleam/list
 import gleam/result
-import gleam/string
 
 type Link {
   Link(
@@ -135,41 +135,31 @@ fn check(
     list.filter(links, fn(l) {
       list.contains(group, l.from) && list.contains(group, l.to)
     })
-  let known = list.filter_map(readings, terms(_, key))
-  let common = intersection(known)
-  let #(outcome, reason) = case known, common {
-    [_, ..], [] -> #(Incompatible, "no_common_declared_contract")
-    _, _ ->
-      case list.length(known) == list.length(readings) {
-        True -> #(Compatible, "connected_contract_agrees")
-        False -> #(
-          Unknown,
-          finding.unknown_reason(readings, case key {
-            "polarity" -> "unsupported_polarity"
-            _ -> "incomplete_contract"
-          }),
-        )
-      }
-  }
-  let common = case outcome {
-    Compatible -> common
-    _ -> []
-  }
-  Ok(
-    finding.explain(
+  let agreement =
+    declarations.with_selector(
       Check(
         "power.connected." <> key,
-        outcome,
-        reason,
+        Unknown,
+        case key {
+          "polarity" -> "unsupported_polarity"
+          _ -> "incomplete_contract"
+        },
         list.map(group, fn(p) { p.instance }) |> list.unique,
         list.flat_map(relevant, fn(l) { l.inputs }) |> list.unique,
       ),
+      readings,
+      terms(_, key),
+      "connected_contract_agrees",
+    )
+  Ok(
+    finding.explain(
+      agreement.check,
       list.append(
         readings,
         list.flat_map(relevant, fn(l) { l.assumptions }) |> list.unique,
       ),
     )
-    |> finding.with_terms(common),
+    |> finding.with_terms(agreement.common_terms),
   )
 }
 
@@ -179,16 +169,5 @@ fn terms(reading: Reading, key: String) -> Result(List(String), Nil) {
     "polarity", ["positive"] | "polarity", ["negative"] -> Ok(terms)
     "polarity", _ -> Error(Nil)
     _, _ -> Ok(terms)
-  }
-}
-
-fn intersection(sets: List(List(String))) -> List(String) {
-  case sets {
-    [] -> []
-    [first, ..rest] ->
-      list.fold(rest, first, fn(common, next) {
-        list.filter(common, list.contains(next, _))
-      })
-      |> list.sort(string.compare)
   }
 }

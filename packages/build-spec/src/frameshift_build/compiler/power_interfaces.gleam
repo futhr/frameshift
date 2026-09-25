@@ -50,39 +50,13 @@ fn resolved(
   case from.port.kind == "power" || to.port.kind == "power" {
     False -> []
     True ->
-      case validity(from, to) {
+      case
+        ports.ordinary(from, to, "power", "unsupported_bidirectional_power")
+      {
         Ok(_) -> checks(base, from, to, context)
         Error(#(outcome, reason)) -> [
           finding.explain(Check(..base, outcome:, reason:), []),
         ]
-      }
-  }
-}
-
-fn validity(from: Endpoint, to: Endpoint) {
-  case from.instance.id == to.instance.id {
-    True -> Error(#(Incompatible, "self_connection"))
-    False ->
-      case from.port.kind == to.port.kind {
-        False -> Error(#(Incompatible, "port_kind_mismatch"))
-        True -> directions(from, to)
-      }
-  }
-}
-
-fn directions(from: Endpoint, to: Endpoint) {
-  let permitted =
-    list.contains(["source", "bidirectional"], from.port.direction)
-    && list.contains(["sink", "bidirectional"], to.port.direction)
-  case permitted {
-    False -> Error(#(Incompatible, "direction_mismatch"))
-    True ->
-      case
-        from.port.direction == "bidirectional"
-        || to.port.direction == "bidirectional"
-      {
-        True -> Error(#(Unknown, "unsupported_bidirectional_power"))
-        False -> Ok(Nil)
       }
   }
 }

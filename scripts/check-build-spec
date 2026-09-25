@@ -89,6 +89,18 @@ cmp "$parity_directory/flow.erlang.jsonl" "$parity_directory/flow.javascript.jso
 mise exec -- node --check checks/flow-oracle.mjs
 mise exec -- node checks/flow-oracle.mjs "$parity_directory/flow.erlang.jsonl"
 
+mise exec -- gleam run --target erlang --module thermal_parity --no-print-progress > "$parity_directory/thermal.erlang.jsonl"
+mise exec -- gleam run --target javascript --module thermal_parity --no-print-progress > "$parity_directory/thermal.javascript.jsonl"
+cmp "$parity_directory/thermal.erlang.jsonl" "$parity_directory/thermal.javascript.jsonl"
+mise exec -- node --check checks/thermal-oracle.mjs
+mise exec -- node checks/thermal-oracle.mjs "$parity_directory/thermal.erlang.jsonl"
+
+mise exec -- gleam run --target erlang --module mount_parity --no-print-progress > "$parity_directory/mount.erlang.jsonl"
+mise exec -- gleam run --target javascript --module mount_parity --no-print-progress > "$parity_directory/mount.javascript.jsonl"
+cmp "$parity_directory/mount.erlang.jsonl" "$parity_directory/mount.javascript.jsonl"
+mise exec -- node --check checks/mount-oracle.mjs
+mise exec -- node checks/mount-oracle.mjs "$parity_directory/mount.erlang.jsonl"
+
 cat "$repository_root"/data/physical/profiles/*.json > "$parity_directory/catalog.jsonl"
 mise exec -- env -u MIX_HOME -u MIX_ARCHIVES mix run --no-start --no-compile \
   checks/identity_parity.exs "$parity_directory/catalog.jsonl" > "$parity_directory/catalog.erlang.hashes"
@@ -134,6 +146,12 @@ true = File.regular?(Application.app_dir(:frameshift_decisions, "priv/licenses/g
 :non_existing = :code.which(:power_flow_test)
 :non_existing = :code.which(:flow_parity)
 :non_existing = :code.which(:evidence_test)
+:non_existing = :code.which(:thermal_fixture)
+:non_existing = :code.which(:thermal_test)
+:non_existing = :code.which(:thermal_parity)
+:non_existing = :code.which(:mount_fixture)
+:non_existing = :code.which(:mounting_test)
+:non_existing = :code.which(:mount_parity)
 {:ok, []} = :frameshift_build@graph.cyclic_nodes(["a", "b"], [{"a", "b"}])
 IO.puts("Packaged BuildSpec codec and JSON runtime pass; test modules excluded")
 '

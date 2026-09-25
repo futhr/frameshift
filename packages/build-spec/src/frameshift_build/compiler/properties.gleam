@@ -24,7 +24,9 @@ pub fn lookup(scope: Scope, key: String) -> Result(Property, Nil) {
     MechanicalPort ->
       case key {
         "mount.capacity" -> Ok(Number("g", 0))
-        "mount.pattern" | "strain_relief.contract" -> Ok(Terms)
+        "fanout.maximum" -> Ok(Number("count", 0))
+        "mount.pattern" | "mount.contract" | "strain_relief.contract" ->
+          Ok(Terms)
         _ -> Error(Nil)
       }
   }
@@ -67,6 +69,7 @@ fn component(key: String) -> Result(Property, Nil) {
     | "heat.maximum"
     | "thermal.capacity" -> Ok(Number("mw", 0))
     "temperature.operating" | "thermal.ambient" -> Ok(Number("mc", -100_000))
+    "temperature.ambient_rise" -> Ok(Number("mc", 0))
     "storage.capacity" -> Ok(Number("byte", 0))
     "refresh.minimum"
     | "refresh.maximum"
@@ -80,6 +83,8 @@ fn component(key: String) -> Result(Property, Nil) {
     | "assembly.thermal"
     | "mount.pattern"
     | "mount.kind"
+    | "mount.mode"
+    | "mount.contract"
     | "power.mode" -> Ok(Terms)
     _ -> Error(Nil)
   }

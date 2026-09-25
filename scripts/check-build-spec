@@ -152,6 +152,10 @@ true = File.regular?(Application.app_dir(:frameshift_decisions, "priv/licenses/g
 :non_existing = :code.which(:mount_fixture)
 :non_existing = :code.which(:mounting_test)
 :non_existing = :code.which(:mount_parity)
+:non_existing = :code.which(:signal_fixture)
+:non_existing = :code.which(:signals_test)
+:non_existing = :code.which(:operation_fixture)
+:non_existing = :code.which(:operation_test)
 {:ok, []} = :frameshift_build@graph.cyclic_nodes(["a", "b"], [{"a", "b"}])
 IO.puts("Packaged BuildSpec codec and JSON runtime pass; test modules excluded")
 '
